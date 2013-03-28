@@ -10,6 +10,7 @@ module Switchman
         require "switchman/active_record/connection_pool"
         require "switchman/active_record/log_subscriber"
         require "switchman/active_record/query_cache"
+        require "switchman/cache_extensions"
 
         include ActiveRecord::Base
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.send(:include, ActiveRecord::AbstractAdapter)
@@ -17,6 +18,7 @@ module Switchman
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.send(:include, ActiveRecord::ConnectionPool)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.send(:include, ActiveRecord::QueryCache)
         ::ActiveRecord::LogSubscriber.send(:include, ActiveRecord::LogSubscriber)
+        Rails.send(:include, CacheExtensions)
       end
     end
 

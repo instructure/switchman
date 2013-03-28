@@ -165,5 +165,17 @@ module Switchman
         raise
       end
     end
+
+    def cache_store
+      if !@cache_store
+        @cache_store = Rails.cache_without_sharding if self.id == Rails.env
+        # TODO: get the config from somewhere
+        config = nil
+        @cache_store ||= ActiveSupport::Cache.lookup_store(config) if config
+        @cache_store ||= Rails.cache_without_sharding
+        @cache_store.options[:namespace] = lambda { Shard.current.default? ? nil : "shard_#{Shard.current.id}" }
+      end
+      @cache_store
+    end
   end
 end

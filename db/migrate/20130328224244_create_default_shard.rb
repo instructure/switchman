@@ -6,7 +6,4 @@ class CreateDefaultShard < ActiveRecord::Migration
       Switchman::Shard.default(true)
     end
   end
-
-  def down
-  end
 end

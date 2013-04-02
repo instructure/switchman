@@ -2,7 +2,7 @@ require_dependency 'switchman/database_server'
 require_dependency 'switchman/default_shard'
 
 module Switchman
-  class Shard < ActiveRecord::Base
+  class Shard < ::ActiveRecord::Base
     # ten trillion possible ids per shard. yup.
     IDS_PER_SHARD = 10_000_000_000_000
 
@@ -30,7 +30,7 @@ module Switchman
           # is up and running everywhere else).  This includes for looking up the
           # default shard itself. This also needs to be a local so that this method
           # can be re-entrant
-          default = Switchman::DefaultShard.new
+          default = DefaultShard.new
 
           # the first time we need a dummy dummy for re-entrancy to avoid looping on ourselves
           @default ||= default
@@ -38,7 +38,7 @@ module Switchman
           if default.database_server.config[:adapter] == 'postgresql'
             # rescue nil because the database may not exist yet; if it doesn't, it will shortly, and we'll
             # be reloading anyway
-            default.instance_variable_set(:@name, default.database_server.config[:shard_name] || (ActiveRecord::Base.connection.schemas.first rescue nil))
+            default.instance_variable_set(:@name, default.database_server.config[:shard_name] || (::ActiveRecord::Base.connection.schemas.first rescue nil))
           else
             default.instance_variable_set(:@name, default.database_server.config[:shard_name] || default.database_server.config[:database])
           end
@@ -88,7 +88,7 @@ module Switchman
             nil
           else
             shard = Shard.new
-            shard.send(:attributes=, attributes, false)
+            shard.assign_attributes(attributes, :without_protection => true)
             shard.instance_variable_set(:@new_record, false)
             # connection info doesn't exist in database.yml;
             # pretend the shard doesn't exist either
@@ -123,7 +123,7 @@ module Switchman
         scope ||= Shard.order("database_server_id IS NOT NULL, database_server_id, id")
 
         if parallel > 0
-          if scope.class == ActiveRecord::NamedScope::Scope
+          if scope.class == ::ActiveRecord::NamedScope::Scope
             # still need a post-uniq, cause the default database server could be NULL or Rails.env in the db
             database_servers = scope.reorder('database_server_id').select(:database_server_id).uniq.
                 map(&:database_server).compact.uniq
@@ -162,7 +162,7 @@ module Switchman
           pids = []
           exception_pipe = IO.pipe
           scopes.each do |server, subscopes|
-            if subscopes.first.class != ActiveRecord::NamedScope::Scope && subscopes.first.class != Array
+            if subscopes.first.class != ::ActiveRecord::NamedScope::Scope && subscopes.first.class != Array
               subscopes = [subscopes]
             end
             # only one process; don't bother forking
@@ -174,7 +174,7 @@ module Switchman
             subscopes.each_with_index do |subscope, idx|
               details = Open4.pfork4(lambda do
                 begin
-                  ActiveRecord::Base.clear_all_connections!
+                  ::ActiveRecord::Base.clear_all_connections!
                   with_each_shard(subscope, categories) { yield }
                 rescue Exception => e
                   exception_pipe.last.write(Marshal.dump(e))
@@ -211,7 +211,7 @@ module Switchman
           end
           pids.each { |pid| Process.waitpid2(pid) }
           # I'm not sure why, but we have to do this
-          ActiveRecord::Base.clear_all_connections!
+          ::ActiveRecord::Base.clear_all_connections!
           # check for an exception; we only re-raise the first one
           # (all the sub-processes shared the same pipe, so we only
           # have to check the one)
@@ -228,7 +228,7 @@ module Switchman
 
         previous_shard = nil
         close_connections = lambda do
-          previous_shard.activate { ActiveRecord::Base.connection_pool.current_pool.disconnect! if ActiveRecord::Base.connected? && ActiveRecord::Base.connection.open_transactions == 0 }
+          previous_shard.activate { ::ActiveRecord::Base.connection_pool.current_pool.disconnect! if ::ActiveRecord::Base.connected? && ::ActiveRecord::Base.connection.open_transactions == 0 }
         end
 
         categories ||= [:default]
@@ -263,7 +263,7 @@ module Switchman
           case partition_object
             when Shard
               shard = partition_object
-            when ActiveRecord::Base
+            when ::ActiveRecord::Base
               shard = partition_object.shard
             when Fixnum, /^\d+$/, /^(\d+)~(\d+)$/
               local_id, shard = Shard.local_id_for(partition_object)
@@ -345,7 +345,7 @@ module Switchman
         config = database_server.config
         @name = self.database_server.config[:shard_name]
         if config[:adapter] == 'postgresql'
-          @name ||= self.activate { ActiveRecord::Base.connection_pool.default_schema }
+          @name ||= self.activate { ::ActiveRecord::Base.connection_pool.default_schema }
           return @name
         else
           return @name ||= config[:database]
@@ -377,12 +377,12 @@ module Switchman
       Shard.default
     end
 
-    def activate(*categories)
+    def activate(*categories, &block)
       categories = categories.flatten
       if categories.length <= 1
-        Shard.activate((categories.first || :default) => self) { yield }
+        Shard.activate((categories.first || :default) => self, &block)
       else
-        Shard.activate(Hash[*categories.map { |category| [category, self] }.flatten]) { yield }
+        Shard.activate(Hash[*categories.map { |category| [category, self] }.flatten], &block)
       end
     end
 
@@ -405,6 +405,52 @@ module Switchman
 
     def self._load(str)
       lookup(str.to_i)
+    end
+
+    def drop_database
+      return unless read_attribute(:name)
+      begin
+        adapter = self.database_server.config[:adapter]
+        sharding_config = Switchman.config || {}
+        drop_statement = sharding_config[adapter].try(:[], :drop_statement)
+        drop_statement ||= sharding_config[:drop_statement]
+        if drop_statement
+          drop_statement = Array(drop_statement).dup.
+              map { |statement| statement.gsub('%{db_name}', self.name) }
+        end
+
+        case adapter
+          when 'mysql', 'mysql2'
+            self.activate do
+              ::Shackles.activate(:deploy) do
+                drop_statement ||= "DROP DATABASE #{self.name}"
+                Array(drop_statement).each do |stmt|
+                  ::ActiveRecord::Base.connection.execute(stmt)
+                end
+              end
+            end
+          when 'postgresql'
+            self.activate do
+              ::Shackles.activate(:deploy) do
+                # Shut up, Postgres!
+                conn = ::ActiveRecord::Base.connection
+                old_proc = conn.raw_connection.set_notice_processor {}
+                begin
+                  drop_statement ||= "DROP SCHEMA #{self.name} CASCADE"
+                  Array(drop_statement).each do |stmt|
+                    ::ActiveRecord::Base.connection.execute(stmt)
+                  end
+                ensure
+                  conn.raw_connection.set_notice_processor(&old_proc) if old_proc
+                end
+              end
+            end
+          when 'sqlite3'
+            File.delete(self.name) unless self.name == ':memory:'
+        end
+      rescue
+        logger.info "Drop failed: #{$!}"
+      end
     end
 
     def relative_id_for(any_id, target_shard = nil)

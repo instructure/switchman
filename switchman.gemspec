@@ -13,10 +13,14 @@ Gem::Specification.new do |s|
   s.summary     = "Rails 3 sharding magic"
   s.description = "TODO: Description of Switchman."
 
-  s.files = Dir["{app,config,db,lib}/**/*"] + ["Rakefile", "README.rdoc"]
-  s.test_files = Dir["test/**/*"]
+  s.files = Dir["{app,config,db,lib}/**/*"] + ["Rakefile"]
+  s.test_files = Dir["spec/**/*"]
 
   s.add_dependency "rails", "~> 3.2.13"
+  s.add_dependency "shackles"
 
+  s.add_development_dependency "debugger"
+  s.add_development_dependency "pg"
+  s.add_development_dependency "rspec-rails", "~> 2.0"
   s.add_development_dependency "sqlite3"
 end

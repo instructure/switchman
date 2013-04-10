@@ -3,6 +3,7 @@ module Switchman
     module Base
       module ClassMethods
         attr_writer :shard_category
+        delegate :shard, :to => :scoped
 
         def shard_category
           @shard_category || :default

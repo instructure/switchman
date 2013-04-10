@@ -9,8 +9,11 @@ module Switchman
         require "switchman/active_record/base"
         require "switchman/active_record/connection_handler"
         require "switchman/active_record/connection_pool"
+        require "switchman/active_record/finder_methods"
         require "switchman/active_record/log_subscriber"
         require "switchman/active_record/query_cache"
+        require "switchman/active_record/query_methods"
+        require "switchman/active_record/relation"
         require "switchman/cache_extensions"
 
         include ActiveRecord::Base
@@ -20,6 +23,9 @@ module Switchman
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.send(:include, ActiveRecord::ConnectionPool)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.send(:include, ActiveRecord::QueryCache)
         ::ActiveRecord::LogSubscriber.send(:include, ActiveRecord::LogSubscriber)
+        ::ActiveRecord::Relation.send(:include, ActiveRecord::FinderMethods)
+        ::ActiveRecord::Relation.send(:include, ActiveRecord::QueryMethods)
+        ::ActiveRecord::Relation.send(:include, ActiveRecord::Relation)
         Rails.send(:include, CacheExtensions)
       end
     end

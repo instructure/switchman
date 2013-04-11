@@ -6,8 +6,8 @@ module Switchman
       include RSpecHelper
 
       before do
-        @user1 = User.create!
-        @user2 = @shard1.activate { User.create! }
+        @user1 = User.create!(:name => 'user1')
+        @user2 = @shard1.activate { User.create!(:name => 'user2') }
       end
 
       describe "#exec_queries" do
@@ -17,6 +17,20 @@ module Switchman
 
         it "should activate multiple shards if necessary" do
           User.where(:id => [@user1.id, @user2.id]).all.sort_by(&:id).should == [@user1, @user2].sort_by(&:id)
+        end
+      end
+
+      describe "#update_all" do
+        it "should activate the correct shard for the query" do
+          User.shard(@shard1).where(:id => @user2.local_id).update_all(:name => 'a')
+          @user1.reload.name.should == 'user1'
+          @user2.reload.name.should == 'a'
+        end
+
+        it "should activate multiple shards if necessary" do
+          User.where(:id => [@user1.id, @user2.id]).update_all(:name => 'a')
+          @user1.reload.name.should == 'a'
+          @user2.reload.name.should == 'a'
         end
       end
     end

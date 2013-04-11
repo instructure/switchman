@@ -3,8 +3,9 @@ module Switchman
     module Relation
       def self.included(klass)
         klass::SINGLE_VALUE_METHODS.concat [ :shard, :shard_source ]
-        klass.alias_method_chain(:initialize, :sharding)
-        klass.alias_method_chain(:exec_queries, :sharding)
+        %w{initialize exec_queries update_all delete_all}.each do |method|
+          klass.alias_method_chain(method, :sharding)
+        end
       end
 
       def initialize_with_sharding(klass, table)
@@ -30,6 +31,25 @@ module Switchman
           @loaded = true
           @records
         end
+      end
+
+      %w{update_all delete_all}.each do |method|
+        class_eval <<-RUBY
+          def #{method}_with_sharding(*args)
+            case shard_value
+            when DefaultShard, Shard.current(klass.shard_category)
+              #{method}_without_sharding(*args)
+            when Shard
+              shard_value.activate(klass.shard_category) { #{method}_without_sharding(*args) }
+            when Array, ::ActiveRecord::Relation, ::ActiveRecord::Base
+              shards = shard_value
+              shards = shard_value.associated_shards if shard_value.is_a?(::ActiveRecord::Base)
+              Shard.with_each_shard(shards, [klass.shard_category]) do
+                shard(Shard.current(klass.shard_category), :to_a).#{method}_without_sharding(*args)
+              end
+            end
+          end
+        RUBY
       end
     end
   end

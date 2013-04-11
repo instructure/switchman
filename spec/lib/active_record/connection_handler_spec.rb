@@ -31,6 +31,15 @@ module Switchman
           User.connection_pool.should be_is_a(ConnectionPoolProxy)
         end
       end
+
+      it "should set up separate pools for different categories" do
+        User.connection_pool.should_not == MirrorUser.connection_pool
+        mu = MirrorUser.create!
+        MirrorUser.find(mu.local_id).should == mu
+        # didn't activate the :mirror_universe category
+        @shard1.activate { MirrorUser.find(mu.local_id).should == mu }
+        @shard1.activate(:mirror_universe) { MirrorUser.find_by_id(mu.local_id).should == nil }
+      end
     end
   end
 end

@@ -2,7 +2,7 @@ module Switchman
   module Shackles
     module ClassMethods
       def ensure_handler
-        Shard.default.activate(*Shard::CATEGORIES.keys) do
+        Shard.default.activate(*Shard.categories) do
           new_handler = @connection_handlers[self.environment]
           if !new_handler
             new_handler = @connection_handlers[self.environment] = ::ActiveRecord::ConnectionAdapters::ConnectionHandler.new

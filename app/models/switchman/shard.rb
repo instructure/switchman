@@ -11,8 +11,9 @@ module Switchman
           # special cased to mean all other models
           :default => nil,
           # special cased to not allow activating a shard other than the default
-          :unsharded => Shard
+          :unsharded => [Shard]
       }
+    private_constant :CATEGORIES
 
     attr_accessible :name, :database_server, :default
 
@@ -23,6 +24,10 @@ module Switchman
 
 
     class << self
+      def categories
+        CATEGORIES.keys
+      end
+
       def default(reload = false)
         if !@default || reload
           # Have to create a dummy object so that several key methods still work

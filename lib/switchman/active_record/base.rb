@@ -9,6 +9,19 @@ module Switchman
           @shard_category || :default
         end
 
+        def shard_category=(category)
+          categories = Shard.const_get(:CATEGORIES)
+          if categories[shard_category]
+            categories[shard_category].delete(self)
+            categories.delete(shard_category) if categories[shard_category].empty?
+          end
+          # TODO: de-initialize the proxy
+          categories[category] ||= []
+          categories[category] << self
+          @shard_category = category
+          connection_handler.initialize_categories(superclass)
+        end
+
         def integral_id?
           if @integral_id == nil
             @integral_id = columns_hash[primary_key].type == :integer

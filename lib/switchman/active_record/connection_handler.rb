@@ -117,17 +117,18 @@ module Switchman
         end
       end
 
+      # semi-private
+      public
       def initialize_categories(model = ::ActiveRecord::Base)
         # now set up pools for models that inherit from this model, but with a different
         # sharding category
-        Shard::CATEGORIES.each do |category, models|
+        Shard.const_get(:CATEGORIES).each do |category, models|
           next if category == :default
           next if category == model.shard_category
 
           this_proxy = nil
           Array(models).each do |category_model|
             category_model = category_model.constantize if category_model.is_a? String
-            category_model.shard_category = category
             next unless category_model < model
 
             # don't replace existing connections

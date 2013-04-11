@@ -5,6 +5,7 @@ module Switchman
     initializer 'switchman.extend_ar', :before => "active_record.initialize_database" do
       ActiveSupport.on_load(:active_record) do
         require "switchman/active_record/abstract_adapter"
+        require "switchman/active_record/attribute_methods"
         require "switchman/active_record/base"
         require "switchman/active_record/connection_handler"
         require "switchman/active_record/connection_pool"
@@ -13,6 +14,7 @@ module Switchman
         require "switchman/cache_extensions"
 
         include ActiveRecord::Base
+        include ActiveRecord::AttributeMethods
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.send(:include, ActiveRecord::AbstractAdapter)
         ::ActiveRecord::ConnectionAdapters::ConnectionHandler.send(:include, ActiveRecord::ConnectionHandler)
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.send(:include, ActiveRecord::ConnectionPool)

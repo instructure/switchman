@@ -11,7 +11,7 @@ Gem::Specification.new do |s|
   s.email       = ["cody@instructure.com"]
   s.homepage    = "http://www.instructure.com/"
   s.summary     = "Rails 3 sharding magic"
-  s.description = "TODO: Description of Switchman."
+  s.description = "Sharding"
 
   s.files = Dir["{app,config,db,lib}/**/*"] + ["Rakefile"]
   s.test_files = Dir["spec/**/*"]

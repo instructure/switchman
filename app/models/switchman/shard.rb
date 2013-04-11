@@ -272,46 +272,65 @@ module Switchman
         end
       end
 
-      def local_id_for(any_id)
+      # converts an AR object, integral id, string id, or string short-global-id to a
+      # integral id. nil if it can't be interpreted
+      def integral_id_for(any_id)
         case any_id
-          when /^(\d+)~(\d+)$/
-            if shard = Shard.lookup($1.to_i)
-              [$2.to_i, shard]
-            else
-              [nil, nil]
-            end
-          when Fixnum, /^\d+$/
-            any_id = any_id.to_i
-            if any_id < IDS_PER_SHARD
-              [any_id, nil]
-            elsif shard = lookup(any_id / IDS_PER_SHARD)
-              [any_id % IDS_PER_SHARD, shard]
-            else
-              [nil, nil]
-            end
-          else
-            [nil, nil]
-        end
-      end
-
-      def relative_id_for(any_id, target_shard = nil)
-        local_id, shard = local_id_for(any_id)
-        shard ||= Shard.current
-        local_id ? shard.relative_id_for(local_id, target_shard) : any_id
-      end
-
-      def global_id_for(any_id)
-        if any_id >= IDS_PER_SHARD
-          any_id
+        when ::ActiveRecord::Base
+          any_id.id
+        when /^(\d+)~(\d+)$/
+          local_id = $2.to_i
+          # doesn't make sense to have a double-global id
+          return nil if local_id > IDS_PER_SHARD
+          $1.to_i * IDS_PER_SHARD + local_id
+        when Fixnum, /^\d+$/
+          any_id.to_i
         else
-          Shard.current.global_id_for(any_id)
+          nil
         end
       end
 
-      def shard_for(any_id, source_shard = Shard.current)
-        id = source_shard.relative_id_for(any_id, Shard.default)
-        return Shard.default if id < IDS_PER_SHARD
-        lookup(id / IDS_PER_SHARD)
+      # takes an id-ish, and returns a local id and the shard it's
+      # local to. [nil, nil] if it can't be interpreted. [id, nil]
+      # if it's already a local ID
+      def local_id_for(any_id)
+        id = integral_id_for(any_id)
+        return [nil, nil] unless id
+        if id < IDS_PER_SHARD
+          [id, nil]
+        elsif shard = lookup(id / IDS_PER_SHARD)
+          [id % IDS_PER_SHARD, shard]
+        else
+          [nil, nil]
+        end
+      end
+
+      # takes an id-ish, and returns an integral id relative to
+      # target_shard. returns any_id itself if it can't be interpreted
+      def relative_id_for(any_id, source_shard, target_shard)
+        local_id, shard = local_id_for(any_id)
+        return any_id unless local_id
+        shard ||= source_shard
+        return local_id if shard == target_shard
+        shard.global_id_for(local_id)
+      end
+
+      # takes an id-ish, and returns an integral global id.
+      # returns nil if it can't be interpreted
+      def global_id_for(any_id, source_shard = nil)
+        id = integral_id_for(any_id)
+        return any_id unless id
+        if id >= IDS_PER_SHARD
+          id
+        else
+          source_shard ||= Shard.current
+          source_shard.global_id_for(id)
+        end
+      end
+
+      def shard_for(any_id, source_shard = nil)
+        _, shard = local_id_for(any_id)
+        shard || source_shard || Shard.current
       end
 
       private
@@ -427,24 +446,7 @@ module Switchman
       end
     end
 
-    def relative_id_for(any_id, target_shard = nil)
-      target_shard ||= Shard.current
-      return nil unless any_id
-      # local id
-      if any_id < IDS_PER_SHARD
-        # still local; return unchanged
-        return any_id if target_shard == self
-        # otherwise a global id
-        any_id + self.id * IDS_PER_SHARD
-      else
-        shard_id = any_id / IDS_PER_SHARD
-        # global id that should be local
-        return any_id % IDS_PER_SHARD if shard_id == target_shard.id
-        # non-matching shard, return as global id
-        any_id
-      end
-    end
-
+    # takes an id local to this shard, and returns a global id
     def global_id_for(local_id)
       return nil unless local_id
       local_id + self.id * IDS_PER_SHARD

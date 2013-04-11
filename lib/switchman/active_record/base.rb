@@ -7,6 +7,13 @@ module Switchman
         def shard_category
           @shard_category || :default
         end
+
+        def integral_id?
+          if @integral_id == nil
+            @integral_id = columns_hash[primary_key].type == :integer
+          end
+          @integral_id
+        end
       end
 
       def self.included(klass)
@@ -53,6 +60,10 @@ module Switchman
         shard.activate do
           super
         end
+      end
+
+      def hash
+        global_id.hash
       end
     end
   end

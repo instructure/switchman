@@ -286,54 +286,83 @@ module Switchman
       end
     end
 
-    describe ".relative_id_for" do
+    context "id translation" do
       before do
         @local_id = 1
         @global_id = Shard::IDS_PER_SHARD * @shard1.id + @local_id
       end
 
-      it "should return recognized ids relative to the target shard" do
-        @shard1.activate{ Shard.relative_id_for(@local_id, @shard2) }.should == @global_id
-        @shard2.activate{ Shard.relative_id_for(@local_id, @shard2) }.should == @local_id
-        @shard1.activate{ Shard.relative_id_for(@global_id, @shard2) }.should == @global_id
-        @shard2.activate{ Shard.relative_id_for(@global_id, @shard2) }.should == @global_id
-      end
+      describe ".integral_id" do
+        it "should return recognized ids" do
+          Shard.integral_id_for(@local_id).should == @local_id
+          Shard.integral_id_for(@local_id.to_s).should == @local_id
+          Shard.integral_id_for(@global_id).should == @global_id
+          Shard.integral_id_for(@global_id.to_s).should == @global_id
+          Shard.integral_id_for("#{@shard1.id}~#{@local_id}").should == @global_id
+        end
 
-      it "should implicitly default the target shard to the current shard" do
-        @shard1.activate{ Shard.relative_id_for(@local_id) }.should == @local_id
-        @shard2.activate{ Shard.relative_id_for(@local_id) }.should == @local_id
-        @shard1.activate{ Shard.relative_id_for(@global_id) }.should == @local_id
-        @shard2.activate{ Shard.relative_id_for(@global_id) }.should == @global_id
-      end
+        it "should work even for shards that don't exist" do
+          shard = Shard.create!
+          shard.destroy
+          global_id = shard.global_id_for(1)
+          Shard.integral_id_for(global_id).should == global_id
+          Shard.integral_id_for(global_id.to_s).should == global_id
+          Shard.integral_id_for("#{shard.id}~1").should == global_id
+        end
 
-      it "should explicitly default a nil target shard to the current shard" do
-        @shard1.activate{ Shard.relative_id_for(@local_id) }.should == @local_id
-        @shard2.activate{ Shard.relative_id_for(@local_id) }.should == @local_id
-        @shard1.activate{ Shard.relative_id_for(@global_id) }.should == @local_id
-        @shard2.activate{ Shard.relative_id_for(@global_id) }.should == @global_id
-      end
-
-      it "should pass through unrecognized ids" do
-        unrecognized = "not an id"
-        @shard1.activate{ Shard.relative_id_for(unrecognized, @shard2) }.should == unrecognized
-        @shard2.activate{ Shard.relative_id_for(unrecognized, @shard2) }.should == unrecognized
-      end
-    end
-
-    describe ".global_id_for" do
-      it "should return the provided id if already global" do
-        local_id = 5
-        Shard.with_each_shard do
-          global_id = Shard.current.global_id_for(local_id)
-          Shard.global_id_for(global_id).should == global_id
+        it "should return nil for unrecognized ids" do
+          Shard.integral_id_for('not an id').should == nil
         end
       end
 
-      it "should treat local ids as local to the current shard" do
-        local_id = 5
-        Shard.with_each_shard do
-          next if Shard.current == Shard.default
-          Shard.shard_for(Shard.global_id_for(local_id)).should == Shard.current
+      describe ".local_id_for" do
+        it "should return id without shard for local id" do
+          Shard.local_id_for(@local_id).should == [@local_id, nil]
+        end
+
+        it "should return id with shard for global id" do
+          Shard.local_id_for(@global_id).should == [@local_id, @shard1]
+        end
+
+        it "should return nil for shards that don't exist" do
+          shard = Shard.create!
+          shard.destroy
+          Shard.local_id_for(shard.global_id_for(1)).should == [nil, nil]
+        end
+
+        it "should return nil for unrecognized ids" do
+          Shard.local_id_for('not an id').should == [nil, nil]
+        end
+      end
+
+      describe ".relative_id_for" do
+        it "should return recognized ids relative to the target shard" do
+          Shard.relative_id_for(@local_id, @shard1, @shard2).should == @global_id
+          Shard.relative_id_for(@local_id, @shard2, @shard2).should == @local_id
+          Shard.relative_id_for(@global_id, @shard1, @shard2).should == @global_id
+          Shard.relative_id_for(@global_id, @shard2, @shard2).should == @global_id
+        end
+
+        it "should return the original id for unrecognized ids" do
+          Shard.relative_id_for('not an id', @shard1, @shard2).should == 'not an id'
+        end
+      end
+
+      describe ".global_id_for" do
+        it "should return the provided id if already global" do
+          local_id = 5
+          Shard.with_each_shard do
+            global_id = Shard.current.global_id_for(local_id)
+            Shard.global_id_for(global_id).should == global_id
+          end
+        end
+
+        it "should treat local ids as local to the current shard" do
+          local_id = 5
+          Shard.with_each_shard do
+            next if Shard.current == Shard.default
+            Shard.shard_for(Shard.global_id_for(local_id)).should == Shard.current
+          end
         end
       end
     end

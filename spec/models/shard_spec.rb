@@ -26,8 +26,6 @@ module Switchman
     end
 
     describe "#activate" do
-      include RSpecHelper
-
       it "should activate the default category when no args are used" do
         Shard.current.should == Shard.default
         @shard1.activate do

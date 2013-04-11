@@ -14,8 +14,11 @@ module Switchman
     @@shard1 = nil
 
     def self.included(klass)
+      # our before handlers have already been configured from a parent group; don't add them again
+      return if klass.parent_groups[1..-1].any? { |group| group.included_modules.include?(self) }
+
       ::RSpec.configure do |config|
-        config.before(:all) do
+        block = proc do
           if @@shard1
             # some specs are mean, and blow away our shards
             begin
@@ -35,6 +38,10 @@ module Switchman
               end
             end
           end
+        end
+        # this module will be included multiple times, but we don't want to run this global hook multiple times
+        if config.hooks[:before][:all].all? { |hook| hook.block.source_location != block.source_location }
+          config.before(:all, &block)
         end
       end
 
@@ -81,7 +88,7 @@ module Switchman
 
       klass.before do
         Shard.clear_cache
-        if klass.use_transactional_fixtures
+        if use_transactional_fixtures
           Shard.default(true)
           @shard1 = Shard.find(@shard1)
           @shard2 = Shard.find(@shard2)
@@ -99,7 +106,7 @@ module Switchman
       end
 
       klass.after do
-        if klass.use_transactional_fixtures
+        if use_transactional_fixtures
           shards = [@shard2]
           shards << @shard1 unless @shard1.database_server == Shard.default.database_server
           shards.each do |shard|

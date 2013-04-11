@@ -5,7 +5,7 @@ module Switchman
     include RSpecHelper
 
     before do
-      #!!! trick ConnectionSpecification in to actually switching envs
+      #!!! trick Shackles in to actually switching envs
       Rails.env.stubs(:test?).returns(false)
 
       # be sure to test bugs where the current env isn't yet included in this hash

@@ -35,14 +35,6 @@ module Switchman
           # the first time we need a dummy dummy for re-entrancy to avoid looping on ourselves
           @default ||= default
 
-          if default.database_server.config[:adapter] == 'postgresql'
-            # rescue nil because the database may not exist yet; if it doesn't, it will shortly, and we'll
-            # be reloading anyway
-            default.instance_variable_set(:@name, default.database_server.config[:shard_name] || (::ActiveRecord::Base.connection.schemas.first rescue nil))
-          else
-            default.instance_variable_set(:@name, default.database_server.config[:shard_name] || default.database_server.config[:database])
-          end
-
           # Now find the actual record, if it exists; rescue the fake default if the table doesn't exist
           @default = Shard.find_by_default(true) || default rescue default
         end
@@ -50,24 +42,24 @@ module Switchman
       end
 
       def current(category = :default)
-        Thread.current[:active_shards] ||= {}
-        result = Thread.current[:active_shards][category]
-        result ||= Shard.default
+        active_shards[category] || Shard.default
       end
 
       def activate(shards)
-        Thread.current[:active_shards] ||= {}
+        old_shards = activate!(shards)
+        yield
+      ensure
+        active_shards.merge!(old_shards)
+      end
+
+      def activate!(shards)
         old_shards = {}
         shards.each do |category, shard|
           next if category == :unsharded
-          old_shards[category] = Thread.current[:active_shards][category]
-          Thread.current[:active_shards][category] = shard
+          old_shards[category] = active_shards[category]
+          active_shards[category] = shard
         end
-        yield
-      ensure
-        old_shards.each do |category, shard|
-          Thread.current[:active_shards][category] = shard
-        end
+        old_shards
       end
 
       def lookup(id)
@@ -226,33 +218,32 @@ module Switchman
           return
         end
 
-        previous_shard = nil
-        close_connections = lambda do
-          previous_shard.activate { ::ActiveRecord::Base.connection_pool.current_pool.disconnect! if ::ActiveRecord::Base.connected? && ::ActiveRecord::Base.connection.open_transactions == 0 }
-        end
+        categories ||= []
 
-        categories ||= [:default]
+        previous_shard = nil
+        close_connections_if_needed = lambda do |shard|
+          # prune the prior connection unless it happened to be the same
+          if previous_shard && shard != previous_shard &&
+            (shard.database_server != previous_shard.database_server || !previous_shard.database_server.shareable?)
+            previous_shard.activate do
+              if ::ActiveRecord::Base.connected? && ::ActiveRecord::Base.connection.open_transactions == 0
+                ::ActiveRecord::Base.connection_pool.current_pool.disconnect!
+              end
+            end
+          end
+        end
 
         result = []
         scope.each do |shard|
           # shard references a database server that isn't configured in this environment
           next unless shard.database_server
-          # prune the prior connection unless it happened to be the same
-          if previous_shard &&
-              (shard.database_server != previous_shard.database_server || !previous_shard.database_server.shareable?)
-            close_connections.call
-          end
-          active_categories = Hash[*categories.map { |category| [category, shard] }.flatten]
-          Shard.activate(active_categories) do
+          close_connections_if_needed.call(shard)
+          shard.activate(*categories) do
             result.concat Array(yield)
           end
           previous_shard = shard
         end
-        if previous_shard && previous_shard != Shard.current
-          if Shard.current.database_server != previous_shard.database_server || !previous_shard.database_server.shareable?
-            close_connections.call
-          end
-        end
+        close_connections_if_needed.call(Shard.current)
         result
       end
 
@@ -336,22 +327,14 @@ module Switchman
       def remove_from_cache(shard)
         cached_shards.delete(shard.id)
       end
+
+      def active_shards
+        Thread.current[:active_shards] ||= {}
+      end
     end
 
     def name
-      name = read_attribute(:name)
-      if !name
-        return @name if instance_variable_defined?(:@name)
-        config = database_server.config
-        @name = self.database_server.config[:shard_name]
-        if config[:adapter] == 'postgresql'
-          @name ||= self.activate { ::ActiveRecord::Base.connection_pool.default_schema }
-          return @name
-        else
-          return @name ||= config[:database]
-        end
-      end
-      name
+      read_attribute(:name) || default_name
     end
 
     def name=(name)
@@ -378,23 +361,14 @@ module Switchman
     end
 
     def activate(*categories, &block)
-      categories = categories.flatten
-      if categories.length <= 1
-        Shard.activate((categories.first || :default) => self, &block)
-      else
-        Shard.activate(Hash[*categories.map { |category| [category, self] }.flatten], &block)
-      end
+      shards = hashify_categories(categories)
+      Shard.activate(shards, &block)
     end
 
     # for use from console ONLY
     def activate!(*categories)
-      if categories.empty?
-        categories = [:default]
-      end
-      categories.flatten.each do |category|
-        next if category == :unsharded
-        Thread.current[:active_shards][category] = self
-      end
+      shards = hashify_categories(categories)
+      Shard.activate!(shards)
       nil
     end
 
@@ -482,6 +456,19 @@ module Switchman
       Shard.default.activate do
         Rails.cache.delete(['shard', id].join('/'))
       end
+    end
+
+    def default_name
+      unless instance_variable_defined?(:@name)
+        @name = database_server.shard_name(self)
+      end
+      @name
+    end
+
+    def hashify_categories(categories)
+      categories = categories.flatten
+      categories << :default if categories.empty?
+      Hash[*categories.map{ |category| [category, self] }.flatten]
     end
 
   end

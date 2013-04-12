@@ -177,5 +177,21 @@ module Switchman
       end
       @cache_store
     end
+
+    def shard_name(shard)
+      if config[:shard_name]
+        config[:shard_name]
+      elsif config[:adapter] == 'postgresql'
+        if shard == :bootstrap
+          # rescue nil because the database may not exist yet; if it doesn't,
+          # it will shortly, and this will be re-invoked
+          ::ActiveRecord::Base.connection.schemas.first rescue nil
+        else
+          shard.activate { ::ActiveRecord::Base.connection_pool.default_schema }
+        end
+      else
+        config[:database]
+      end
+    end
   end
 end

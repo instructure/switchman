@@ -9,7 +9,13 @@ class Switchman::DefaultShard
   def global_id_for(local_id); local_id; end
   def database_server_id; nil; end
   def database_server; ::Switchman::DatabaseServer.find(nil); end
-  def name; @name; end
+  def name
+    unless instance_variable_defined?(:@name)
+      @name = nil # prevent taking this branch on recursion
+      @name = database_server.shard_name(:bootstrap)
+    end
+    @name
+  end
   def description; Rails.env; end
   # The default's shard is always the default shard
   def shard; self; end

@@ -79,6 +79,10 @@ module Switchman
       def hash
         global_id.hash
       end
+
+      def to_param
+        Shard.short_id_for(self.id) if persisted?
+      end
     end
   end
 end

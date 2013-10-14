@@ -348,6 +348,18 @@ module Switchman
         end
       end
 
+      describe ".short_id_for" do
+        it "should return shorted strings for global ids" do
+          Shard.short_id_for(@local_id).should == @local_id
+          Shard.short_id_for("#{@local_id}").should == @local_id
+          Shard.short_id_for(@global_id).should == "#{@shard1.id}~#{@local_id}"
+        end
+
+        it "should return the original id for unrecognized ids" do
+          Shard.short_id_for('not an id').should == 'not an id'
+        end
+      end
+
       describe ".global_id_for" do
         it "should return the provided id if already global" do
           local_id = 5

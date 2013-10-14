@@ -320,6 +320,16 @@ module Switchman
         shard.global_id_for(local_id)
       end
 
+      # takes an id-ish, and returns a shortened global
+      # string id if global, and itself if local.
+      # returns any_id itself if it can't be interpreted
+      def short_id_for(any_id)
+        local_id, shard = local_id_for(any_id)
+        return any_id unless local_id
+        return local_id unless shard
+        "#{shard.id}~#{local_id}"
+      end
+
       # takes an id-ish, and returns an integral global id.
       # returns nil if it can't be interpreted
       def global_id_for(any_id, source_shard = nil)

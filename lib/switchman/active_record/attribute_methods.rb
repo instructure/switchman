@@ -2,16 +2,30 @@ module Switchman
   module ActiveRecord
     module AttributeMethods
       module ClassMethods
+
+        def sharded_primary_key?
+          self != Shard && shard_category != :unsharded && integral_id?
+        end
+
+        def sharded_foreign_key?(column_name)
+          reflection = reflection_for_integer_attribute(column_name.to_s)
+          return false unless reflection
+          reflection.options[:polymorphic] || reflection.klass.sharded_primary_key?
+        end
+
+        def sharded_column?(column_name)
+          (column_name == primary_key && sharded_primary_key?) || sharded_foreign_key?(column_name)
+        end
+
         protected
+
         def reflection_for_integer_attribute(attr_name)
           columns_hash[attr_name] && columns_hash[attr_name].type == :integer &&
               reflections.find { |_, r| r.belongs_to? && r.foreign_key == attr_name }.try(:last)
         end
 
         def define_method_global_attribute(attr_name)
-          reflection = reflection_for_integer_attribute(attr_name)
-          if attr_name == primary_key && integral_id? && self != Shard && shard_category != :unsharded ||
-              reflection && (reflection.options[:polymorphic] || reflection.klass.shard_category != :unsharded)
+          if sharded_column?(attr_name)
             generated_attribute_methods.module_eval <<-RUBY, __FILE__, __LINE__ + 1
               def __temp__
                 Shard.global_id_for(original_#{attr_name}, shard)
@@ -23,9 +37,7 @@ module Switchman
         end
 
         def define_method_local_attribute(attr_name)
-          reflection = reflection_for_integer_attribute(attr_name)
-          if attr_name == primary_key && integral_id? && self != Shard && shard_category != :unsharded ||
-              reflection && (reflection.options[:polymorphic] || reflection.klass.shard_category != :unsharded)
+          if sharded_column?(attr_name)
             generated_attribute_methods.module_eval <<-RUBY, __FILE__, __LINE__ + 1
               def __temp__
                 Shard.local_id_for(original_#{attr_name}).first
@@ -52,9 +64,8 @@ module Switchman
         end
 
         def define_method_original_attribute(attr_name)
-          reflection = reflection_for_integer_attribute(attr_name)
-          if attr_name == primary_key && integral_id? && self != Shard && shard_category != :unsharded ||
-              reflection && (reflection.options[:polymorphic] || reflection.klass.shard_category != :unsharded)
+          if sharded_column?(attr_name)
+            reflection = reflection_for_integer_attribute(attr_name)
             generated_attribute_methods.module_eval <<-RUBY, __FILE__, __LINE__ + 1
               # rename the original method to original_
               alias_method 'original_#{attr_name}', '#{attr_name}'

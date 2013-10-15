@@ -16,40 +16,37 @@ module Switchman
 
       def exec_queries_with_sharding
         return @records if loaded?
+        results = self.activate{|relation| relation.send(:exec_queries_without_sharding) }
         case shard_value
-        when DefaultShard, Shard.current(klass.shard_category)
-          exec_queries_without_sharding
-        when Shard
-          shard_value.activate(klass.shard_category) { exec_queries_without_sharding }
         when Array, ::ActiveRecord::Relation, ::ActiveRecord::Base
-          # TODO: implement local limit to avoid querying extra shards
-          shards = shard_value
-          shards = shard_value.associated_shards if shard_value.is_a?(::ActiveRecord::Base)
-          @records = Shard.with_each_shard(shards, [klass.shard_category]) do
-            shard(Shard.current(klass.shard_category), :to_a).send(:exec_queries_without_sharding)
-          end
+          @records = results
           @loaded = true
-          @records
         end
+        results
       end
 
       %w{update_all delete_all}.each do |method|
         class_eval <<-RUBY
           def #{method}_with_sharding(*args)
-            case shard_value
-            when DefaultShard, Shard.current(klass.shard_category)
-              #{method}_without_sharding(*args)
-            when Shard
-              shard_value.activate(klass.shard_category) { #{method}_without_sharding(*args) }
-            when Array, ::ActiveRecord::Relation, ::ActiveRecord::Base
-              shards = shard_value
-              shards = shard_value.associated_shards if shard_value.is_a?(::ActiveRecord::Base)
-              Shard.with_each_shard(shards, [klass.shard_category]) do
-                shard(Shard.current(klass.shard_category), :to_a).#{method}_without_sharding(*args)
-              end
-            end
+            self.activate{|relation| relation.#{method}_without_sharding(*args)}
           end
         RUBY
+      end
+
+      def activate(&block)
+        case shard_value
+        when DefaultShard, Shard.current(klass.shard_category)
+          yield(self, shard_value)
+        when Shard
+          shard_value.activate(klass.shard_category) { yield(self, shard_value) }
+        when Array, ::ActiveRecord::Relation, ::ActiveRecord::Base
+          # TODO: implement local limit to avoid querying extra shards
+          shards = shard_value
+          shards = shard_value.associated_shards if shard_value.is_a?(::ActiveRecord::Base)
+          Shard.with_each_shard(shards, [klass.shard_category]) do
+            shard(Shard.current(klass.shard_category), :to_a).activate(&block)
+          end
+        end
       end
     end
   end

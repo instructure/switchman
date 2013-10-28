@@ -5,6 +5,7 @@ module Switchman
     initializer 'switchman.extend_ar', :before => "active_record.initialize_database" do
       ActiveSupport.on_load(:active_record) do
         require "switchman/active_record/abstract_adapter"
+        require "switchman/active_record/association"
         require "switchman/active_record/attribute_methods"
         require "switchman/active_record/base"
         require "switchman/active_record/calculations"
@@ -19,6 +20,8 @@ module Switchman
 
         include ActiveRecord::Base
         include ActiveRecord::AttributeMethods
+        ::ActiveRecord::Associations::Association.send(:include, ActiveRecord::Association)
+        ::ActiveRecord::Associations::Builder::Association.send(:include, ActiveRecord::Builder::Association)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.send(:include, ActiveRecord::AbstractAdapter)
         ::ActiveRecord::ConnectionAdapters::ConnectionHandler.send(:include, ActiveRecord::ConnectionHandler)
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.send(:include, ActiveRecord::ConnectionPool)

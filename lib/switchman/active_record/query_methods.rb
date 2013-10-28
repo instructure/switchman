@@ -18,7 +18,7 @@ module Switchman
         relation.shard_source_value = source
         if (primary_shard != relation.primary_shard || source == :to_a)
           relation.where_values = relation.transpose_predicates(relation.where_values, primary_shard, relation.primary_shard, source == :to_a) if !relation.where_values.empty?
-          relation.having_values = relation.transpose_predicates(relation.where_values, primary_shard, relation.primary_shard, source == :to_a) if !relation.having_values.empty?
+          relation.having_values = relation.transpose_predicates(relation.having_values, primary_shard, relation.primary_shard, source == :to_a) if !relation.having_values.empty?
         end
         relation
       end
@@ -131,6 +131,15 @@ module Switchman
                 local_ids << local_id unless remove && local_id > Shard::IDS_PER_SHARD
               end
               local_ids
+            when Arel::Nodes::BindParam
+              # look for a bind param with a matching column name
+              if @bind_params && idx = @bind_params.find_index{|b| b.is_a?(Array) && b.first.try(:name) == predicate.left}
+                column, value = @bind_params[idx]
+                local_id = Shard.relative_id_for(value, source_shard, target_shard)
+                local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
+                @bind_params[idx] = [column, local_id]
+              end
+              predicate.right
             else
               local_id = Shard.relative_id_for(predicate.right, source_shard, target_shard)
               local_id = [] if remove && local_id > Shard::IDS_PER_SHARD

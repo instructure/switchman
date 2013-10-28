@@ -3,7 +3,7 @@ module Switchman
     module Relation
       def self.included(klass)
         klass::SINGLE_VALUE_METHODS.concat [ :shard, :shard_source ]
-        %w{initialize exec_queries update_all delete_all}.each do |method|
+        %w{initialize exec_queries update_all delete_all scoping}.each do |method|
           klass.alias_method_chain(method, :sharding)
         end
       end
@@ -25,6 +25,12 @@ module Switchman
         results
       end
 
+      def scoping_with_sharding
+        self.activate do
+          scoping_without_sharding { yield }
+        end
+      end
+
       %w{update_all delete_all}.each do |method|
         class_eval <<-RUBY
           def #{method}_with_sharding(*args)
@@ -41,8 +47,15 @@ module Switchman
           shard_value.activate(klass.shard_category) { yield(self, shard_value) }
         when Array, ::ActiveRecord::Relation, ::ActiveRecord::Base
           # TODO: implement local limit to avoid querying extra shards
-          shards = shard_value
-          shards = shard_value.associated_shards if shard_value.is_a?(::ActiveRecord::Base)
+          if shard_value.is_a?(::ActiveRecord::Base)
+            if shard_value.respond_to?(:associated_shards)
+              shards = shard_value.associated_shards
+            else
+              shards = [shard_value.shard]
+            end
+          else
+            shards = shard_value
+          end
           Shard.with_each_shard(shards, [klass.shard_category]) do
             shard(Shard.current(klass.shard_category), :to_a).activate(&block)
           end

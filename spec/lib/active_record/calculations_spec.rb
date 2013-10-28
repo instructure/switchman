@@ -47,6 +47,73 @@ module Switchman
           end
         end
       end
+
+      describe "#execute_simple_calculation" do
+        before do
+          @appendages = []
+          @shard1.activate do
+            @user1 = User.create!(:name => "user1")
+            @appendages << @user1.appendages.create!(:value => 1)
+            @appendages << @user1.appendages.create!(:value => 2)
+          end
+          @shard2.activate do
+            @user2 = User.create!(:name => "user2")
+            @appendages << @user2.appendages.create!(:value => 3)
+            @appendages << @user2.appendages.create!(:value => 4)
+            @appendages << @user2.appendages.create!(:value => 5)
+          end
+        end
+
+        it "should calculate average across shards" do
+          @user1.appendages.average(:value).should == 1.5
+          @shard1.activate {Appendage.average(:value)}.should == 1.5
+
+          @user2.appendages.average(:value).should == 4
+          @shard2.activate {Appendage.average(:value)}.should == 4
+
+          Appendage.where(:id => @appendages).average(:value).should == 3
+        end
+
+        it "should count across shards" do
+          @user1.appendages.count.should == 2
+          @shard1.activate {Appendage.count}.should == 2
+
+          @user2.appendages.count.should == 3
+          @shard2.activate {Appendage.count}.should == 3
+
+          Appendage.where(:id => @appendages).count.should == 5
+        end
+
+        it "should calculate minimum across shards" do
+          @user1.appendages.minimum(:value).should == 1
+          @shard1.activate {Appendage.minimum(:value)}.should == 1
+
+          @user2.appendages.minimum(:value).should == 3
+          @shard2.activate {Appendage.minimum(:value)}.should == 3
+
+          Appendage.where(:id => @appendages).minimum(:value).should == 1
+        end
+
+        it "should calculate maximum across shards" do
+          @user1.appendages.maximum(:value).should == 2
+          @shard1.activate {Appendage.maximum(:value)}.should == 2
+
+          @user2.appendages.maximum(:value).should == 5
+          @shard2.activate {Appendage.maximum(:value)}.should == 5
+
+          Appendage.where(:id => @appendages).maximum(:value).should == 5
+        end
+
+        it "should calculate sum across shards" do
+          @user1.appendages.sum(:value).should == 3
+          @shard1.activate {Appendage.sum(:value)}.should == 3
+
+          @user2.appendages.sum(:value).should == 12
+          @shard2.activate {Appendage.sum(:value)}.should == 12
+
+          Appendage.where(:id => @appendages).sum(:value).should == 15
+        end
+      end
     end
   end
 end

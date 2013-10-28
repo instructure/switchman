@@ -46,6 +46,14 @@ module Switchman
         end
       end
 
+      it "should get the record size" do
+        a1 = @user1.appendages.create!
+        a2 = @user1.appendages.build
+        @user1.appendages.size.should == 2
+        @user1.reload
+        @user1.appendages.size.should == 1
+      end
+
       it "should reverse the association" do
         a1 = @user1.appendages.create!
         a1.reload

@@ -7,8 +7,11 @@ module Switchman
 
       before do
         @user1 = User.create!
+        @appendage1 = @user1.appendages.create!
         @user2 = @shard1.activate { User.create! }
+        @appendage2 = @user2.appendages.create!
         @user3 = @shard2.activate { User.create! }
+        @appendage3 = @user3.appendages.create!
       end
 
       describe "#primary_shard" do
@@ -35,22 +38,22 @@ module Switchman
         end
       end
 
-      describe "#shard" do
-        it "should default to the current shard" do
-          relation = User.scoped
+      it "should default to the current shard" do
+        relation = User.scoped
+        relation.shard_value.should == Shard.default
+        relation.shard_source_value.should == :implicit
+
+        @shard1.activate do
           relation.shard_value.should == Shard.default
-          relation.shard_source_value.should == :implicit
 
-          @shard1.activate do
-            relation.shard_value.should == Shard.default
-
-            relation = User.scoped
-            relation.shard_value.should == @shard1
-            relation.shard_source_value.should == :implicit
-          end
+          relation = User.scoped
           relation.shard_value.should == @shard1
+          relation.shard_source_value.should == :implicit
         end
+        relation.shard_value.should == @shard1
+      end
 
+      describe "with primary key conditions" do
         it "should be changeable, and change conditions when it is changed" do
           relation = User.where(:id => @user1).shard(@shard1)
           relation.shard_value.should == @shard1
@@ -94,6 +97,30 @@ module Switchman
           @shard1.activate do
             relation = User.where(:id => [@user1, @user2])
             relation.shard_value.should == [@shard1, Shard.default]
+            relation.where_values.first.right.should == [@user1.global_id, @user2.local_id]
+          end
+        end
+      end
+
+      describe "with foreign key conditions" do
+        it "should be changeable, and change conditions when it is changed" do
+          relation = Appendage.where(:user_id => @user1)
+          relation.shard_value.should == Shard.default
+          relation.shard_source_value.should == :implicit
+          relation.where_values.first.right.should == @user1.local_id
+
+          relation = relation.shard(@shard1)
+          relation.shard_value.should == @shard1
+          relation.shard_source_value.should == :explicit
+          relation.where_values.first.right.should == @user1.global_id
+        end
+
+        it "should translate ids based on current shard" do
+          relation = Appendage.where(:user_id => [@user1, @user2])
+          relation.where_values.first.right.should == [@user1.local_id, @user2.global_id]
+
+          @shard1.activate do
+            relation = Appendage.where(:user_id => [@user1, @user2])
             relation.where_values.first.right.should == [@user1.global_id, @user2.local_id]
           end
         end

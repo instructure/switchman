@@ -25,8 +25,8 @@ module Switchman
       end
 
       def scoped_with_sharding
-        shard = @reflection.options[:multishard] ? @owner : self.shard
-        scoped_without_sharding.shard(shard, :association)
+        shard_value = @reflection.options[:multishard] ? @owner : self.shard
+        self.shard.activate { scoped_without_sharding.shard(shard_value, :association) }
       end
     end
 
@@ -35,6 +35,12 @@ module Switchman
         def self.included(klass)
           klass.descendants.each{|d| d.valid_options += [:multishard]}
         end
+      end
+    end
+
+    module CollectionProxy
+      def shard(*args)
+        scoped.shard(*args)
       end
     end
   end

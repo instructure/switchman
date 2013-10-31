@@ -95,6 +95,92 @@ module Switchman
         relation.shard_value.should == @user1
         relation.where_values.detect{|v| v.left.name == "id"}.right.should == [a1.local_id, a2.global_id]
       end
+
+      describe "multishard associations" do
+        it "should group has_many associations over associated_shards" do
+          @shard1.activate{ Appendage.create!(:user_id => @user1, :value => 1) }
+          @shard2.activate{ Appendage.create!(:user => @user1, :value => 2) }
+
+          @user1.appendages.to_a.map(&:value).should == [1]
+
+          @user1.reload
+          @user1.associated_shards = [@shard1, @shard2]
+          @user1.appendages.to_a.map(&:value).sort.should == [1, 2]
+        end
+
+        it "follow shards for has_many :through" do
+          @shard1.activate{ a1 = Appendage.create!(:user_id => @user1); a1.digits.create!(:value => 1) }
+          @shard2.activate{ a2 = Appendage.create!(:user_id => @user1); a2.digits.create!(:value => 2) }
+
+          @user1.digits.to_a.map(&:value).should == [1]
+
+          @user1.reload
+          @user1.associated_shards = [@shard1, @shard2]
+          @user1.digits.to_a.map(&:value).sort.should == [1, 2]
+        end
+
+        it "should include the shard in scopes created by associations" do
+          @user1.associated_shards = [@shard1, @shard2]
+
+          @shard1.activate{ Appendage.create!(:user_id => @user1, :value => 1) }
+          @shard2.activate{ Appendage.create!(:user => @user1) }
+
+          @user1.appendages.has_no_value.to_a.count.should == 1
+
+          @user1.reload
+          @shard2.activate {@user1.appendages.has_no_value.to_a.count.should == 1}
+        end
+
+        it "should include the shard in scopes created by has_many :through associations" do
+          @user1.associated_shards = [@shard1, @shard2]
+
+          @shard1.activate{ a1 = Appendage.create!(:user_id => @user1); a1.digits.create! }
+          @shard2.activate{ a2 = Appendage.create!(:user_id => @user1); a2.digits.create!(:value => 2) }
+
+          @user1.digits.has_no_value.count.should == 1
+
+          @user1.reload
+          @shard2.activate {@user1.digits.has_no_value.to_a.count.should == 1}
+        end
+
+        it "should work with calculations in scopes created by associations" do
+          @user1.associated_shards = [@shard1, @shard2]
+
+          @shard1.activate{ Appendage.create!(:user_id => @user1, :value => 1) }
+          @shard2.activate{ Appendage.create!(:user => @user1); @user1.appendages.create!(:value => 2) }
+
+          @user1.reload
+          @user1.appendages.has_value.sum(:value).should == 3
+
+          @user1.reload
+          @shard2.activate {@user1.appendages.has_value.sum(:value).should == 3}
+        end
+
+        it "should work with calculations in scopes created by has_many :through associations" do
+          @user1.associated_shards = [@shard1, @shard2]
+          @shard1.activate{ a1 = Appendage.create!(:user_id => @user1); a1.digits.create!; a1.digits.create!(:value => 1) }
+          @shard2.activate{ a2 = Appendage.create!(:user_id => @user1); a2.digits.create!(:value => 2) }
+
+          @user1.digits.has_value.sum(:value).should == 3
+          @user1.reload
+          @shard2.activate {@user1.digits.has_value.sum(:value).should == 3}
+        end
+
+        it "should be able to explicitly set the shard and still work with named scopes" do
+          @user1.associated_shards = [@shard1, @shard2]
+
+          @shard1.activate{ a1 = Appendage.create!(:user_id => @user1); a1.digits.create! }
+          @shard2.activate{ a2 = Appendage.create!(:user_id => @user1); a2.digits.create!(:value => 2) }
+
+          @user1.digits.shard(@shard1).has_no_value.to_a.count.should == 1
+          @user1.digits.shard(@shard2).has_no_value.to_a.count.should == 0
+
+          @user1.reload
+
+          @user1.digits.has_no_value.shard(@shard1).to_a.count.should == 1
+          @user1.digits.has_no_value.shard(@shard2).to_a.count.should == 0
+        end
+      end
     end
   end
 end

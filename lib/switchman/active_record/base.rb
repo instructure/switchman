@@ -28,6 +28,13 @@ module Switchman
           end
           @integral_id
         end
+
+        def transaction(*args, &block)
+          return super if !block || !current_scope
+          super(*args) do
+            current_scope.activate(&block)
+          end
+        end
       end
 
       def self.included(klass)
@@ -36,7 +43,7 @@ module Switchman
       end
 
       def shard
-        @shard || Shard.default
+        @shard || Shard.current(self.class.shard_category) || Shard.default
       end
 
       def shard=(new_shard)

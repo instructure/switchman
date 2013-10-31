@@ -21,6 +21,7 @@ module Switchman
         include ActiveRecord::Base
         include ActiveRecord::AttributeMethods
         ::ActiveRecord::Associations::Association.send(:include, ActiveRecord::Association)
+        ::ActiveRecord::Associations::CollectionProxy.send(:include, ActiveRecord::CollectionProxy)
         ::ActiveRecord::Associations::Builder::Association.send(:include, ActiveRecord::Builder::Association)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.send(:include, ActiveRecord::AbstractAdapter)
         ::ActiveRecord::ConnectionAdapters::ConnectionHandler.send(:include, ActiveRecord::ConnectionHandler)
@@ -35,8 +36,32 @@ module Switchman
       end
     end
 
+    def self.foreign_key_check(name, type, options)
+      if name.to_s =~ /_id\z/ && type.to_s == 'integer' && options[:limit].to_i < 8
+        puts "WARNING: All foreign keys need to be 8-byte integers. #{name} looks like a foreign key. If so, please add the option: `:limit => 8`"
+      end
+    end
+
     initializer 'switchman.extend_connection_adapters', :after => "active_record.initialize_database" do
       ActiveSupport.on_load(:active_record) do
+        ::ActiveRecord::ConnectionAdapters::AbstractAdapter.descendants.each do |klass|
+          klass.class_eval do
+            def add_column_with_foreign_key_check(table, name, type, options = {})
+              Switchman::Engine.foreign_key_check(name, type, options)
+              add_column_without_foreign_key_check(table, name, type, options)
+            end
+            alias_method_chain(:add_column, :foreign_key_check)
+          end
+        end
+
+        ::ActiveRecord::ConnectionAdapters::TableDefinition.class_eval do
+          def column_with_foreign_key_check(name, type, options = {})
+            Switchman::Engine.foreign_key_check(name, type, options)
+            column_without_foreign_key_check(name, type, options)
+          end
+          alias_method_chain(:column, :foreign_key_check)
+        end
+
         if defined?(::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter)
           require "switchman/active_record/postgresql_adapter"
           ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.send(:include, ActiveRecord::PostgreSQLAdapter)

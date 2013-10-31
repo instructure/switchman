@@ -3,7 +3,7 @@ module Switchman
     module Relation
       def self.included(klass)
         klass::SINGLE_VALUE_METHODS.concat [ :shard, :shard_source ]
-        %w{initialize exec_queries update_all delete_all scoping}.each do |method|
+        %w{initialize exec_queries update_all delete_all}.each do |method|
           klass.alias_method_chain(method, :sharding)
         end
       end
@@ -12,6 +12,15 @@ module Switchman
         initialize_without_sharding(klass, table)
         self.shard_value = Shard.current(klass.shard_category)
         self.shard_source_value = :implicit
+      end
+
+      def merge(*args)
+        relation = super
+        if relation.shard_value != self.shard_value && relation.shard_source_value == :implicit
+          relation.shard_value = self.shard_value
+          relation.shard_source_value = self.shard_source_value
+        end
+        relation
       end
 
       def exec_queries_with_sharding
@@ -23,12 +32,6 @@ module Switchman
           @loaded = true
         end
         results
-      end
-
-      def scoping_with_sharding
-        self.activate do
-          scoping_without_sharding { yield }
-        end
       end
 
       %w{update_all delete_all}.each do |method|

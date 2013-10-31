@@ -115,44 +115,67 @@ module Switchman
         end
       end
 
+      def transposable_attribute_type(attribute)
+        return false unless attribute.is_a?(Arel::Attributes::Attribute)
+        if sharded_primary_key?(attribute)
+          return :primary
+        elsif sharded_foreign_key?(attribute)
+          return :foreign
+        end
+      end
+
+      def sharded_foreign_key?(attribute)
+        @@foreign_keys ||= {}
+        @@foreign_keys[attribute.relation.table_name] ||= {}
+        if @@foreign_keys[attribute.relation.table_name].has_key?(attribute.name)
+          @@foreign_keys[attribute.relation.table_name][attribute.name]
+        else
+          models = attribute.relation.engine.descendants.select{|d| d.table_name == attribute.relation.table_name}
+          models << attribute.relation.engine unless attribute.relation.engine == ::ActiveRecord::Base
+
+          @@foreign_keys[attribute.relation.table_name][attribute.name] = models.any?{|m| m.sharded_column?(attribute.name)}
+        end
+      end
+
+      def sharded_primary_key?(attribute)
+        attribute.relation.engine.primary_key == attribute.name
+      end
+
       # semi-private
       public
       def transpose_predicates(predicates, source_shard, target_shard, remove_nonlocal_primary_keys = false)
         predicates.map do |predicate|
-          next predicate unless predicate.is_a?(Arel::Nodes::Binary) && predicate.left.is_a?(Arel::Attributes::Attribute)
-          # primary key
-          if predicate.left.relation.engine.primary_key == predicate.left.name
-            remove = remove_nonlocal_primary_keys && predicate.left.relation.engine == klass
-            new_right_value = case predicate.right
-            when Array
-              local_ids = []
-              predicate.right.each do |value|
-                local_id = Shard.relative_id_for(value, source_shard, target_shard)
-                local_ids << local_id unless remove && local_id > Shard::IDS_PER_SHARD
-              end
-              local_ids
-            when Arel::Nodes::BindParam
-              # look for a bind param with a matching column name
-              if @bind_params && idx = @bind_params.find_index{|b| b.is_a?(Array) && b.first.try(:name) == predicate.left}
-                column, value = @bind_params[idx]
-                local_id = Shard.relative_id_for(value, source_shard, target_shard)
-                local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
-                @bind_params[idx] = [column, local_id]
-              end
-              predicate.right
-            else
-              local_id = Shard.relative_id_for(predicate.right, source_shard, target_shard)
-              local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
-              local_id
-            end
+          next predicate unless predicate.is_a?(Arel::Nodes::Binary) && type = transposable_attribute_type(predicate.left)
 
-            if new_right_value == predicate.right
-              predicate
-            else
-              predicate.class.new(predicate.left, new_right_value)
+          remove = true if type == :primary && remove_nonlocal_primary_keys && predicate.left.relation.engine == klass
+
+          new_right_value = case predicate.right
+          when Array
+            local_ids = []
+            predicate.right.each do |value|
+              local_id = Shard.relative_id_for(value, source_shard, target_shard)
+              local_ids << local_id unless remove && local_id > Shard::IDS_PER_SHARD
             end
+            local_ids
+          when Arel::Nodes::BindParam
+            # look for a bind param with a matching column name
+            if @bind_params && idx = @bind_params.find_index{|b| b.is_a?(Array) && b.first.try(:name) == predicate.left}
+              column, value = @bind_params[idx]
+              local_id = Shard.relative_id_for(value, source_shard, target_shard)
+              local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
+              @bind_params[idx] = [column, local_id]
+            end
+            predicate.right
           else
+            local_id = Shard.relative_id_for(predicate.right, source_shard, target_shard)
+            local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
+            local_id
+          end
+
+          if new_right_value == predicate.right
             predicate
+          else
+            predicate.class.new(predicate.left, new_right_value)
           end
         end
       end

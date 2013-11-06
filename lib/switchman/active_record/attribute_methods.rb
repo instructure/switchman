@@ -14,7 +14,12 @@ module Switchman
         end
 
         def sharded_column?(column_name)
-          (column_name == primary_key && sharded_primary_key?) || sharded_foreign_key?(column_name)
+          column_name = column_name.to_s
+          @sharded_column_values ||= {}
+          unless @sharded_column_values.has_key?(column_name)
+            @sharded_column_values[column_name] = (column_name == primary_key && sharded_primary_key?) || sharded_foreign_key?(column_name)
+          end
+          @sharded_column_values[column_name]
         end
 
         protected

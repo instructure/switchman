@@ -260,7 +260,15 @@ module Switchman
             when Shard
               shard = partition_object
             when ::ActiveRecord::Base
-              shard = partition_object.shard
+              if partition_object.respond_to?(:associated_shards)
+                partition_object.associated_shards.each do |a_shard|
+                  shard_arrays[a_shard] ||= []
+                  shard_arrays[a_shard] << object
+                end
+                next
+              else
+                shard = partition_object.shard
+              end
             when Fixnum, /^\d+$/, /^(\d+)~(\d+)$/
               local_id, shard = Shard.local_id_for(partition_object)
               local_id ||= partition_object

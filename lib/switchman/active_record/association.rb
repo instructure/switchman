@@ -38,6 +38,66 @@ module Switchman
       end
     end
 
+    module Preloader
+      module Association
+        def self.included(klass)
+          klass.send(:remove_method, :associated_records_by_owner)
+          klass.send(:remove_method, :owners_by_key)
+          klass.send(:remove_method, :scoped)
+        end
+
+        def associated_records_by_owner
+          owners_map = owners_by_key
+
+          if klass.nil? || owners_map.empty?
+            records = []
+          else
+            # Some databases impose a limit on the number of ids in a list (in Oracle it's 1000)
+            # Make several smaller queries if necessary or make one query if the adapter supports it
+            records = Shard.partition_by_shard(owners) do |partitioned_owners|
+              sliced_owners = partitioned_owners.each_slice(model.connection.in_clause_length || partitioned_owners.size)
+              sliced_owners.map do |slice|
+                relative_owner_keys = slice.map do |owner|
+                  key = owner[owner_key_name]
+                  if key && owner.class.sharded_column?(owner_key_name)
+                    key = Shard.relative_id_for(key, owner.shard, Shard.current(owner.class.shard_category))
+                  end
+                  key && key.to_s
+                end
+                relative_owner_keys.compact!
+                records_for(relative_owner_keys)
+              end
+            end
+            records.flatten!
+          end
+
+          # Each record may have multiple owners, and vice-versa
+          records_by_owner = Hash[owners.map { |owner| [owner, []] }]
+          records.each do |record|
+            owner_key = record[association_key_name]
+            owner_key = Shard.global_id_for(owner_key, record.shard) if owner_key && record.class.sharded_column?(association_key_name)
+
+            owners_map[owner_key.to_s].each do |owner|
+              records_by_owner[owner] << record
+            end
+          end
+          records_by_owner
+        end
+
+        def owners_by_key
+          @owners_by_key ||= owners.group_by do |owner|
+            key = owner[owner_key_name]
+            key = Shard.global_id_for(key, owner.shard) if key && owner.class.sharded_column?(owner_key_name)
+            key && key.to_s
+          end
+        end
+
+        def scoped
+          build_scope
+        end
+      end
+    end
+
     module CollectionProxy
       def shard(*args)
         scoped.shard(*args)
@@ -45,3 +105,4 @@ module Switchman
     end
   end
 end
+

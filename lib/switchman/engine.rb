@@ -4,6 +4,8 @@ module Switchman
 
     initializer 'switchman.extend_ar', :before => "active_record.initialize_database" do
       ActiveSupport.on_load(:active_record) do
+        #require 'active_record/associations/preloader/belongs_to'
+
         require "switchman/active_record/abstract_adapter"
         require "switchman/active_record/association"
         require "switchman/active_record/attribute_methods"
@@ -23,6 +25,8 @@ module Switchman
         ::ActiveRecord::Associations::Association.send(:include, ActiveRecord::Association)
         ::ActiveRecord::Associations::CollectionProxy.send(:include, ActiveRecord::CollectionProxy)
         ::ActiveRecord::Associations::Builder::Association.send(:include, ActiveRecord::Builder::Association)
+
+        ::ActiveRecord::Associations::Preloader::Association.send(:include, ActiveRecord::Preloader::Association)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.send(:include, ActiveRecord::AbstractAdapter)
         ::ActiveRecord::ConnectionAdapters::ConnectionHandler.send(:include, ActiveRecord::ConnectionHandler)
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.send(:include, ActiveRecord::ConnectionPool)

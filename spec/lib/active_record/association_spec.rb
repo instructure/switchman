@@ -180,6 +180,95 @@ module Switchman
           @user1.digits.has_no_value.shard(@shard1).to_a.count.should == 1
           @user1.digits.has_no_value.shard(@shard2).to_a.count.should == 0
         end
+
+        describe "preloading" do
+          it "should preload belongs_to associations across shards" do
+            a1 = Appendage.create!(:user => @user1)
+            a2 = Appendage.create!(:user => @user2)
+            user3 = User.create!
+            user3.appendages.create!
+
+            appendages = Appendage.all(:include => :user)
+            appendages2 = Appendage.includes(:user).all
+            @user1.delete
+
+            appendages.map(&:user).sort.should == [@user1, @user2, user3].sort
+            appendages2.map(&:user).sort.should == [@user1, @user2, user3].sort
+          end
+
+          it "should preload belongs_to :through associations across shards" do
+            a1 = Appendage.create!(:user => @user1)
+            d1 = a1.digits.create!
+
+            a2 = @shard1.activate {Appendage.create!(:user => @user2) }
+            d2 = Digit.create!(:appendage => a2)
+
+            digits = Digit.includes(:user).all
+            @user1.delete
+
+            digits.map(&:user).sort.should == [@user1, @user2].sort
+          end
+
+          it "should preload has_many associations across associated shards" do
+            a1 = @user1.appendages.create!
+            a2 = @shard2.activate { Appendage.create!(:user_id => @user1) } # a2 will be in @user1's associated shards
+            a3 = @shard1.activate { Appendage.create!(:user_id => @user2) } # a3 is not on @user2's associated shard
+
+            User.associated_shards_map = { @user1.global_id => [@shard1, @shard2] }
+
+            begin
+              users = User.where(:id => [@user1, @user2]).includes(:appendages).all
+              users.each {|u| u.appendages.loaded?.should be_true}
+
+              u1 = users.detect {|u| u.id == @user1.id}
+              u2 = users.detect {|u| u.id == @user2.id}
+
+              a1.delete
+              u1.appendages.sort.should == [a1, a2].sort
+              u2.appendages.should be_empty
+            ensure
+              User.associated_shards_map = nil
+            end
+          end
+
+          it "should preload has_many :through associations across associated shards" do
+            a1 = @user1.appendages.create!
+            a2 = @shard2.activate { Appendage.create!(:user_id => @user1) }
+            a3 = @shard2.activate { Appendage.create!(:user_id => @user1) }
+
+            d1 = a1.digits.create!
+            d2 = a2.digits.create! # a2 will be in @user1's associated shards
+            d3 = @shard1.activate { Digit.create!(:appendage_id => a2) } # d3 will be in a2's associated shards
+            d4 = @shard1.activate { Digit.create!(:appendage_id => a3) } # d4 is not on a3's shard
+
+            a4 = @shard1.activate { Appendage.create!(:user_id => @user2) }
+            a5 = @user2.appendages.create!
+            a6 = @user2.appendages.create!
+
+            d5 = @shard2.activate { Digit.create!(:appendage_id => a4) } # d5 is on @user2's shard but a4 is not
+            d6 = @shard1.activate { Digit.create!(:appendage_id => a5) } # a5 is on @user2's shard but d6 is not
+            d7 = @shard1.activate { Digit.create!(:appendage_id => a6) } # d7 will be in a6's associated shards
+
+            User.associated_shards_map = { @user1.global_id => [@shard1, @shard2] }
+            Appendage.associated_shards_map = { a2.global_id => [@shard1, @shard2], a6.global_id => [@shard1] }
+
+            begin
+              users = User.where(:id => [@user1, @user2]).includes(:digits).all
+              users.each {|u| u.digits.loaded?.should be_true}
+
+              u1 = users.detect {|u| u.id == @user1.id}
+              u2 = users.detect {|u| u.id == @user2.id}
+
+              d1.delete
+
+              u1.digits.sort.should == [d1, d2, d3].sort
+              u2.digits.should == [d7]
+            ensure
+              User.associated_shards_map = nil
+              Appendage.associated_shards_map = nil
+            end
+          end
+        end
       end
     end
   end

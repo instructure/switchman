@@ -184,7 +184,7 @@ module Switchman
 
       it "should partition recognized ids with an invalid shard unchanged into current shard" do
         expected_shard = Shard.current
-        bad_shard_id = @shard2.id + 100
+        bad_shard_id = @shard2.id + 10000
         items = ["#{bad_shard_id}~1", Shard::IDS_PER_SHARD * bad_shard_id + 1]
         result = Shard.partition_by_shard(items) do |shard_items|
           [Shard.current, shard_items]
@@ -279,7 +279,7 @@ module Switchman
       end
 
       it "should return nil for ids with bad shard values" do
-        bad_shard_id = @shard2.id + 100
+        bad_shard_id = @shard2.id + 10000
         id, shard = Shard.local_id_for("#{bad_shard_id}~1")
         id.should be_nil
         shard.should be_nil

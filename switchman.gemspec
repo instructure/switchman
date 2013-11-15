@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
   s.test_files = Dir["spec/**/*"]
 
   s.add_dependency "rails", "~> 3.2.13"
-  s.add_dependency "shackles"
+  s.add_dependency "shackles", "~> 1.0.2"
 
   s.add_development_dependency "debugger"
   s.add_development_dependency "pg"

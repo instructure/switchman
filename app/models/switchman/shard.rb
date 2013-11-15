@@ -485,6 +485,8 @@ module Switchman
 
     def default_name
       unless instance_variable_defined?(:@name)
+        # protect against re-entrancy
+        @name = nil
         @name = database_server.shard_name(self)
       end
       @name

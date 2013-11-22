@@ -27,6 +27,9 @@ module Switchman
         def reflection_for_integer_attribute(attr_name)
           columns_hash[attr_name] && columns_hash[attr_name].type == :integer &&
               reflections.find { |_, r| r.belongs_to? && r.foreign_key == attr_name }.try(:last)
+        rescue ::ActiveRecord::StatementInvalid
+          # this is for when models are referenced in initializers before migrations have been run
+          nil
         end
 
         def define_method_global_attribute(attr_name)

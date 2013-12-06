@@ -416,7 +416,7 @@ module Switchman
 
     # custom serialization, since shard is self-referential
     def _dump(depth)
-      self.local_id.to_s
+      self.id.to_s
     end
 
     def self._load(str)

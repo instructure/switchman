@@ -58,7 +58,7 @@ module Switchman
             if reflection.options[:polymorphic]
               # a polymorphic association has to be discovered at runtime. This code ends up being something like
               # context_type.try(:constantize).try(:shard_category) || :default
-              "#{reflection.options[:foreign_key_type]}.try(:constantize).try(:shard_category) || :default"
+              "#{reflection.foreign_type}.try(:constantize).try(:shard_category) || :default"
             else
               # otherwise we can just return a symbol for the statically known type of the association
               reflection.klass.shard_category.inspect

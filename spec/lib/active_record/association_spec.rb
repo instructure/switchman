@@ -269,6 +269,36 @@ module Switchman
             end
           end
         end
+
+        describe "polymorphic associations" do
+          it "should work normally" do
+            appendage = Appendage.create!
+            feature = Feature.create!(:owner => appendage)
+
+            feature.reload
+            feature.owner.should == appendage
+            feature.owner_id.should == appendage.id
+            feature.owner_type.should == "Appendage"
+
+            feature.owner = @user1
+            feature.save!
+
+            feature.reload
+            feature.owner_id.should == @user1.global_id
+            feature.owner_type.should == "User"
+          end
+
+          it "should work with multi-shard associations" do
+            @shard1.activate{ Feature.create!(:owner => @user1, :value => 1) }
+            @shard2.activate{ Feature.create!(:owner => @user1, :value => 2) }
+
+            @user1.features.to_a.map(&:value).should == [1]
+
+            @user1.reload
+            @user1.associated_shards = [@shard1, @shard2]
+            @user1.features.to_a.map(&:value).sort.should == [1, 2]
+          end
+        end
       end
     end
   end

@@ -12,12 +12,6 @@ module Switchman
       ::Shackles.connection_handlers.clear
     end
 
-    it "should call ensure_handler when switching envs" do
-      old_handler = ::ActiveRecord::Base.connection_handler
-      ::Shackles.expects(:ensure_handler).returns(old_handler).twice
-      ::Shackles.activate(:slave) {}
-    end
-
     it "should capture the correct current_pool" do
       # use @shard2 cause it has its own DatabaseServer
       @shard2.activate do
@@ -29,15 +23,75 @@ module Switchman
     end
 
     it "should correctly set up pools for sharding categories" do
-      @default_pools = ::ActiveRecord::Base.connection_handler.connection_pools
+      models = ::ActiveRecord::Base.connection_handler.connection_pools
+      default_pools = Hash[models.map { |k, v| [k, v.current_pool] }]
       ::Shackles.activate(:slave_that_no_one_else_uses) do
-        pools = ::ActiveRecord::Base.connection_handler.connection_pools
-        @default_pools.keys.sort.should == pools.keys.sort
-        @default_pools.keys.each do |model|
-          @default_pools[model].should_not == pools[model]
+        models = ::ActiveRecord::Base.connection_handler.connection_pools
+        pools = Hash[models.map { |k, v| [k, v.current_pool] }]
+        default_pools.keys.sort.should == pools.keys.sort
+        default_pools.keys.each do |model|
+          default_pools[model].should_not == pools[model]
         end
-        # should have the same number of distinct default_pools
-        pools.values.map(&:default_pool).uniq.length.should == @default_pools.values.map(&:default_pool).uniq.length
+      end
+    end
+
+    it "should connect to the first working slave" do
+      # have to unstub long enough to create this
+      Rails.env.unstub(:test?)
+      ds = DatabaseServer.create(config: Shard.default.database_server.config.merge(
+        :slave => [{ host: '192.168.1.1' }, nil]))
+      Rails.env.stubs(:test?).returns(false)
+      ds.shackle!
+      s = ds.shards.create!
+      s.activate do
+        User.connection
+        User.connection_pool.spec.config[:host].should_not == '192.168.1.1'
+      end
+    end
+
+    it "should deshackle the appropriate connection when the scope changes connections" do
+      begin
+        Shard.default.database_server.shackle!
+        @shard2.activate do
+          Shard.default.database_server.shackles_environment.should == :slave
+          ::Shackles.environment.should == :master
+
+          Shard.default.database_server.expects(:unshackle).once
+          User.shard(Shard.default).update_all(updated_at: nil)
+        end
+      ensure
+        Shard.default.database_server.unshackle!
+      end
+    end
+
+    it "should deshackle for FOR UPDATE queries" do
+      begin
+        Shard.default.database_server.shackle!
+        Shard.default.database_server.shackles_environment.should == :slave
+
+        u = User.create!
+        Shard.default.database_server.expects(:unshackle).once.returns([])
+        User.scoped(lock: true).first
+        Shard.default.database_server.expects(:unshackle).once.returns([])
+        lambda { u.lock! }.should raise_error(::ActiveRecord::RecordNotFound)
+      ensure
+        Shard.default.database_server.unshackle!
+      end
+    end
+
+    it "should not get confused about a single shackled server" do
+      begin
+        Shard.default.database_server.shackle!
+        # have to unstub long enough to create this
+        Rails.env.unstub(:test?)
+        ds = DatabaseServer.create(config: { adapter: 'postgresql', host: 'notshackled', slave: { host: 'shackled' }})
+        Rails.env.stubs(:test?).returns(false)
+        s = ds.shards.create!
+        s.activate do
+          User.connection_pool.spec.config[:host].should == 'notshackled'
+        end
+      ensure
+        Shard.default.database_server.unshackle!
       end
     end
 

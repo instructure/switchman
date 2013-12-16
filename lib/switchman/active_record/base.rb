@@ -29,10 +29,23 @@ module Switchman
           @integral_id
         end
 
-        def transaction(*args, &block)
-          return super if !block || !current_scope
-          super(*args) do
-            current_scope.activate(&block)
+        def transaction(*args)
+          if current_scope
+            current_scope.activate do
+              db = Shard.current(shard_category).database_server
+              if ::Shackles.environment != db.shackles_environment
+                db.unshackle { super }
+              else
+                super
+              end
+            end
+          else
+            db = Shard.current(shard_category).database_server
+            if ::Shackles.environment != db.shackles_environment
+              db.unshackle { super }
+            else
+              super
+            end
           end
         end
       end
@@ -78,7 +91,7 @@ module Switchman
       end
 
       def transaction(&block)
-        shard.activate do
+        shard.activate(self.class.shard_category) do
           super
         end
       end

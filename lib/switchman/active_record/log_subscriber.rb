@@ -17,7 +17,8 @@ module Switchman
         name  = '%s (%.1fms)' % [payload[:name], event.duration]
         sql   = payload[:sql].squeeze(' ')
         binds = nil
-        connection = ObjectSpace._id2ref(payload[:connection_id])
+        shard = payload[:shard]
+        shard = "  [shard #{shard[:id]} #{shard[:env]}]" if shard
 
         unless (payload[:binds] || []).empty?
           binds = "  " + payload[:binds].map { |col,v|
@@ -36,7 +37,7 @@ module Switchman
           name = color(name, self.class::MAGENTA, true)
         end
 
-        debug "  #{name}  #{sql}#{binds}  [shard #{connection.shard.id} #{::Shackles.environment}]"
+        debug "  #{name}  #{sql}#{binds}#{shard}"
       end
     end
   end

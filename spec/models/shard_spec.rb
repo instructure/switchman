@@ -202,23 +202,20 @@ module Switchman
       end
 
       it "should fall back to shard_name in the config if nil" do
-        db = DatabaseServer.new
-        db.config = { :adapter => 'mysql', :database => 'canvas', :shard_name => 'yoyoyo' }
-        shard = Shard.new(:database_server => db)
+        db = DatabaseServer.new(config: { adapter: 'mysql', database: 'canvas', shard_name: 'yoyoyo' })
+        shard = Shard.new(database_server: db)
         shard.name.should == 'yoyoyo'
       end
 
       it "should fall back to the database_server if nil" do
-        db = DatabaseServer.new
-        db.config = { :adapter => 'mysql', :database => 'canvas' }
-        shard = Shard.new(:database_server => db)
+        db = DatabaseServer.new(config: { adapter: 'mysql', database: 'canvas' })
+        shard = Shard.new(database_server: db)
         shard.name.should == 'canvas'
       end
 
       it "should get it from the postgres connection if not otherwise specified" do
-        db = DatabaseServer.create
-        db.config = { :adapter => 'postgresql', :database => 'notme' }
-        shard = Shard.new(:database_server => db)
+        db = DatabaseServer.create(config: { adapter: 'postgresql', database: 'notme' })
+        shard = Shard.new(database_server: db)
         shard.database_server = db
         connection = mock()
         connection.stubs(:open_transactions).returns(0)

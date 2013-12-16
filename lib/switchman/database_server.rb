@@ -1,6 +1,6 @@
 module Switchman
   class DatabaseServer
-    attr_accessor :id, :config
+    attr_accessor :id
 
     class << self
       def all
@@ -42,8 +42,9 @@ module Switchman
     end
 
     def initialize(settings = {})
-      self.id = settings[:id]
-      self.config = (settings[:config] || {}).symbolize_keys
+      @id = settings[:id]
+      @config = (settings[:config] || {}).symbolize_keys
+      @configs = {}
     end
 
     def destroy
@@ -55,15 +56,59 @@ module Switchman
       @fake
     end
 
+    def config(environment = :master)
+      @configs[environment] ||= begin
+        if @config[environment].is_a?(Array)
+          @config[environment].map do |config|
+            config = @config.merge((config || {}).symbolize_keys)
+            # make sure Shackles doesn't get any brilliant ideas about choosing the first possible server
+            config.delete(environment)
+            config
+          end
+        elsif @config[environment].is_a?(Hash)
+          @config.merge(@config[environment])
+        else
+          @config
+        end
+      end
+    end
+
+    def shackles_environment
+      @shackles_environment || ::Shackles.environment
+    end
+
+    # locks this db to a specific environment, except for
+    # when doing writes (then it falls back to the current
+    # value of Shackles.environment)
+    def shackle!(environment = :slave)
+      @shackles_environment = environment
+    end
+
+    def unshackle!
+      @shackles_environment = nil
+    end
+
+    def unshackle
+      old_env = @shackles_environment
+      unshackle!
+      yield
+    ensure
+      shackle!(old_env)
+    end
+
     def shareable?
       @shareable_environment_key ||= []
       environment = ::Shackles.environment
       explicit_user = ::Shackles.global_config[:username]
       return @shareable if @shareable_environment_key == [environment, explicit_user]
       @shareable_environment_key = [environment, explicit_user]
-      username = self.config[:username]
-      username = self.config[environment][:username] if environment && self.config[environment] && self.config[environment][:username]
-      username = explicit_user if explicit_user
+      if explicit_user
+        username = explicit_user
+      else
+        config = self.config(environment)
+        config = config.first if config.is_a?(Array)
+        username = config[:username]
+      end
       @shareable = self.config[:adapter] != 'sqlite3' && username !~ /%?\{[a-zA-Z0-9_]+\}/
     end
 
@@ -73,6 +118,10 @@ module Switchman
       else
         Shard.where(:database_server_id => self.id)
       end
+    end
+
+    def pool_key
+      self.id == Rails.env ? nil : self.id
     end
 
     def create_new_shard(options = {})

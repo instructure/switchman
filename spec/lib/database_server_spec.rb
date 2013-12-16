@@ -4,36 +4,30 @@ module Switchman
   describe DatabaseServer do
     describe "shareable?" do
       it "should be false for sqlite" do
-        db = DatabaseServer.new
-        db.config = { :adapter => 'sqlite3', :database => '%{shard_name}' }
+        db = DatabaseServer.new(config: { adapter: 'sqlite3', database: '%{shard_name}' })
         db.shareable?.should be_false
       end
 
       it "should be true for mysql" do
-        db = DatabaseServer.new
-        db.config = { :adapter => 'mysql' }
+        db = DatabaseServer.new(config: { adapter: 'mysql' })
         db.shareable?.should be_true
 
-        db = DatabaseServer.new
-        db.config = { :adapter => 'mysql2' }
+        db = DatabaseServer.new(config: { adapter: 'mysql2' })
         db.shareable?.should be_true
       end
 
       it "should be true for postgres with a non-variable username" do
-        db = DatabaseServer.new
-        db.config = { :adapter => 'postgresql' }
+        db = DatabaseServer.new(config: { adapter: 'postgresql' })
         db.shareable?.should be_true
       end
 
       it "should be false for postgres with variable username" do
-        db = DatabaseServer.new
-        db.config = { :adapter => 'postgresql', :username => '%{schema_search_path}' }
+        db = DatabaseServer.new(config: { adapter: 'postgresql', username: '%{schema_search_path}' })
         db.shareable?.should be_false
       end
 
       it "should depend on the database environment" do
-        db = DatabaseServer.new
-        db.config = { :adapter => 'postgresql', :username => '%{schema_search_path}', :deploy => { :username => 'deploy' } }
+        db = DatabaseServer.new(config: { adapter: 'postgresql', username: '%{schema_search_path}', deploy: { username: 'deploy' }})
         db.shareable?.should be_false
         ::Shackles.activate(:deploy) { db.shareable? }.should be_true
       end
@@ -89,10 +83,50 @@ module Switchman
 
       class MyException < Exception; end
       it "should use the connection's db name as temp db name" do
-        db = DatabaseServer.new
-        db.config = { :adapter => 'postgresql' }
+        db = DatabaseServer.new(config: { adapter: 'postgresql' })
         Shard.expects(:create!).with(:name => Shard.default.name, :database_server => db).raises(MyException.new)
         lambda { db.create_new_shard }.should raise_error(MyException)
+      end
+    end
+
+    describe "#config" do
+      it "should return subenvs" do
+        base_config = { database: 'db',
+                        slave: [nil, { database: 'slave' }],
+                        deploy: { username: 'deploy' }}
+        ds = DatabaseServer.new(config: base_config)
+        ds.config.should == base_config
+        ds.config(:slave).should == [{ database: 'db', deploy: base_config[:deploy] },
+                                     { database: 'slave', deploy: base_config[:deploy] }]
+        ds.config(:deploy).should == { database: 'db', username: 'deploy', slave: base_config[:slave], deploy: base_config[:deploy] }
+      end
+    end
+
+    describe "#shackles_environment" do
+      it "should inherit from Shackles.environment" do
+        ds = DatabaseServer.new
+        ds.shackles_environment.should == :master
+        ::Shackles.activate(:slave) do
+          ds.shackles_environment.should == :slave
+        end
+      end
+
+      it "should override Shackles.environment when explicitly set" do
+        ds = DatabaseServer.new
+        ds.shackle!
+        ds.shackles_environment.should == :slave
+        ds.unshackle do
+          ds.shackles_environment.should == :master
+        end
+        ds.shackles_environment.should == :slave
+        ::Shackles.activate(:slave) do
+          ds.shackles_environment.should == :slave
+          ds.unshackle do
+            ds.shackles_environment.should == :slave
+          end
+          ds.shackles_environment.should == :slave
+        end
+        ds.shackles_environment.should == :slave
       end
     end
 

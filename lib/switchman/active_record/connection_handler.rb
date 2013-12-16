@@ -54,6 +54,17 @@ module Switchman
                                         @shard_connection_pools)
         connection_pools[spec] = proxy
 
+        if first_time
+          if Shard.default.database_server.config[:prefer_slave]
+            Shard.default.database_server.shackle!
+          end
+
+          if Shard.default.is_a?(DefaultShard) && Shard.default.database_server.config[:slave]
+            Shard.default.database_server.shackle!
+            Shard.default(true)
+          end
+        end
+
         initialize_categories(model)
         @class_to_pool[name] = proxy
 

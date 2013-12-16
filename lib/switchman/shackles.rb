@@ -2,33 +2,33 @@ module Switchman
   module Shackles
     module ClassMethods
       def ensure_handler
-        Shard.default.activate(*Shard.categories) do
-          new_handler = @connection_handlers[self.environment]
-          if !new_handler
-            new_handler = @connection_handlers[self.environment] = ::ActiveRecord::ConnectionAdapters::ConnectionHandler.new
-            pools = ::ActiveRecord::Base.connection_handler.instance_variable_get(:@class_to_pool)
-            pools.each do |model, pool|
-              # don't call establish_connection for pools created just for different sharding categories
-              if model != ::ActiveRecord::Base.name
-                klass = model.constantize
-                next if ::ActiveRecord::Base.connection_handler.retrieve_connection_pool(klass.superclass).default_pool == pools[model].default_pool
-              end
+        raise "This should not be called with switchman installed"
+      end
 
-              new_handler.establish_connection(model, pool.spec)
-            end
-          end
-          # make sure it picks up the environment change
-          new_handler.connection_pools.each do |_, pool|
-            pool.spec.instance_variable_set(:@current_config, nil)
-          end
-          new_handler
-        end
+      # drops the save_handler and ensure_handler calls from the vanilla
+      # Shackles' implementation.
+      def activate!(environment)
+        environment ||= :master
+        old_environment = self.environment
+        @environment = environment
+        old_environment
+      end
+
+      # since activate! really is just a variable swap now, it's safe to use in
+      # the ensure block, simplifying the implementation
+      def activate(environment)
+        old_environment = activate!(environment)
+        yield
+      ensure
+        activate!(old_environment)
       end
     end
 
     def self.included(klass)
       klass.extend(ClassMethods)
       klass.singleton_class.send(:remove_method, :ensure_handler)
+      klass.singleton_class.send(:remove_method, :activate!)
+      klass.singleton_class.send(:remove_method, :activate)
     end
   end
 end

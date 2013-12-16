@@ -3,6 +3,11 @@ module Switchman
     module Relation
       def self.included(klass)
         klass::SINGLE_VALUE_METHODS.concat [ :shard, :shard_source ]
+
+        %w{exec_queries update_all delete_all}.each do |method|
+          klass.alias_method_chain(method, :deshackles)
+        end
+
         %w{initialize exec_queries update_all delete_all}.each do |method|
           klass.alias_method_chain(method, :sharding)
         end
@@ -23,6 +28,16 @@ module Switchman
         relation
       end
 
+      def exec_queries_with_deshackles(*args)
+        if self.lock_value
+          db = Shard.current(shard_category).database_server
+          if ::Shackles.environment != db.shackles_environment
+            return db.unshackle { exec_queries_without_deshackles(*args) }
+          end
+        end
+        exec_queries_without_deshackles(*args)
+      end
+
       def exec_queries_with_sharding
         return @records if loaded?
         results = self.activate{|relation| relation.send(:exec_queries_without_sharding) }
@@ -36,6 +51,15 @@ module Switchman
 
       %w{update_all delete_all}.each do |method|
         class_eval <<-RUBY
+          def #{method}_with_deshackles(*args)
+            db = Shard.current(shard_category).database_server
+            if ::Shackles.environment != db.shackles_environment
+              db.unshackle { #{method}_without_deshackles(*args) }
+            else
+              #{method}_without_deshackles(*args)
+            end
+          end
+
           def #{method}_with_sharding(*args)
             self.activate{|relation| relation.#{method}_without_sharding(*args)}
           end

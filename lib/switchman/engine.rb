@@ -31,6 +31,12 @@ module Switchman
         ::ActiveRecord::ConnectionAdapters::ConnectionHandler.send(:include, ActiveRecord::ConnectionHandler)
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.send(:include, ActiveRecord::ConnectionPool)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.send(:include, ActiveRecord::QueryCache)
+        # when we call super in Switchman::ActiveRecord::QueryCache#select_all,
+        # we want it to find the definition from
+        # ActiveRecord::ConnectionAdapters::DatabaseStatements, not
+        # ActiveRecord::ConnectionAdapters::QueryCache
+        ::ActiveRecord::ConnectionAdapters::QueryCache.send(:remove_method, :select_all)
+
         ::ActiveRecord::LogSubscriber.send(:include, ActiveRecord::LogSubscriber)
         ::ActiveRecord::Relation.send(:include, ActiveRecord::Calculations)
         ::ActiveRecord::Relation.send(:include, ActiveRecord::FinderMethods)

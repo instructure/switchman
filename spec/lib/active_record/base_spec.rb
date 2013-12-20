@@ -13,10 +13,10 @@ module Switchman
 
         it "should return local id if in the current shard" do
           user = User.create!
-          user.to_param.should == user.local_id
+          user.to_param.should == user.local_id.to_s
           @shard1.activate do
             user2 = User.create!
-            user2.to_param.should == user2.local_id
+            user2.to_param.should == user2.local_id.to_s
           end
         end
 

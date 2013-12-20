@@ -88,7 +88,7 @@ module Switchman
       end
 
       def to_param
-        Shard.short_id_for(self.id) if persisted?
+        Shard.short_id_for(self.id).to_s if persisted?
       end
     end
   end

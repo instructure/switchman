@@ -200,7 +200,10 @@ module Switchman
               old_proc = ::ActiveRecord::Base.connection.raw_connection.set_notice_processor {} if config[:adapter] == 'postgresql'
               old_verbose = ::ActiveRecord::Migration.verbose
               ::ActiveRecord::Migration.verbose = false
+
+              reset_column_information
               ::ActiveRecord::Migrator.migrate(Rails.root + "db/migrate/") unless create_schema == false
+              reset_column_information
             ensure
               ::ActiveRecord::Migration.verbose = old_verbose
               ::ActiveRecord::Base.connection.raw_connection.set_notice_processor(&old_proc) if old_proc
@@ -241,6 +244,11 @@ module Switchman
       else
         config[:database]
       end
+    end
+
+    private
+    def reset_column_information
+      ::ActiveRecord::Base.descendants.reject{ |m| m == Shard }.each(&:reset_column_information)
     end
   end
 end

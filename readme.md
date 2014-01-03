@@ -143,3 +143,28 @@ in the URL to reduce user confusion with long URLs:
 >>> polypmorphic_path([shard2.activate { User.first }])
  => "/users/2~1"
 ```
+
+Switchman also disables the Rails feature where
+ActionController::Base.cache_store (and other specific
+MyController.cache_store values) can diverge from Rails.cache.
+Controller cache's must align with Rails.cache, but now Rails.cache is
+shard aware.
+
+To take advantage of shard aware Rails.cache, simply set
+config.cache_store during Rails' configuration to a hash of
+configurations instead of a single configuration value. For example:
+
+```ruby
+config.cache_store = {
+  'production' => [:mem_cache_store, ['memcache.cluster1'], ...],
+  'cluster2'   => [:mem_cache_store, ['memcache.cluster2'], ...]
+}
+```
+
+Rails.cache will then load the cache store appropriate to the current
+shard's database server. If that database server does not have a cache
+store defined, it will fall back to the cache store defined for the
+Rails environment (e.g. config.cache_store['production']).
+
+If the config.cache_store is a single configuration value, it will be
+used as the cache store for all database servers.

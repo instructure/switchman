@@ -2,6 +2,52 @@ module Switchman
   class Engine < ::Rails::Engine
     isolate_namespace Switchman
 
+    initializer 'switchman.initialize_cache', :before => 'initialize_cache' do
+      # if we haven't already setup our cache map out-of-band, set it up from
+      # config.cache_store now. behaves similarly to Rails' default
+      # initialize_cache initializer, but for each value in the map, rather
+      # than just Rails.cache. if config.cache_store is a flat value, uses it
+      # to fill just the Rails.env entry in the cache map.
+      unless Switchman.config[:cache_map].present?
+        cache_store_config = Rails.configuration.cache_store
+        unless cache_store_config.is_a?(Hash)
+          cache_store_config = {Rails.env => cache_store_config}
+        end
+
+        Switchman.config[:cache_map] = {}
+        cache_store_config.each do |key, value|
+          value = ActiveSupport::Cache.lookup_store(value)
+          Switchman.config[:cache_map][key] = value
+          if value.respond_to?(:middleware)
+            config.middleware.insert_before("Rack::Runtime", value.middleware)
+          end
+        end
+      end
+
+      # if the configured cache map (either from before, or as populated from
+      # config.cache_store) didn't have an entry for Rails.env, add one using
+      # lookup_store(nil); matches the behavior of Rails' default
+      # initialize_cache initializer when config.cache_store is nil.
+      unless Switchman.config[:cache_map].has_key?(Rails.env)
+        value = ActiveSupport::Cache.lookup_store(nil)
+        Switchman.config[:cache_map][Rails.env] = value
+        if value.respond_to?(:middleware)
+          config.middleware.insert_before("Rack::Runtime", value.middleware)
+        end
+      end
+
+      # prevent :initialize_cache from trying to (or needing to) set
+      # Rails.cache. once our switchman.extend_ar initializer (below) runs
+      # Rails.cache will be overridden to pull appropriate values from the
+      # cache map, but between now and then, Rails.cache should return the
+      # Rails.env entry in the cache map.
+      if Rails.version < '4'
+        silence_warnings { Object.const_set "RAILS_CACHE", Switchman.config[:cache_map][Rails.env] }
+      else
+        Rails.cache = Switchman.config[:cache_map][Rails.env]
+      end
+    end
+
     initializer 'switchman.extend_ar', :before => "active_record.initialize_database" do
       ActiveSupport.on_load(:active_record) do
         #require 'active_record/associations/preloader/belongs_to'
@@ -92,6 +138,14 @@ module Switchman
         require "switchman/shackles"
 
         ::Shackles.send(:include, Shackles)
+      end
+    end
+
+    initializer 'switchman.extend_controller', :after => "shackles.extend_ar" do
+      ActiveSupport.on_load(:action_controller) do
+        require "switchman/action_controller/caching"
+
+        ::ActionController::Base.send(:include, ActionController::Caching)
       end
     end
   end

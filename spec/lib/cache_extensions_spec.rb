@@ -23,5 +23,9 @@ module Switchman
       from_2 = s2.activate { Rails.cache.fetch('key') }
       from_2.should == 2
     end
+
+    it "should not be assignable" do
+      expect{ Rails.cache = :null_store }.to raise_exception(NoMethodError)
+    end
   end
 end

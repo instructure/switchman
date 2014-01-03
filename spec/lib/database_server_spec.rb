@@ -130,6 +130,29 @@ module Switchman
       end
     end
 
+    describe "#cache_store" do
+      before do
+        @db = DatabaseServer.new
+        @default_store = ActiveSupport::Cache.lookup_store(:null_store)
+        @db_store = ActiveSupport::Cache.lookup_store(:memory_store)
+        @original_map = Switchman.config[:cache_map]
+        Switchman.config[:cache_map] = { Rails.env => @default_store, @db.id => @db_store }
+      end
+
+      after do
+        Switchman.config[:cache_map] = @original_map
+      end
+
+      it "should prefer the cache specific to the database" do
+        @db.cache_store.object_id.should == @db_store.object_id
+      end
+
+      it "should fallback to Rails.cache_without_sharding if no specific cache" do
+        Switchman.config[:cache_map].delete(@db.id)
+        @db.cache_store.object_id.should == @default_store.object_id
+      end
+    end
+
     describe ".server_for_new_shard" do
       before(:all) do
         @db1 = DatabaseServer.find(nil)

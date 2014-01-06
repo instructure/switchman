@@ -125,7 +125,7 @@ module Switchman
             database_servers = scope.reorder('database_server_id').select(:database_server_id).uniq.
                 map(&:database_server).compact.uniq
             scopes = Hash[database_servers.map do |server|
-              server_scope = server.shards(scope)
+              server_scope = server.shards.merge(scope)
               if parallel == 1
                 subscopes = [server_scope]
               else

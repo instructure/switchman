@@ -248,6 +248,7 @@ module Switchman
 
     private
     def reset_column_information
+      ::ActiveRecord::Base.connection.schema_cache.clear!
       ::ActiveRecord::Base.descendants.reject{ |m| m == Shard }.each(&:reset_column_information)
     end
   end

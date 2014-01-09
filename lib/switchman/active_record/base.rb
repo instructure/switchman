@@ -103,6 +103,12 @@ module Switchman
       def to_param
         Shard.short_id_for(self.id).to_s if persisted?
       end
+
+      def initialize_dup(*args)
+        copy = super
+        @shard_set_in_stone = false
+        copy
+      end
     end
   end
 end

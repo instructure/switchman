@@ -114,6 +114,114 @@ module Switchman
           Appendage.where(:id => @appendages).sum(:value).should == 15
         end
       end
+
+      describe "#execute_grouped_calculation" do
+        before do
+          @appendages = []
+          @shard1.activate { @user1 = User.create!(:name => "user1") }
+          @shard2.activate { @user2 = User.create!(:name => "user2") }
+
+          @shard1.activate do
+            @appendages << Appendage.create!(:user_id => @user1.id, :value => 1)
+            @appendages << Appendage.create!(:user_id => @user2.id, :value => 3)
+          end
+          @shard2.activate do
+            @appendages << Appendage.create!(:user_id => @user1.id, :value => 2)
+            @appendages << Appendage.create!(:user_id => @user2.id, :value => 4)
+            @appendages << Appendage.create!(:user_id => @user2.id, :value => 5)
+          end
+        end
+
+        it "should calculate average across shards" do
+          Appendage.shard([@shard1, @shard2]).group("appendages.user_id").average(:value).should ==
+              {@user1.global_id => 1.5, @user2.global_id => 4}
+
+          @shard1.activate do
+            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").average(:value).should ==
+                {@user1.local_id => 1.5, @user2.global_id => 4}
+          end
+
+          @shard2.activate do
+            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").average(:value).should ==
+                {@user1.global_id => 1.5, @user2.local_id => 4}
+          end
+
+          Appendage.shard([@shard1, @shard2]).group(:user).average(:value).should ==
+              {@user1 => 1.5, @user2 => 4}
+        end
+
+        it "should count across shards" do
+          Appendage.shard([@shard1, @shard2]).group("appendages.user_id").count.should ==
+              {@user1.global_id => 2, @user2.global_id => 3}
+
+          @shard1.activate do
+            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").count.should ==
+                {@user1.local_id => 2, @user2.global_id => 3}
+          end
+
+          @shard2.activate do
+            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").count.should ==
+                {@user1.global_id => 2, @user2.local_id => 3}
+          end
+
+          Appendage.shard([@shard1, @shard2]).group(:user).count.should ==
+              {@user1 => 2, @user2 => 3}
+        end
+
+        it "should calculate minimum across shards" do
+          Appendage.shard([@shard1, @shard2]).group("appendages.user_id").minimum(:value).should ==
+              {@user1.global_id => 1, @user2.global_id => 3}
+
+          @shard1.activate do
+            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").minimum(:value).should ==
+                {@user1.local_id => 1, @user2.global_id => 3}
+          end
+
+          @shard2.activate do
+            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").minimum(:value).should ==
+                {@user1.global_id => 1, @user2.local_id => 3}
+          end
+
+          Appendage.shard([@shard1, @shard2]).group(:user).minimum(:value).should ==
+              {@user1 => 1, @user2 => 3}
+        end
+
+        it "should calculate maximum across shards" do
+          Appendage.shard([@shard1, @shard2]).group("appendages.user_id").maximum(:value).should ==
+              {@user1.global_id => 2, @user2.global_id => 5}
+
+          @shard1.activate do
+            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").maximum(:value).should ==
+                {@user1.local_id => 2, @user2.global_id => 5}
+          end
+
+          @shard2.activate do
+            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").maximum(:value).should ==
+                {@user1.global_id => 2, @user2.local_id => 5}
+          end
+
+          Appendage.shard([@shard1, @shard2]).group(:user).maximum(:value).should ==
+              {@user1 => 2, @user2 => 5}
+        end
+
+        it "should calculate sum across shards" do
+          Appendage.shard([@shard1, @shard2]).group("appendages.user_id").sum(:value).should ==
+              {@user1.global_id => 3, @user2.global_id => 12}
+
+          @shard1.activate do
+            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").sum(:value).should ==
+                {@user1.local_id => 3, @user2.global_id => 12}
+          end
+
+          @shard2.activate do
+            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").sum(:value).should ==
+                {@user1.global_id => 3, @user2.local_id => 12}
+          end
+
+          Appendage.shard([@shard1, @shard2]).group(:user).sum(:value).should ==
+              {@user1 => 3, @user2 => 12}
+        end
+      end
     end
   end
 end

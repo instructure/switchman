@@ -62,7 +62,9 @@ module Switchman
       def shard=(new_shard)
         raise ::ActiveRecord::ReadOnlyRecord if !self.new_record? || @shard_set_in_stone
         if shard != new_shard
-          # TODO: adjust foreign keys
+          attributes.each do |attr, value|
+            self[attr] = Shard.relative_id_for(value, shard, new_shard) if self.class.sharded_column?(attr)
+          end
           @shard = new_shard
         end
       end

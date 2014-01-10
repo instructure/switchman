@@ -61,6 +61,16 @@ module Switchman
           end
         end
       end
+
+      describe "shard=" do
+        it "should adjust foreign ids when shard is changed" do
+          user = User.create!
+          appendage = Appendage.new
+          appendage.user_id = user.id
+          appendage.shard = @shard1
+          appendage.attributes["user_id"].should == user.global_id
+        end
+      end
     end
   end
 end

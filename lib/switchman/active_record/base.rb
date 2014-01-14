@@ -92,9 +92,9 @@ module Switchman
         result
       end
 
-      def transaction(&block)
+      def transaction(options={}, &block)
         shard.activate(self.class.shard_category) do
-          super
+          self.class.transaction(options, &block)
         end
       end
 

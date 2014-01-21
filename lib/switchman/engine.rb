@@ -23,6 +23,7 @@ module Switchman
         include ActiveRecord::Base
         include ActiveRecord::AttributeMethods
         ::ActiveRecord::Associations::Association.send(:include, ActiveRecord::Association)
+        ::ActiveRecord::Associations::BelongsToAssociation.send(:include, ActiveRecord::BelongsToAssociation)
         ::ActiveRecord::Associations::CollectionProxy.send(:include, ActiveRecord::CollectionProxy)
         ::ActiveRecord::Associations::Builder::Association.send(:include, ActiveRecord::Builder::Association)
 

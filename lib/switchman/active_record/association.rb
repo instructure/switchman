@@ -8,8 +8,8 @@ module Switchman
       end
 
       def shard
-        # polymorphic associations assume the same shard as the owning item
         if @reflection.options[:polymorphic] || @reflection.klass.shard_category == @owner.class.shard_category
+          # polymorphic associations assume the same shard as the owning item
           @owner.shard
         else
           Shard.default
@@ -27,6 +27,17 @@ module Switchman
       def scoped_with_sharding
         shard_value = @reflection.options[:multishard] ? @owner : self.shard
         self.shard.activate { scoped_without_sharding.shard(shard_value, :association) }
+      end
+    end
+
+    module BelongsToAssociation
+      def shard
+        if @owner.class.sharded_column?(@reflection.foreign_key) &&
+            foreign_id = @owner[@reflection.foreign_key]
+          Shard.shard_for(foreign_id, @owner.shard)
+        else
+          super
+        end
       end
     end
 

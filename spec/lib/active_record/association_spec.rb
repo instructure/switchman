@@ -181,6 +181,15 @@ module Switchman
           @user1.digits.has_no_value.shard(@shard2).to_a.count.should == 0
         end
 
+        describe "belongs_to associations" do
+          it "should identify an implied shard value based on the foreign id" do
+            @shard1.activate do
+              @appendage = Appendage.create!(:user_id => @user2.global_id)
+              @appendage.reload.user.should == @user2
+            end
+          end
+        end
+
         describe "preloading" do
           it "should preload belongs_to associations across shards" do
             a1 = Appendage.create!(:user => @user1)

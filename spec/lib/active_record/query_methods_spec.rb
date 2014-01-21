@@ -125,6 +125,25 @@ module Switchman
           end
         end
       end
+
+      describe "with table aliases" do
+        it "should properly construct the query" do
+          child = @user1.children.create!
+          grandchild = child.children.create!
+          child.reload.parent.should == @user1
+
+          relation = @user1.association(:grandchildren).scoped
+
+          attribute = relation.where_values.first.left
+          attribute.name.to_s.should == 'parent_id'
+          attribute.relation.class.should == Arel::Nodes::TableAlias
+
+          relation.send(:sharded_primary_key?, attribute).should == false
+          relation.send(:sharded_foreign_key?, attribute).should == true
+
+          @user1.grandchildren.should == [grandchild]
+        end
+      end
     end
   end
 end

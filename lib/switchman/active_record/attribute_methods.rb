@@ -25,8 +25,9 @@ module Switchman
         protected
 
         def reflection_for_integer_attribute(attr_name)
+          attr_name = attr_name.to_s
           columns_hash[attr_name] && columns_hash[attr_name].type == :integer &&
-              reflections.find { |_, r| r.belongs_to? && r.foreign_key == attr_name }.try(:last)
+              reflections.find { |_, r| r.belongs_to? && r.foreign_key.to_s == attr_name }.try(:last)
         rescue ::ActiveRecord::StatementInvalid
           # this is for when models are referenced in initializers before migrations have been run
           nil

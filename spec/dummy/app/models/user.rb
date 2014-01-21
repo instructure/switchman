@@ -6,6 +6,10 @@ class User < ActiveRecord::Base
 
   has_many :features, :as => :owner, :multishard => true
 
+  belongs_to :parent, :class_name => "User", :foreign_key => :parent_id
+  has_many :children, :class_name => "User", :inverse_of => :parent, :foreign_key => :parent_id
+  has_many :grandchildren, :class_name => "User", :through => :children, :source => :children
+
   belongs_to :mirror_user
 
   attr_writer :associated_shards

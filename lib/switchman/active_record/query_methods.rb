@@ -77,7 +77,8 @@ module Switchman
       def infer_shards_from_primary_key(predicates)
         primary_key = predicates.detect do |predicate|
           predicate.is_a?(Arel::Nodes::Binary) && predicate.left.is_a?(Arel::Attributes::Attribute) &&
-          predicate.left.relation.engine == klass && klass.primary_key == predicate.left.name
+            predicate.left.relation.is_a?(Arel::Table) && predicate.left.relation.engine == klass &&
+            klass.primary_key == predicate.left.name
         end
         if primary_key
           case primary_key.right
@@ -130,6 +131,7 @@ module Switchman
         if @@foreign_keys[attribute.relation.table_name].has_key?(attribute.name)
           @@foreign_keys[attribute.relation.table_name][attribute.name]
         else
+          attribute = attribute.relation if attribute.relation.is_a?(Arel::Nodes::TableAlias)
           models = attribute.relation.engine.descendants.select{|d| d.table_name == attribute.relation.table_name}
           models << attribute.relation.engine unless attribute.relation.engine == ::ActiveRecord::Base
 
@@ -138,6 +140,7 @@ module Switchman
       end
 
       def sharded_primary_key?(attribute)
+        attribute = attribute.relation if attribute.relation.is_a?(Arel::Nodes::TableAlias)
         attribute.relation.engine.primary_key == attribute.name
       end
 

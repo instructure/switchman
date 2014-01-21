@@ -52,7 +52,7 @@ module Switchman
 
       def self.included(klass)
         klass.extend(ClassMethods)
-        klass.set_callback(:initialize, :before) { @shard = Shard.current(self.class.shard_category) }
+        klass.set_callback(:initialize, :before) { @shard ||= Shard.current(self.class.shard_category) }
       end
 
       def shard

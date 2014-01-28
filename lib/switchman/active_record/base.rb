@@ -24,7 +24,7 @@ module Switchman
 
         def integral_id?
           if @integral_id == nil
-            @integral_id = columns_hash[primary_key].type == :integer
+            @integral_id = columns_hash[primary_key].try(:type) == :integer
           end
           @integral_id
         end
@@ -52,7 +52,15 @@ module Switchman
 
       def self.included(klass)
         klass.extend(ClassMethods)
-        klass.set_callback(:initialize, :before) { @shard ||= Shard.current(self.class.shard_category) }
+        klass.set_callback(:initialize, :before) do
+          unless @shard
+            if self.class.sharded_primary_key?
+              @shard = Shard.shard_for(self[self.class.primary_key], Shard.current(self.class.shard_category))
+            else
+              @shard = Shard.current(self.class.shard_category)
+            end
+          end
+        end
       end
 
       def shard

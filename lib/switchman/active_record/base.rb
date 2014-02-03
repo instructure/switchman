@@ -79,16 +79,16 @@ module Switchman
 
       def save(*args)
         @shard_set_in_stone = true
-        shard.activate(self.class.shard_category) { super }
+        self.class.with_scope(self.class.shard(shard), :overwrite) { super }
       end
 
       def save!(*args)
         @shard_set_in_stone = true
-        shard.activate(self.class.shard_category) { super }
+        self.class.with_scope(self.class.shard(shard), :overwrite) { super }
       end
 
       def destroy
-        shard.activate(self.class.shard_category) { super }
+        self.class.with_scope(self.class.shard(shard), :overwrite) { super }
       end
 
       def clone

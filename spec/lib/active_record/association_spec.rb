@@ -188,6 +188,19 @@ module Switchman
               @appendage.reload.user.should == @user2
             end
           end
+
+          it "should translate foreign keys when replacing the record" do
+            a = @shard2.activate { Appendage.create! }
+            copy = a.dup
+            @shard1.activate do
+              copy.user = @user1
+              copy.shard = @user1.shard
+              copy.save!
+              copy.reload
+              copy.user.shard.should == @shard1
+              copy.user.should == @user1
+            end
+          end
         end
 
         describe "preloading" do

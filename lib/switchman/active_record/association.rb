@@ -31,6 +31,19 @@ module Switchman
     end
 
     module BelongsToAssociation
+      def self.included(klass)
+        klass.send(:alias_method_chain, :replace_keys, :sharding)
+      end
+
+      def replace_keys_with_sharding(record)
+        if record && record.class.sharded_column?(reflection.association_primary_key(record.class))
+          foreign_id = record[reflection.association_primary_key(record.class)]
+          owner[reflection.foreign_key] = Shard.relative_id_for(foreign_id, record.shard, owner.shard)
+        else
+          replace_keys_without_sharding(record)
+        end
+      end
+
       def shard
         if @owner.class.sharded_column?(@reflection.foreign_key) &&
             foreign_id = @owner[@reflection.foreign_key]

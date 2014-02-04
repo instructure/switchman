@@ -53,12 +53,17 @@ module Switchman
             @@keep_the_shards = true
             @@shard3 = nil
           else # @@shard1.is_a?(DatabaseServer)
-            @@shard1 = @@shard1.create_new_shard
-            @@shard2 = @@shard2.create_new_shard
-            if @@shard1.database_server == Shard.default.database_server
-              @@shard3 = nil
-            else
-              @@shard3 = @@shard1.database_server.create_new_shard
+            begin
+              @@shard1 = @@shard1.create_new_shard
+              @@shard2 = @@shard2.create_new_shard
+              if @@shard1.database_server == Shard.default.database_server
+                @@shard3 = nil
+              else
+                @@shard3 = @@shard1.database_server.create_new_shard
+              end
+            rescue
+              @@shard1 = @@shard2 = @@shard3 = nil
+              raise
             end
           end
           puts "Done!"

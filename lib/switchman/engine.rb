@@ -64,6 +64,7 @@ module Switchman
         require "switchman/active_record/query_cache"
         require "switchman/active_record/query_methods"
         require "switchman/active_record/relation"
+        require "switchman/active_record/spawn_methods"
         require "switchman/cache_extensions"
 
         include ActiveRecord::Base
@@ -89,6 +90,7 @@ module Switchman
         ::ActiveRecord::Relation.send(:include, ActiveRecord::FinderMethods)
         ::ActiveRecord::Relation.send(:include, ActiveRecord::QueryMethods)
         ::ActiveRecord::Relation.send(:include, ActiveRecord::Relation)
+        ::ActiveRecord::Relation.send(:include, ActiveRecord::SpawnMethods)
         Rails.send(:include, CacheExtensions)
       end
     end

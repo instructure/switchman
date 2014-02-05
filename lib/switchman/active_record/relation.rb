@@ -67,22 +67,15 @@ module Switchman
       end
 
       def activate(&block)
-        case shard_value
-        when DefaultShard, Shard.current(klass.shard_category)
-          yield(self, shard_value)
-        when Shard
-          shard_value.activate(klass.shard_category) { yield(self, shard_value) }
-        when Array, ::ActiveRecord::Relation, ::ActiveRecord::Base
-          # TODO: implement local limit to avoid querying extra shards
-          if shard_value.is_a?(::ActiveRecord::Base)
-            if shard_value.respond_to?(:associated_shards)
-              shards = shard_value.associated_shards
-            else
-              shards = [shard_value.shard]
-            end
+        shards = all_shards
+        if (Array === shards && shards.length == 1)
+          if shards.first == DefaultShard || shards.first == Shard.current(klass.shard_category)
+            yield(self, shards.first)
           else
-            shards = shard_value
+            shards.first.activate(klass.shard_category) { yield(self, shard_value) }
           end
+        else
+          # TODO: implement local limit to avoid querying extra shards
           Shard.with_each_shard(shards, [klass.shard_category]) do
             shard(Shard.current(klass.shard_category), :to_a).activate(&block)
           end

@@ -6,10 +6,12 @@ module Switchman
       #   An array or relation of shards
       #   An AR object (query runs against that object's associated_shards)
       # shard_source_value is one of:
-      #   :implicit - inferred from current shard when relation was created, or primary key where clause
-      #   :explicit - explicit set on the relation
-      #   :to_a - a special value that Relation#to_a uses when querying multiple shards to
-      #           remove primary keys from conditions that aren't applicable to the current shard
+      #   :implicit    - inferred from current shard when relation was created, or primary key where clause
+      #   :explicit    - explicit set on the relation
+      #   :association - a special value that scopes from associations use to use slightly different logic
+      #                  for foreign key transposition
+      #   :to_a        - a special value that Relation#to_a uses when querying multiple shards to
+      #                  remove primary keys from conditions that aren't applicable to the current shard
       attr_accessor :shard_value, :shard_source_value
 
       def shard(value, source = :explicit)
@@ -70,6 +72,18 @@ module Switchman
           Shard.default
         else
           raise ArgumentError("invalid shard value #{shard_value}")
+        end
+      end
+
+      # the shard value as an array or a relation
+      def all_shards
+        case shard_value
+        when Shard, DefaultShard
+          [shard_value]
+        when ::ActiveRecord::Base
+          shard_value.respond_to?(:associated_shards) ? shard_value.associated_shards : [shard_value.shard]
+        else
+          shard_value
         end
       end
 

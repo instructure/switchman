@@ -164,59 +164,72 @@ module Switchman
         }
       end
 
-      shard = Shard.create!(:name => temp_db_name,
+      create_shard = lambda do
+        shard = Shard.create!(:name => temp_db_name,
                             :database_server => self) do |shard|
-        shard.id = options[:id] if options[:id]
-      end
-      begin
-        if db_name.nil?
-          base_db_name = self.config[:database] % self.config
-          base_db_name = $1 if base_db_name =~ /(?:.*\/)(.+)_shard_\d+(?:\.sqlite3)?$/
-          base_db_name = nil if base_db_name == ':memory:'
-          base_db_name << '_' if base_db_name
-          db_name = "#{base_db_name}shard_#{shard.id}"
-          if config[:adapter] == 'sqlite3'
-            # Try to create a db on-disk even if the only shards for sqlite are in-memory
-            temp_db_name = nil if temp_db_name == ':memory:'
-            # Put it in the db directory if there are no other sqlite shards
-            temp_db_name ||= 'db/dummy'
-            db_name = File.join(File.dirname(temp_db_name), "#{db_name}.sqlite3")
-            shard.name = db_name
-          end
+          shard.id = options[:id] if options[:id]
         end
-        shard.activate(Shard.categories) do
-          ::Shackles.activate(:deploy) do
-            begin
-              if create_statement
-                Array(create_statement.call).each do |stmt|
-                  ::ActiveRecord::Base.connection.execute(stmt)
-                end
-                # have to disconnect and reconnect to the correct db
-                if self.shareable? && other_shard
-                  other_shard.activate { ::ActiveRecord::Base.connection }
-                else
-                  ::ActiveRecord::Base.connection_pool.current_pool.disconnect!
-                end
-              end
+        begin
+          if db_name.nil?
+            base_db_name = self.config[:database] % self.config
+            base_db_name = $1 if base_db_name =~ /(?:.*\/)(.+)_shard_\d+(?:\.sqlite3)?$/
+            base_db_name = nil if base_db_name == ':memory:'
+            base_db_name << '_' if base_db_name
+            db_name = "#{base_db_name}shard_#{shard.id}"
+            if config[:adapter] == 'sqlite3'
+              # Try to create a db on-disk even if the only shards for sqlite are in-memory
+              temp_db_name = nil if temp_db_name == ':memory:'
+              # Put it in the db directory if there are no other sqlite shards
+              temp_db_name ||= 'db/dummy'
+              db_name = File.join(File.dirname(temp_db_name), "#{db_name}.sqlite3")
               shard.name = db_name
-              old_proc = ::ActiveRecord::Base.connection.raw_connection.set_notice_processor {} if config[:adapter] == 'postgresql'
-              old_verbose = ::ActiveRecord::Migration.verbose
-              ::ActiveRecord::Migration.verbose = false
-
-              reset_column_information
-              ::ActiveRecord::Migrator.migrate(Rails.root + "db/migrate/") unless create_schema == false
-              reset_column_information
-            ensure
-              ::ActiveRecord::Migration.verbose = old_verbose
-              ::ActiveRecord::Base.connection.raw_connection.set_notice_processor(&old_proc) if old_proc
             end
           end
+          shard.activate(Shard.categories) do
+            ::Shackles.activate(:deploy) do
+              begin
+                if create_statement
+                  Array(create_statement.call).each do |stmt|
+                    ::ActiveRecord::Base.connection.execute(stmt)
+                  end
+                  # have to disconnect and reconnect to the correct db
+                  if self.shareable? && other_shard
+                    other_shard.activate { ::ActiveRecord::Base.connection }
+                  else
+                    ::ActiveRecord::Base.connection_pool.current_pool.disconnect!
+                  end
+                end
+                shard.name = db_name
+                old_proc = ::ActiveRecord::Base.connection.raw_connection.set_notice_processor {} if config[:adapter] == 'postgresql'
+                old_verbose = ::ActiveRecord::Migration.verbose
+                ::ActiveRecord::Migration.verbose = false
+
+                reset_column_information
+                ::ActiveRecord::Migrator.migrate(Rails.root + "db/migrate/") unless create_schema == false
+                reset_column_information
+              ensure
+                ::ActiveRecord::Migration.verbose = old_verbose
+                ::ActiveRecord::Base.connection.raw_connection.set_notice_processor(&old_proc) if old_proc
+              end
+            end
+          end
+          shard.save!
+          shard
+        rescue
+          shard.destroy
+          shard.drop_database if shard.name == db_name rescue nil
+          raise
         end
-        shard.save!
-        shard
-      rescue
-        shard.destroy
-        raise
+      end
+
+      if Shard.connection.supports_ddl_transactions? && self.shareable? && other_shard
+        Shard.transaction do
+          other_shard.activate do
+            ::ActiveRecord::Base.connection.transaction(&create_shard)
+          end
+        end
+      else
+        create_shard.call
       end
     end
 

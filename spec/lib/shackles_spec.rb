@@ -39,13 +39,13 @@ module Switchman
       # have to unstub long enough to create this
       Rails.env.unstub(:test?)
       ds = DatabaseServer.create(config: Shard.default.database_server.config.merge(
-        :slave => [{ host: '192.168.1.1' }, nil]))
+        :slave => [{ host: 'some.postgres.server' }, nil]))
       Rails.env.stubs(:test?).returns(false)
       ds.shackle!
       s = ds.shards.create!
       s.activate do
         User.connection
-        User.connection_pool.spec.config[:host].should_not == '192.168.1.1'
+        User.connection_pool.spec.config[:host].should_not == 'some.postgres.server'
       end
     end
 

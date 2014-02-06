@@ -17,38 +17,11 @@ module Switchman
       # our before handlers have already been configured from a parent group; don't add them again
       return if klass.parent_groups[1..-1].any? { |group| group.included_modules.include?(self) }
 
-      ::RSpec.configure do |config|
-        block = proc do
-          if @@shard1
-            # some specs are mean, and blow away our shards
-            begin
-              @@shard1.reload
-              @@shard2.reload
-              @@shard3.reload if @@shard3
-            rescue ::ActiveRecord::RecordNotFound
-              Shard.default.clone.save!
-              Shard.default(true)
-              @@shard1 = @@shard1.clone
-              @@shard1.save!
-              @@shard2 = @@shard2.clone
-              @@shard2.save!
-              if @@shard3
-                @@shard3 = @@shard3.clone
-                @@shard3.save!
-              end
-            end
-          end
-        end
-        # this module will be included multiple times, but we don't want to run this global hook multiple times
-        if config.hooks[:before][:all].all? { |hook| hook.block.source_location != block.source_location }
-          config.before(:all, &block)
-        end
-      end
-
       klass.before(:all) do
         unless @@shard1
           puts "Setting up sharding for all specs..."
           @@shard1, @@shard2 = TestHelper.recreate_persistent_test_shards
+          @@default_shard = Shard.default
           if @@shard1.is_a?(Shard)
             @@keep_the_shards = true
             @@shard3 = nil
@@ -85,6 +58,17 @@ module Switchman
             end
             @@shard2.database_server.destroy
             exit status if status
+          end
+        else
+          @@default_shard.dup.save!
+          Shard.default(true)
+          @@shard1 = @@shard1.dup
+          @@shard1.save!
+          @@shard2 = @@shard2.dup
+          @@shard2.save!
+          if @@shard3
+            @@shard3 = @@shard3.dup
+            @@shard3.save!
           end
         end
         @shard1, @shard2 = @@shard1, @@shard2
@@ -123,6 +107,14 @@ module Switchman
             end
           end
         end
+      end
+
+      klass.after(:all) do
+        Shard.default.destroy
+        @@shard1.destroy
+        @@shard2.destroy
+        @@shard3.destroy if @@shard3
+        Shard.default(true)
       end
     end
   end

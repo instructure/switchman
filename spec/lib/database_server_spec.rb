@@ -34,6 +34,8 @@ module Switchman
     end
 
     describe "#create_new_shard" do
+      include RSpecHelper
+
       def maybe_activate(shard)
         shard.activate { yield } if shard
         yield unless shard

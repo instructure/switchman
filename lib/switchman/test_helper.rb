@@ -3,7 +3,7 @@ module Switchman
     class << self
       def recreate_persistent_test_shards
         # recreate the default shard (it got buhleted)
-        if Shard.default.is_a?(DefaultShard)
+        if Shard.default(true).is_a?(DefaultShard)
           begin
             Shard.create!(:default => true)
           rescue

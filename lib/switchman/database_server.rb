@@ -125,6 +125,8 @@ module Switchman
     end
 
     def create_new_shard(options = {})
+      raise MethodNotImplemented unless Shard.default.is_a?(Shard)
+
       db_name = options[:db_name]
       create_schema = options[:schema]
       # look for another shard associated with this db

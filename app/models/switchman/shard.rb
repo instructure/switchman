@@ -14,6 +14,7 @@ module Switchman
           :unsharded => [Shard]
       }
     private_constant :CATEGORIES
+    @shard_category = :unsharded
 
     attr_accessible :name, :database_server, :default
 
@@ -21,7 +22,6 @@ module Switchman
     validates_uniqueness_of :default, :if => lambda { |s| s.default? }
 
     after_save :clear_cache
-
 
     class << self
       def categories

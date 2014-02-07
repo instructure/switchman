@@ -2,7 +2,6 @@ module Switchman
   module ActiveRecord
     module Base
       module ClassMethods
-        attr_writer :shard_category
         delegate :shard, :to => :scoped
 
         def shard_category

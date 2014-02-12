@@ -169,9 +169,16 @@ module Switchman
               return with_each_shard(subscopes.first, categories) { yield }
             end
             subscopes.each_with_index do |subscope, idx|
+              if subscopes.length > 1
+                name = "#{server.id} #{idx + 1}"
+              else
+                name = server.id
+              end
+
               details = Open4.pfork4(lambda do
                 begin
                   ::ActiveRecord::Base.clear_all_connections!
+                  $0 = [$0, ARGV, name].flatten.join(' ')
                   with_each_shard(subscope, categories) { yield }
                 rescue Exception => e
                   exception_pipe.last.write(Marshal.dump(e))
@@ -183,11 +190,6 @@ module Switchman
               details[1].close
               fds.concat details[2..3]
               pids << details[0]
-              if subscopes.length > 1
-                name = "#{server.id} #{idx + 1}"
-              else
-                name = server.id
-              end
               fd_to_name_map[details[2]] = name
               fd_to_name_map[details[3]] = name
             end

@@ -110,7 +110,8 @@ module Switchman
       end
 
       def to_param
-        Shard.short_id_for(self.id).to_s if persisted?
+        short_id = Shard.short_id_for(id)
+        short_id && short_id.to_s
       end
 
       def initialize_dup(*args)

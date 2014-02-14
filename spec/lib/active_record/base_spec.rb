@@ -6,9 +6,15 @@ module Switchman
       include RSpecHelper
 
       describe "to_param" do
-        it "should return nil if not persisted" do
+        it "should return nil if no id" do
           user = User.new
           user.to_param.should be_nil
+        end
+
+        it "should return the id even if not persisted" do
+          user = User.new
+          user.id = 1
+          user.to_param.should == '1'
         end
 
         it "should return local id if in the current shard" do

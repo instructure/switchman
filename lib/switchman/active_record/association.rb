@@ -26,7 +26,7 @@ module Switchman
 
       def scoped_with_sharding
         shard_value = @reflection.options[:multishard] ? @owner : self.shard
-        self.shard.activate { scoped_without_sharding.shard(shard_value, :association) }
+        @owner.shard.activate { scoped_without_sharding.shard(shard_value, :association) }
       end
     end
 

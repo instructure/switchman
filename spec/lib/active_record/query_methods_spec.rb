@@ -124,6 +124,19 @@ module Switchman
             relation.where_values.first.right.should == [@user1.global_id, @user2.local_id]
           end
         end
+
+        it "should translate ids in joins" do
+          relation = User.joins(:appendage).where(appendages: { user_id: [@user1, @user2]})
+          relation.where_values.first.right.should == [@user1.local_id, @user2.global_id]
+        end
+
+        it "should translate ids according to the current shard of the foreign type" do
+          @shard1.activate(:mirror_universe) do
+            mirror_user = MirrorUser.create!
+            relation = User.where(mirror_user_id: mirror_user)
+            relation.where_values.first.right.should == mirror_user.global_id
+          end
+        end
       end
 
       describe "with table aliases" do
@@ -138,8 +151,9 @@ module Switchman
           attribute.name.to_s.should == 'parent_id'
           attribute.relation.class.should == Arel::Nodes::TableAlias
 
-          relation.send(:sharded_primary_key?, attribute).should == false
-          relation.send(:sharded_foreign_key?, attribute).should == true
+          rel, column = relation.send(:relation_and_column, attribute)
+          relation.send(:sharded_primary_key?, rel, column).should == false
+          relation.send(:sharded_foreign_key?, rel, column).should == true
 
           @user1.grandchildren.should == [grandchild]
         end

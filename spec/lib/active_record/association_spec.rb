@@ -96,6 +96,15 @@ module Switchman
         relation.where_values.detect{|v| v.left.name == "id"}.right.should == [a1.local_id, a2.global_id]
       end
 
+      it "should properly set up a cross-shard-category query" do
+        @shard1.activate(:mirror_universe) do
+          mirror_user = MirrorUser.create!
+          relation = mirror_user.association(:user).scoped
+          relation.shard_value.should == Shard.default
+          relation.where_values.first.right.should == mirror_user.global_id
+        end
+      end
+
       describe "multishard associations" do
         it "should group has_many associations over associated_shards" do
           @shard1.activate{ Appendage.create!(:user_id => @user1, :value => 1) }

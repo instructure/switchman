@@ -45,12 +45,11 @@ module Switchman
       end
 
       def build_where(opts, other = [])
-        source_shard = Shard.current(klass.shard_category)
         case opts
         when Hash, Arel::Nodes::Node
           predicates = super
           infer_shards_from_primary_key(predicates) if shard_source_value == :implicit && shard_value.is_a?(Shard)
-          predicates = transpose_predicates(predicates, source_shard, primary_shard) if shard_source_value != :explicit
+          predicates = transpose_predicates(predicates, nil, primary_shard) if shard_source_value != :explicit
           predicates
         else
           super
@@ -130,47 +129,66 @@ module Switchman
         end
       end
 
-      def transposable_attribute_type(attribute)
-        return false unless attribute.is_a?(Arel::Attributes::Attribute)
-        if sharded_primary_key?(attribute)
-          return :primary
-        elsif sharded_foreign_key?(attribute)
-          return :foreign
+      def transposable_attribute_type(relation, column)
+        if sharded_primary_key?(relation, column)
+          :primary
+        elsif sharded_foreign_key?(relation, column)
+          :foreign
         end
       end
 
-      def sharded_foreign_key?(attribute)
-        @@foreign_keys ||= {}
-        @@foreign_keys[attribute.relation.table_name] ||= {}
-        if @@foreign_keys[attribute.relation.table_name].has_key?(attribute.name)
-          @@foreign_keys[attribute.relation.table_name][attribute.name]
-        else
-          attribute = attribute.relation if attribute.relation.is_a?(Arel::Nodes::TableAlias)
-          models = attribute.relation.engine.descendants.select{|d| d.table_name == attribute.relation.table_name}
-          models << attribute.relation.engine unless attribute.relation.engine == ::ActiveRecord::Base
-
-          @@foreign_keys[attribute.relation.table_name][attribute.name] = models.any?{|m| m.sharded_column?(attribute.name)}
-        end
+      def models_for_table(table_name)
+        @@models_for_table ||= {}
+        @@models_for_table[table_name] ||= ::ActiveRecord::Base.descendants.select { |d| d.table_name == table_name }
       end
 
-      def sharded_primary_key?(attribute)
+      def sharded_foreign_key?(relation, column)
+        models_for_table(relation.table_name).any? { |m| m.sharded_column?(column) }
+      end
+
+      def sharded_primary_key?(relation, column)
+        relation.engine.primary_key == column
+      end
+
+      def source_shard_for_foreign_key(relation, column)
+        reflection = nil
+        models_for_table(relation.table_name).each do |model|
+          reflection = model.send(:reflection_for_integer_attribute, column)
+          break if reflection
+        end
+        return Shard.current(klass.shard_category) if reflection.options[:polymorphic]
+        Shard.current(reflection.klass.shard_category)
+      end
+
+      def relation_and_column(attribute)
+        column = attribute.name
         attribute = attribute.relation if attribute.relation.is_a?(Arel::Nodes::TableAlias)
-        attribute.relation.engine.primary_key == attribute.name
+        [attribute.relation, column]
       end
-
       # semi-private
       public
       def transpose_predicates(predicates, source_shard, target_shard, remove_nonlocal_primary_keys = false)
         predicates.map do |predicate|
-          next predicate unless predicate.is_a?(Arel::Nodes::Binary) && type = transposable_attribute_type(predicate.left)
+          next predicate unless predicate.is_a?(Arel::Nodes::Binary)
+          next predicate unless predicate.left.is_a?(Arel::Attributes::Attribute)
+          relation, column = relation_and_column(predicate.left)
+          next predicate unless (type = transposable_attribute_type(relation, column))
 
           remove = true if type == :primary && remove_nonlocal_primary_keys && predicate.left.relation.engine == klass
+          current_source_shard =
+              if source_shard
+                source_shard
+              elsif type == :primary
+                Shard.current(klass.shard_category)
+              elsif type == :foreign
+                source_shard_for_foreign_key(relation, column)
+              end
 
           new_right_value = case predicate.right
           when Array
             local_ids = []
             predicate.right.each do |value|
-              local_id = Shard.relative_id_for(value, source_shard, target_shard)
+              local_id = Shard.relative_id_for(value, current_source_shard, target_shard)
               local_ids << local_id unless remove && local_id > Shard::IDS_PER_SHARD
             end
             local_ids
@@ -178,13 +196,13 @@ module Switchman
             # look for a bind param with a matching column name
             if @bind_params && idx = @bind_params.find_index{|b| b.is_a?(Array) && b.first.try(:name) == predicate.left}
               column, value = @bind_params[idx]
-              local_id = Shard.relative_id_for(value, source_shard, target_shard)
+              local_id = Shard.relative_id_for(value, current_source_shard, target_shard)
               local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
               @bind_params[idx] = [column, local_id]
             end
             predicate.right
           else
-            local_id = Shard.relative_id_for(predicate.right, source_shard, target_shard)
+            local_id = Shard.relative_id_for(predicate.right, current_source_shard, target_shard)
             local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
             local_id
           end

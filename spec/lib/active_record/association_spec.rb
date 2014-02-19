@@ -190,6 +190,16 @@ module Switchman
           @user1.digits.has_no_value.shard(@shard2).to_a.count.should == 0
         end
 
+        describe "unsharded associations" do
+          it "should be able to create an unsharded new record through a collection" do
+            root = @user2.roots.create!
+            root.reload
+            root.shard.should == Shard.default
+            root.user_id.should == @user2.global_id
+            root.user.should == @user2
+          end
+        end
+
         describe "belongs_to associations" do
           it "should identify an implied shard value based on the foreign id" do
             @shard1.activate do

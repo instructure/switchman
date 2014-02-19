@@ -10,6 +10,8 @@ class User < ActiveRecord::Base
   has_many :children, :class_name => "User", :inverse_of => :parent, :foreign_key => :parent_id
   has_many :grandchildren, :class_name => "User", :through => :children, :source => :children
 
+  has_many :roots
+
   belongs_to :mirror_user
 
   attr_writer :associated_shards

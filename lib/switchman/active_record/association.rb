@@ -2,7 +2,7 @@ module Switchman
   module ActiveRecord
     module Association
       def self.included(klass)
-        %w{build_record load_target scoped}.each do |method|
+        %w{build_record creation_attributes load_target scoped}.each do |method|
           klass.alias_method_chain(method, :sharding)
         end
       end
@@ -27,6 +27,16 @@ module Switchman
       def scoped_with_sharding
         shard_value = @reflection.options[:multishard] ? @owner : self.shard
         @owner.shard.activate { scoped_without_sharding.shard(shard_value, :association) }
+      end
+
+      def creation_attributes_with_sharding
+        attributes = creation_attributes_without_sharding
+
+        # translate keys
+        if reflection.macro.in?([:has_one, :has_many]) && !options[:through]
+          attributes[reflection.foreign_key] = Shard.relative_id_for(owner[reflection.active_record_primary_key], owner.shard, self.shard)
+        end
+        attributes
       end
     end
 

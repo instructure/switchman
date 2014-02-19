@@ -102,6 +102,12 @@ module Switchman
             appendage.original_user_id.should == @shard2.global_id_for(6)
           end
         end
+
+        it "should not choke on polymorphic associations that are missing their type" do
+          f = Feature.create!(owner: User.create!)
+          f = Feature.select(:owner_id).where(id: f).first
+          f.owner_id
+        end
       end
     end
   end

@@ -20,6 +20,8 @@ module Switchman
       klass.before(:all) do
         unless @@shard1
           puts "Setting up sharding for all specs..."
+          Shard.delete_all
+
           @@shard1, @@shard2 = TestHelper.recreate_persistent_test_shards
           @@default_shard = Shard.default
           if @@shard1.is_a?(Shard)
@@ -60,15 +62,23 @@ module Switchman
             exit status if status
           end
         else
-          @@default_shard.dup.save!
+          dup = @@default_shard.dup
+          dup.id = @@default_shard.id
+          dup.save!
           Shard.default(true)
-          @@shard1 = @@shard1.dup
-          @@shard1.save!
-          @@shard2 = @@shard2.dup
-          @@shard2.save!
+          dup = @@shard1.dup
+          dup.id = @@shard1.id
+          dup.save!
+          @@shard1.instance_variable_set(:@destroyed, false)
+          dup = @@shard2.dup
+          dup.id = @@shard2.id
+          dup.save!
+          @@shard2.instance_variable_set(:@destroyed, false)
           if @@shard3
-            @@shard3 = @@shard3.dup
-            @@shard3.save!
+            dup = @@shard3.dup
+            dup.id = @@shard3.id
+            dup.save!
+            @@shard3.instance_variable_set(:@destroyed, false)
           end
         end
         @shard1, @shard2 = @@shard1, @@shard2

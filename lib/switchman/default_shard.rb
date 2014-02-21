@@ -25,4 +25,12 @@ class Switchman::DefaultShard
   def self._load(str)
     Shard.default
   end
+
+  class << self
+    def instance
+      @instance ||= new
+    end
+
+    private :new
+  end
 end

@@ -35,7 +35,7 @@ module Switchman
           # is up and running everywhere else).  This includes for looking up the
           # default shard itself. This also needs to be a local so that this method
           # can be re-entrant
-          default = DefaultShard.new
+          default = DefaultShard.instance
 
           # the first time we need a dummy dummy for re-entrancy to avoid looping on ourselves
           @default ||= default

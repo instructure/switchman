@@ -99,14 +99,31 @@ module Switchman
         @cached_shards = {}
       end
 
-      # options
-      #  :parallel - true/false to execute in parallel, or a integer of how many
-      #              sub-processes per database server. Note that parallel
-      #              invocation currently uses forking, so should be used sparingly
-      #              because errors are not raised, and you cannot get results back
-      def with_each_shard(scope = nil, categories = nil, options = {})
+      # ==== Parameters
+      #
+      # * +shards+ - an array or relation of Shards to iterate over
+      # * +categories+ - an array of categories to activate
+      # * +options+ -
+      #    :parallel - true/false to execute in parallel, or a integer of how many
+      #                sub-processes per database server. Note that parallel
+      #                invocation currently uses forking, so should be used sparingly
+      #                because errors are not raised, and you cannot get results back
+      def with_each_shard(*args)
+        raise ArgumentError("wrong number of arguments (#{args.length} for 0...3)") if args.length > 3
+
         unless default.is_a?(Shard)
           return Array(yield)
+        end
+
+        options = args.extract_options!
+        if args.length == 1
+          if Array === args.first && args.first.first.is_a?(Symbol)
+            categories = args.first
+          else
+            scope = args.first
+          end
+        else
+          scope, categories = args
         end
 
         parallel = case options[:parallel]
@@ -166,7 +183,7 @@ module Switchman
             if scopes.length == 1 && subscopes.length == 1
               exception_pipe.first.close
               exception_pipe.last.close
-              return with_each_shard(subscopes.first, categories) { yield }
+              return with_each_shard(subscopes.first, categories, options) { yield }
             end
             subscopes.each_with_index do |subscope, idx|
               if subscopes.length > 1
@@ -179,7 +196,7 @@ module Switchman
                 begin
                   ::ActiveRecord::Base.clear_all_connections!
                   $0 = [$0, ARGV, name].flatten.join(' ')
-                  with_each_shard(subscope, categories) { yield }
+                  with_each_shard(subscope, categories, options) { yield }
                 rescue Exception => e
                   exception_pipe.last.write(Marshal.dump(e))
                   exception_pipe.last.flush

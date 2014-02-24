@@ -108,6 +108,8 @@ module Switchman
       #                sub-processes per database server. Note that parallel
       #                invocation currently uses forking, so should be used sparingly
       #                because errors are not raised, and you cannot get results back
+      #    :exception - :ignore, :raise, :defer (wait until the end and raise the first
+      #                error), or a proc
       def with_each_shard(*args)
         raise ArgumentError("wrong number of arguments (#{args.length} for 0...3)") if args.length > 3
 
@@ -258,16 +260,32 @@ module Switchman
         end
 
         result = []
+        exception = nil
         scope.each do |shard|
           # shard references a database server that isn't configured in this environment
           next unless shard.database_server
           close_connections_if_needed.call(shard)
           shard.activate(*categories) do
-            result.concat Array(yield)
+            begin
+              result.concat Array(yield)
+            rescue
+              case options[:exception]
+              when :ignore
+              when :defer
+                exception ||= $!
+              when Proc
+                options[:exception].call
+              when :raise
+                raise
+              else
+                raise
+              end
+            end
           end
           previous_shard = shard
         end
         close_connections_if_needed.call(Shard.current)
+        raise exception if exception
         result
       end
 

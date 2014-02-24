@@ -103,6 +103,30 @@ module Switchman
     end
 
     describe ".with_each_shard" do
+      describe ":exception" do
+        it "should default to :raise" do
+          lambda { Shard.with_each_shard { raise "error" } }.should raise_error
+        end
+
+        it "should :ignore" do
+          Shard.with_each_shard(exception: :ignore) { raise "error" }.should == []
+        end
+
+        it "should :defer" do
+          counter = 0
+          lambda { Shard.with_each_shard(exception: :defer) { counter += 1; raise "error" } }.should raise_error
+          # called more than once
+          counter.should > 1
+        end
+
+        it "should call a proc" do
+          counter = 0
+          Shard.with_each_shard(exception: -> { counter += 1 }) { raise "error" }.should == []
+          # called more than once
+          counter.should > 1
+        end
+      end
+
       context "non-transactional" do
         self.use_transactional_fixtures = false
 

@@ -33,6 +33,14 @@ module Switchman
           @user2.reload.name.should == 'a'
         end
       end
+
+      describe "#scope_for_create" do
+        it "should include the shard" do
+          scope = User.shard(@shard1)
+          scope.scope_for_create['shard'].should == @shard1
+          scope.new.shard.should == @shard1
+        end
+      end
     end
   end
 end

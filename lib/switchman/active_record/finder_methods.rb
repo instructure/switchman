@@ -20,6 +20,10 @@ module Switchman
           super
         end
       end
+
+      def find_or_instantiator_by_attributes(match, attributes, *args)
+        primary_shard.activate { super }
+      end
     end
   end
 end

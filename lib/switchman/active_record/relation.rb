@@ -8,7 +8,7 @@ module Switchman
           klass.alias_method_chain(method, :deshackles)
         end
 
-        %w{initialize exec_queries update_all delete_all}.each do |method|
+        %w{initialize exec_queries update_all delete_all scope_for_create}.each do |method|
           klass.alias_method_chain(method, :sharding)
         end
       end
@@ -26,6 +26,14 @@ module Switchman
           relation.shard_source_value = self.shard_source_value
         end
         relation
+      end
+
+      def scope_for_create_with_sharding
+        if !@scope_for_create
+          scope_for_create_without_sharding
+          @scope_for_create['shard'] = primary_shard
+        end
+        @scope_for_create
       end
 
       def exec_queries_with_deshackles(*args)

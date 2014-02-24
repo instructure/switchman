@@ -24,6 +24,15 @@ module Switchman
           User.find_by_id([@user.global_id]).should == @user
         end
       end
+
+      describe "#find_or_initialize" do
+        it "should initialize with the shard from the scope" do
+          @user.destroy
+          u = User.shard(@shard1).where(id: @user).first_or_initialize
+          u.should be_new_record
+          u.shard.should == @shard1
+        end
+      end
     end
   end
 end

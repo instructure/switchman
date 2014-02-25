@@ -34,11 +34,12 @@ module Switchman
         end
       end
 
-      describe "#scope_for_create" do
-        it "should include the shard" do
-          scope = User.shard(@shard1)
-          scope.scope_for_create['shard'].should == @shard1
-          scope.new.shard.should == @shard1
+      describe "#new" do
+        it "should infer the scope's shard" do
+          scope = @shard1.activate { User.where(id: 1) }
+          u = scope.new
+          u.shard.should == @shard1
+          u.local_id.should == 1
         end
       end
     end

@@ -155,7 +155,7 @@ module Switchman
           end
         }
 
-        relation = reorder(nil).except(:group).group(group)
+        relation = except(:group).group(group)
         relation.select_values = select_values
         relation
       end

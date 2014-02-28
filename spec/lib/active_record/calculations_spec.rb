@@ -221,6 +221,15 @@ module Switchman
           Appendage.shard([@shard1, @shard2]).group(:user).sum(:value).should ==
               {@user1 => 3, @user2 => 12}
         end
+
+        it "should respect order for a single shard" do
+          @shard1.activate do
+            @user1.appendages.create!
+            user2 = User.create!
+            user2.appendages.create!
+            Appendage.group(:user_id).order("COUNT(*) DESC").limit(1).count.should == { @user1.id => 2 }
+          end
+        end
       end
     end
   end

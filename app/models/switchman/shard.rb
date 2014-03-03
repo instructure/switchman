@@ -136,6 +136,7 @@ module Switchman
                      else
                        options[:parallel]
                    end
+        options.delete(:parallel)
         scope ||= Shard.order("database_server_id IS NOT NULL, database_server_id, id")
 
         if parallel > 0

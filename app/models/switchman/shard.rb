@@ -513,6 +513,11 @@ module Switchman
       local_id + self.id * IDS_PER_SHARD
     end
 
+    def ==(rhs)
+      return true if rhs.is_a?(DefaultShard) && default?
+      super
+    end
+
     private
 
     def clear_cache

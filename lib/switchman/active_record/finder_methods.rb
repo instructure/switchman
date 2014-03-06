@@ -24,6 +24,27 @@ module Switchman
       def find_or_instantiator_by_attributes(match, attributes, *args)
         primary_shard.activate { super }
       end
+
+      def exists?(id = false)
+        id = id.id if ActiveRecord::Base === id
+        return false if id.nil?
+
+        join_dependency = construct_join_dependency_for_association_find
+        relation = construct_relation_for_association_find(join_dependency)
+        relation = relation.except(:select, :order).select("1 AS one").limit(1)
+
+        case id
+          when Array, Hash
+            relation = relation.where(id)
+          else
+            relation = relation.where(table[primary_key].eq(id)) if id
+        end
+
+        activate { return true if connection.select_value(relation, "#{name} Exists") }
+        false
+      rescue ThrowResult
+        false
+      end
     end
   end
 end

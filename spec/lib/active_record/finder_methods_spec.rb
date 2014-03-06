@@ -33,6 +33,19 @@ module Switchman
           u.shard.should == @shard1
         end
       end
+
+      describe "#exists?" do
+        it "should work for an out-of-shard scope" do
+          scope = @shard1.activate { User.where(id: @user) }
+          scope.shard_value.should == @shard1
+          scope.exists?.should be_true
+        end
+
+        it "should work for a multi-shard scope" do
+          user2 = @shard2.activate { User.create!(name: "multi-shard exists") }
+          User.where(name: "multi-shard exists").shard(Shard.scoped).exists?.should be_true
+        end
+      end
     end
   end
 end

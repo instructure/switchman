@@ -39,6 +39,8 @@ module Switchman
 
           # the first time we need a dummy dummy for re-entrancy to avoid looping on ourselves
           @default ||= default
+          # forget our current shard activations - it might have "another" default shard serialized there
+          active_shards.clear
 
           # Now find the actual record, if it exists; rescue the fake default if the table doesn't exist
           @default = Shard.find_by_default(true) || default rescue default

@@ -9,9 +9,9 @@ module Switchman
       # than just Rails.cache. if config.cache_store is a flat value, uses it
       # to fill just the Rails.env entry in the cache map.
       unless Switchman.config[:cache_map].present?
-        cache_store_config = Rails.configuration.cache_store
+        cache_store_config = ::Rails.configuration.cache_store
         unless cache_store_config.is_a?(Hash)
-          cache_store_config = {Rails.env => cache_store_config}
+          cache_store_config = {::Rails.env => cache_store_config}
         end
 
         Switchman.config[:cache_map] = {}
@@ -28,9 +28,9 @@ module Switchman
       # config.cache_store) didn't have an entry for Rails.env, add one using
       # lookup_store(nil); matches the behavior of Rails' default
       # initialize_cache initializer when config.cache_store is nil.
-      unless Switchman.config[:cache_map].has_key?(Rails.env)
+      unless Switchman.config[:cache_map].has_key?(::Rails.env)
         value = ActiveSupport::Cache.lookup_store(nil)
-        Switchman.config[:cache_map][Rails.env] = value
+        Switchman.config[:cache_map][::Rails.env] = value
         if value.respond_to?(:middleware)
           config.middleware.insert_before("Rack::Runtime", value.middleware)
         end
@@ -41,17 +41,15 @@ module Switchman
       # Rails.cache will be overridden to pull appropriate values from the
       # cache map, but between now and then, Rails.cache should return the
       # Rails.env entry in the cache map.
-      if Rails.version < '4'
-        silence_warnings { Object.const_set "RAILS_CACHE", Switchman.config[:cache_map][Rails.env] }
+      if ::Rails.version < '4'
+        silence_warnings { Object.const_set "RAILS_CACHE", Switchman.config[:cache_map][::Rails.env] }
       else
-        Rails.cache = Switchman.config[:cache_map][Rails.env]
+        ::Rails.cache = Switchman.config[:cache_map][::Rails.env]
       end
     end
 
     initializer 'switchman.extend_ar', :before => "active_record.initialize_database" do
       ActiveSupport.on_load(:active_record) do
-        #require 'active_record/associations/preloader/belongs_to'
-
         require "switchman/active_record/abstract_adapter"
         require "switchman/active_record/association"
         require "switchman/active_record/attribute_methods"
@@ -65,7 +63,7 @@ module Switchman
         require "switchman/active_record/query_methods"
         require "switchman/active_record/relation"
         require "switchman/active_record/spawn_methods"
-        require "switchman/cache_extensions"
+        require "switchman/rails"
 
         include ActiveRecord::Base
         include ActiveRecord::AttributeMethods
@@ -91,7 +89,7 @@ module Switchman
         ::ActiveRecord::Relation.send(:include, ActiveRecord::QueryMethods)
         ::ActiveRecord::Relation.send(:include, ActiveRecord::Relation)
         ::ActiveRecord::Relation.send(:include, ActiveRecord::SpawnMethods)
-        Rails.send(:include, CacheExtensions)
+        ::Rails.send(:include, Rails)
       end
     end
 

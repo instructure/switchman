@@ -37,7 +37,7 @@ module Switchman
         end
 
         it "should use to_param in url helpers" do
-          helpers = Rails.application.routes.url_helpers
+          helpers = ::Rails.application.routes.url_helpers
           user = nil
           appendage = nil
 

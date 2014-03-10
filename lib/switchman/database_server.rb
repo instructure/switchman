@@ -9,12 +9,12 @@ module Switchman
 
       def find(id_or_all)
         return self.all if id_or_all == :all
-        return id_or_all.map { |id| self.database_servers[id || Rails.env] }.compact.uniq if id_or_all.is_a?(Array)
-        database_servers[id_or_all || Rails.env]
+        return id_or_all.map { |id| self.database_servers[id || ::Rails.env] }.compact.uniq if id_or_all.is_a?(Array)
+        database_servers[id_or_all || ::Rails.env]
       end
 
       def create(settings = {})
-        raise "database servers should be set up in database.yml" unless Rails.env.test?
+        raise "database servers should be set up in database.yml" unless ::Rails.env.test?
         id = 1
         while database_servers[id.to_s]; id += 1; end
         server = DatabaseServer.new({ :id => id.to_s }.merge(settings))
@@ -48,7 +48,7 @@ module Switchman
     end
 
     def destroy
-      raise "database servers should be set up in database.yml" unless Rails.env.test?
+      raise "database servers should be set up in database.yml" unless ::Rails.env.test?
       self.class.send(:database_servers).delete(self.id) if self.id
     end
 
@@ -113,7 +113,7 @@ module Switchman
     end
 
     def shards
-      if self.id == Rails.env
+      if self.id == ::Rails.env
         Shard.where("database_server_id IS NULL OR database_server_id=?", self.id)
       else
         Shard.where(:database_server_id => self.id)
@@ -121,7 +121,7 @@ module Switchman
     end
 
     def pool_key
-      self.id == Rails.env ? nil : self.id
+      self.id == ::Rails.env ? nil : self.id
     end
 
     def create_new_shard(options = {})
@@ -131,8 +131,8 @@ module Switchman
       create_schema = options[:schema]
       # look for another shard associated with this db
       other_shard = self.shards.where("name<>':memory:' OR name IS NULL").order(:id).first
-      temp_db_name = other_shard.try(:name) unless id == Rails.env
-      temp_db_name = Shard.default.name if id == Rails.env
+      temp_db_name = other_shard.try(:name) unless id == ::Rails.env
+      temp_db_name = Shard.default.name if id == ::Rails.env
 
       case config[:adapter]
         when 'postgresql'
@@ -205,7 +205,7 @@ module Switchman
                 ::ActiveRecord::Migration.verbose = false
 
                 reset_column_information
-                ::ActiveRecord::Migrator.migrate(Rails.root + "db/migrate/") unless create_schema == false
+                ::ActiveRecord::Migrator.migrate(::Rails.root + "db/migrate/") unless create_schema == false
                 reset_column_information
               ensure
                 ::ActiveRecord::Migration.verbose = old_verbose
@@ -235,7 +235,7 @@ module Switchman
 
     def cache_store
       unless @cache_store
-        @cache_store = Switchman.config[:cache_map][self.id] || Switchman.config[:cache_map][Rails.env]
+        @cache_store = Switchman.config[:cache_map][self.id] || Switchman.config[:cache_map][::Rails.env]
         @cache_store.options[:namespace] = lambda { Shard.current.default? ? nil : "shard_#{Shard.current.id}" }
       end
       @cache_store

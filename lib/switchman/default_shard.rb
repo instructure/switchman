@@ -17,7 +17,7 @@ module Switchman
       end
       @name
     end
-    def description; Rails.env; end
+    def description; ::Rails.env; end
     # The default's shard is always the default shard
     def shard; self; end
     def _dump(depth)

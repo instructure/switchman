@@ -1,4 +1,4 @@
-module Switchman::CacheExtensions
+module Switchman::Rails
   module ClassMethods
     def cache_with_sharding
       Switchman::Shard.current.database_server.cache_store

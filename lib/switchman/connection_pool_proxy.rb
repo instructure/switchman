@@ -27,7 +27,7 @@ module Switchman
     end
 
     def active_shackles_environment
-      Rails.env.test? ? :master : active_shard.database_server.shackles_environment
+      ::Rails.env.test? ? :master : active_shard.database_server.shackles_environment
     end
 
     def current_pool

@@ -58,6 +58,7 @@ To start reading/writing data on a shard, you need to activate it:
 
 ```ruby
 >>> s.activate { User.create }
+```
 
 ## IDs
 

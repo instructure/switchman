@@ -16,7 +16,7 @@ module Switchman
 
         Switchman.config[:cache_map] = {}
         cache_store_config.each do |key, value|
-          value = ActiveSupport::Cache.lookup_store(value)
+          value = ::ActiveSupport::Cache.lookup_store(value)
           Switchman.config[:cache_map][key] = value
           if value.respond_to?(:middleware)
             config.middleware.insert_before("Rack::Runtime", value.middleware)
@@ -29,7 +29,7 @@ module Switchman
       # lookup_store(nil); matches the behavior of Rails' default
       # initialize_cache initializer when config.cache_store is nil.
       unless Switchman.config[:cache_map].has_key?(::Rails.env)
-        value = ActiveSupport::Cache.lookup_store(nil)
+        value = ::ActiveSupport::Cache.lookup_store(nil)
         Switchman.config[:cache_map][::Rails.env] = value
         if value.respond_to?(:middleware)
           config.middleware.insert_before("Rack::Runtime", value.middleware)
@@ -49,7 +49,8 @@ module Switchman
     end
 
     initializer 'switchman.extend_ar', :before => "active_record.initialize_database" do
-      ActiveSupport.on_load(:active_record) do
+      ::ActiveSupport.on_load(:active_record) do
+        require "switchman/active_support/cache"
         require "switchman/active_record/abstract_adapter"
         require "switchman/active_record/association"
         require "switchman/active_record/attribute_methods"
@@ -65,6 +66,7 @@ module Switchman
         require "switchman/active_record/spawn_methods"
         require "switchman/rails"
 
+        ::ActiveSupport::Cache::Store.send(:include, ActiveSupport::Cache::Store)
         include ActiveRecord::Base
         include ActiveRecord::AttributeMethods
         ::ActiveRecord::Associations::Association.send(:include, ActiveRecord::Association)
@@ -100,7 +102,7 @@ module Switchman
     end
 
     initializer 'switchman.extend_connection_adapters', :after => "active_record.initialize_database" do
-      ActiveSupport.on_load(:active_record) do
+      ::ActiveSupport.on_load(:active_record) do
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.descendants.each do |klass|
           klass.class_eval do
             def add_column_with_foreign_key_check(table, name, type, options = {})
@@ -127,14 +129,14 @@ module Switchman
     end
 
     initializer 'switchman.eager_load' do
-      ActiveSupport.on_load(:before_eager_load) do
+      ::ActiveSupport.on_load(:before_eager_load) do
         # This needs to be loaded before Switchman::Shard, otherwise it won't autoload it correctly
         require_dependency('active_record/base')
       end
     end
 
     initializer 'switchman.extend_shackles', :after => "shackles.extend_ar" do
-      ActiveSupport.on_load(:active_record) do
+      ::ActiveSupport.on_load(:active_record) do
         require "switchman/shackles"
 
         ::Shackles.send(:include, Shackles)
@@ -142,7 +144,7 @@ module Switchman
     end
 
     initializer 'switchman.extend_controller', :after => "shackles.extend_ar" do
-      ActiveSupport.on_load(:action_controller) do
+      ::ActiveSupport.on_load(:action_controller) do
         require "switchman/action_controller/caching"
 
         ::ActionController::Base.send(:include, ActionController::Caching)

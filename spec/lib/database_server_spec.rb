@@ -135,8 +135,8 @@ module Switchman
     describe "#cache_store" do
       before do
         @db = DatabaseServer.new
-        @default_store = ActiveSupport::Cache.lookup_store(:null_store)
-        @db_store = ActiveSupport::Cache.lookup_store(:memory_store)
+        @default_store = ::ActiveSupport::Cache.lookup_store(:null_store)
+        @db_store = ::ActiveSupport::Cache.lookup_store(:memory_store)
         @original_map = Switchman.config[:cache_map]
         Switchman.config[:cache_map] = { ::Rails.env => @default_store, @db.id => @db_store }
       end

@@ -65,7 +65,7 @@ module Switchman
         keys.each do |key|
           conns = @reserved_connections[key]
           conns.each do |conn|
-            ActiveSupport::Deprecation.warn(<<-eowarn) if conn.in_use?
+            ::ActiveSupport::Deprecation.warn(<<-eowarn) if conn.in_use?
 Database connections will not be closed automatically, please close your
 database connection at the end of the thread by calling `close` on your
 connection.  For example: ActiveRecord::Base.connection.close

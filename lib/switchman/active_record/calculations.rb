@@ -161,7 +161,7 @@ module Switchman
       end
 
       def compact_grouped_calculation_rows(rows, opts)
-        result = ActiveSupport::OrderedHash.new
+        result = ::ActiveSupport::OrderedHash.new
         rows.each do |row|
           key = opts[:group_columns].map { |aliaz, column| row[aliaz] }
           key = key.first if key.size == 1

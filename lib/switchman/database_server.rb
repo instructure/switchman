@@ -236,7 +236,6 @@ module Switchman
     def cache_store
       unless @cache_store
         @cache_store = Switchman.config[:cache_map][self.id] || Switchman.config[:cache_map][::Rails.env]
-        @cache_store.options[:namespace] = lambda { Shard.current.default? ? nil : "shard_#{Shard.current.id}" }
       end
       @cache_store
     end

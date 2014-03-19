@@ -2,6 +2,7 @@ module Switchman
   module ConnectionError
     def self.===(other)
       return true if defined?(PG::Error) && PG::Error === other
+      return true if defined?(Mysql2::Error) && Mysql2::Error === other
       false
     end
   end

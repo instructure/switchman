@@ -62,7 +62,7 @@ module Switchman
       end
 
       %w{update_all delete_all}.each do |method|
-        class_eval <<-RUBY
+        class_eval <<-RUBY, __FILE__, __LINE__ + 1
           def #{method}_with_deshackles(*args)
             db = Shard.current(shard_category).database_server
             if ::Shackles.environment != db.shackles_environment

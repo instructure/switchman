@@ -70,8 +70,12 @@ module Switchman
         create_shard(@db)
       end
 
-      it "should be able to create a new shard from the default db" do
-        create_shard(Shard.default.database_server)
+      context "non-transactional" do
+        self.use_transactional_fixtures = ::ActiveRecord::Base.connection.supports_ddl_transactions?
+
+        it "should be able to create a new shard from the default db" do
+          create_shard(Shard.default.database_server)
+        end
       end
 
       it "should be able to create a new shard from a db server that doesn't have any shards" do

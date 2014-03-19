@@ -246,22 +246,32 @@ module Switchman
           User.connection.query_cache.should_not be_empty
         end
 
-        it "should not clear thread's query cache if disabled but other thread's enabled" do
-          User.connection.enable_query_cache!
-          User.all
-          User.connection.disable_query_cache!
-          threaded(
-            lambda{ |cc| User.update_all(updated_at: Time.now); cc.call },
-            lambda{ User.connection.query_cache.should_not be_empty })
-        end
+        context "non-transactional" do
+          unless ::ActiveRecord::Base.connection_pool.spec.config[:adapter_name] == 'PostgreSQL'
+            self.use_transactional_fixtures = false
 
-        it "should not clear other thread's query cache" do
-          User.connection.enable_query_cache!
-          User.all
-          User.connection.disable_query_cache!
-          threaded(
-            lambda{ |cc| User.update_all(updated_at: Time.now); cc.call },
-            lambda{ User.connection.query_cache.should_not be_empty })
+            after do
+              User.delete_all
+            end
+          end
+
+          it "should not clear thread's query cache if disabled but other thread's enabled" do
+            User.connection.enable_query_cache!
+            User.all
+            User.connection.disable_query_cache!
+            threaded(
+              lambda{ |cc| User.update_all(updated_at: Time.now); cc.call },
+              lambda{ User.connection.query_cache.should_not be_empty })
+          end
+
+          it "should not clear other thread's query cache" do
+            User.connection.enable_query_cache!
+            User.all
+            User.connection.disable_query_cache!
+            threaded(
+              lambda{ |cc| User.update_all(updated_at: Time.now); cc.call },
+              lambda{ User.connection.query_cache.should_not be_empty })
+          end
         end
       end
 
@@ -285,22 +295,32 @@ module Switchman
           User.connection.query_cache.should_not be_empty
         end
 
-        it "should not clear thread's query cache if disabled but other thread's enabled" do
-          User.connection.enable_query_cache!
-          User.all
-          User.connection.disable_query_cache!
-          threaded(
-            lambda{ |cc| User.delete_all; cc.call },
-            lambda{ User.connection.query_cache.should_not be_empty })
-        end
+        context "non-transactional" do
+          unless ::ActiveRecord::Base.connection_pool.spec.config[:adapter_name] == 'PostgreSQL'
+            self.use_transactional_fixtures = false
 
-        it "should not clear other thread's query cache" do
-          User.connection.enable_query_cache!
-          User.all
-          User.connection.disable_query_cache!
-          threaded(
-            lambda{ |cc| User.delete_all; cc.call },
-            lambda{ User.connection.query_cache.should_not be_empty })
+            after do
+              User.delete_all
+            end
+          end
+
+          it "should not clear thread's query cache if disabled but other thread's enabled" do
+            User.connection.enable_query_cache!
+            User.all
+            User.connection.disable_query_cache!
+            threaded(
+              lambda{ |cc| User.delete_all; cc.call },
+              lambda{ User.connection.query_cache.should_not be_empty })
+          end
+
+          it "should not clear other thread's query cache" do
+            User.connection.enable_query_cache!
+            User.all
+            User.connection.disable_query_cache!
+            threaded(
+              lambda{ |cc| User.delete_all; cc.call },
+              lambda{ User.connection.query_cache.should_not be_empty })
+          end
         end
       end
     end

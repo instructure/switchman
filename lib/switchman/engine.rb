@@ -106,6 +106,7 @@ module Switchman
     initializer 'switchman.extend_connection_adapters', :after => "active_record.initialize_database" do
       ::ActiveSupport.on_load(:active_record) do
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.descendants.each do |klass|
+          next if klass.instance_methods.include?(:add_column_with_foreign_key_check)
           klass.class_eval do
             def add_column_with_foreign_key_check(table, name, type, options = {})
               Switchman::Engine.foreign_key_check(name, type, options)

@@ -25,7 +25,8 @@ module Switchman
       end
 
       it "should set shard value to parent for association scope" do
-        scope = @user1.appendages.scoped
+        scope = @user1.appendages
+        scope = ::Rails.version < '4' ? scope.scoped : scope.scope
         scope.shard_value.should == @user1
         scope.shard_source_value.should == :association
       end
@@ -39,9 +40,10 @@ module Switchman
 
       describe "transaction" do
         it "should activate the owner's shard and start the transaction on that shard" do
+          base_value = @user1.shard.activate { User.connection.open_transactions }
           @user1.appendages.transaction(:requires_new => true) do
             Shard.current.should == @shard1
-            User.connection.open_transactions.should == 2
+            User.connection.open_transactions.should == base_value + 1
           end
         end
       end
@@ -66,7 +68,11 @@ module Switchman
         d1 = a1.digits.create!
         d1.shard.should == @shard1
 
-        @user1.digits.scoped.shard_value.should == @user1
+        if ::Rails.version < '4'
+          @user1.digits.scoped.shard_value.should == @user1
+        else
+          @user1.digits.scope.shard_value.should == @user1
+        end
         @user1.digits.find(d1.id).should == d1
       end
 
@@ -99,9 +105,15 @@ module Switchman
       it "should properly set up a cross-shard-category query" do
         @shard1.activate(:mirror_universe) do
           mirror_user = MirrorUser.create!
-          relation = mirror_user.association(:user).scoped
+          relation = mirror_user.association(:user)
+          relation = ::Rails.version < '4' ? relation.scoped : relation.scope
           relation.shard_value.should == Shard.default
-          relation.where_values.first.right.should == mirror_user.global_id
+          if ::Rails.version < '4'
+            relation.where_values.first.right.should == mirror_user.global_id
+          else
+            relation.where_values.first.right.should be_a(Arel::Nodes::BindParam)
+            relation.bind_values.map(&:last).should == [mirror_user.global_id]
+          end
         end
       end
 
@@ -229,12 +241,10 @@ module Switchman
             user3 = User.create!
             user3.appendages.create!
 
-            appendages = Appendage.all(:include => :user)
-            appendages2 = Appendage.includes(:user).all
+            appendages = Appendage.includes(:user).to_a
             @user1.delete
 
             appendages.map(&:user).sort.should == [@user1, @user2, user3].sort
-            appendages2.map(&:user).sort.should == [@user1, @user2, user3].sort
           end
 
           it "should preload belongs_to :through associations across shards" do
@@ -244,7 +254,7 @@ module Switchman
             a2 = @shard1.activate {Appendage.create!(:user => @user2) }
             d2 = Digit.create!(:appendage => a2)
 
-            digits = Digit.includes(:user).all
+            digits = Digit.includes(:user).to_a
             @user1.delete
 
             digits.map(&:user).sort.should == [@user1, @user2].sort
@@ -258,7 +268,7 @@ module Switchman
             User.associated_shards_map = { @user1.global_id => [@shard1, @shard2] }
 
             begin
-              users = User.where(:id => [@user1, @user2]).includes(:appendages).all
+              users = User.where(:id => [@user1, @user2]).includes(:appendages).to_a
               users.each {|u| u.appendages.loaded?.should be_true}
 
               u1 = users.detect {|u| u.id == @user1.id}
@@ -294,7 +304,7 @@ module Switchman
             Appendage.associated_shards_map = { a2.global_id => [@shard1, @shard2], a6.global_id => [@shard1] }
 
             begin
-              users = User.where(:id => [@user1, @user2]).includes(:digits).all
+              users = User.where(:id => [@user1, @user2]).includes(:digits).to_a
               users.each {|u| u.digits.loaded?.should be_true}
 
               u1 = users.detect {|u| u.id == @user1.id}

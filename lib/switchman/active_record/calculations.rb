@@ -45,15 +45,15 @@ module Switchman
         relation.select_values = [operation_over_aggregate_column(column, "average", distinct).as("average"),
                                   operation_over_aggregate_column(column, "count", distinct).as("count")]
 
-        initial_results = relation.activate{ |rel| @klass.connection.select_all(rel) }
+        initial_results = relation.activate{ |rel| klass.connection.select_all(rel) }
         if initial_results.is_a?(Array)
           initial_results.each do |r|
-            r["average"] = type_cast_calculated_value(r["average"], nil, "average")
-            r["count"] = type_cast_calculated_value(r["count"], nil, "count")
+            r["average"] = type_cast_calculated_value(r["average"], column_for(column_name), "average")
+            r["count"] = type_cast_calculated_value(r["count"], column_for(column_name), "count")
           end
           result = initial_results.map{|r| r["average"] * r["count"]}.sum / initial_results.map{|r| r["count"]}.sum
         else
-          result = type_cast_calculated_value(initial_results["average"], nil, "average")
+          result = type_cast_calculated_value(initial_results.first["average"], column_for(column_name), "average")
         end
         result
       end
@@ -66,7 +66,7 @@ module Switchman
         target_shard = Shard.current(:default)
 
         rows = relation.activate do |rel, shard|
-          calculated_data = @klass.connection.select_all(rel)
+          calculated_data = klass.connection.select_all(rel)
 
           if opts[:association]
             key_ids     = calculated_data.collect { |row| row[opts[:group_aliases].first] }
@@ -98,9 +98,9 @@ module Switchman
         opts = {:operation => operation, :column_name => column_name, :distinct => distinct}
 
         opts[:aggregate_alias] = aggregate_alias_for(operation, column_name)
-        group_attrs = @group_values
+        group_attrs = group_values
         if group_attrs.first.respond_to?(:to_sym)
-          association  = @klass.reflect_on_association(group_attrs.first.to_sym)
+          association  = klass.reflect_on_association(group_attrs.first.to_sym)
           associated   = group_attrs.size == 1 && association && association.macro == :belongs_to # only count belongs_to associations
           group_fields = Array(associated ? association.foreign_key : group_attrs)
         else
@@ -125,12 +125,12 @@ module Switchman
         elsif operation == 'average'
           'average'
         else
-          column_alias_for(operation, column_name)
+          column_alias_for("#{operation} #{column_name}")
         end
       end
 
       def build_grouped_calculation_relation(opts)
-        group = @klass.connection.adapter_name == 'FrontBase' ? opts[:group_aliases] : opts[:group_fields]
+        group = opts[:group_fields]
 
         select_values = [
             operation_over_aggregate_column(
@@ -146,7 +146,7 @@ module Switchman
               'count', opts[:distinct]).as('count')
         end
 
-        select_values += @select_values unless @having_values.empty?
+        select_values += select_values unless having_values.empty?
         select_values.concat opts[:group_fields].zip(opts[:group_aliases]).map { |field,aliaz|
           if field.respond_to?(:as)
             field.as(aliaz)
@@ -155,7 +155,8 @@ module Switchman
           end
         }
 
-        relation = except(:group).group(group)
+        relation = except(:group)
+        relation.group_values = group
         relation.select_values = select_values
         relation
       end

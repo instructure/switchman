@@ -66,8 +66,12 @@ module Switchman
       end
 
       it "should be able to create a new sqlite shard from a given server" do
-        @db = DatabaseServer.create(:config => { :adapter => 'sqlite3', :database => '%{shard_name}', :shard_name => ':memory:' })
-        create_shard(@db)
+        db = DatabaseServer.create(:config => { :adapter => 'sqlite3', :database => '%{shard_name}', :shard_name => ':memory:' })
+        begin
+          create_shard(db)
+        ensure
+          db.destroy
+        end
       end
 
       context "non-transactional" do
@@ -83,8 +87,12 @@ module Switchman
         pending 'A "real" database"' unless %w{MySQL Mysql2 PostgreSQL}.include?(adapter)
 
         # So, it's really the same server, but we want separate connections
-        server = DatabaseServer.create(:config => Shard.default.database_server.config)
-        create_shard(server)
+        db = DatabaseServer.create(:config => Shard.default.database_server.config)
+        begin
+          create_shard(db)
+        ensure
+          db.destroy
+        end
       end
 
       class MyException < Exception; end

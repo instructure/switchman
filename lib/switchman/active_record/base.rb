@@ -2,7 +2,11 @@ module Switchman
   module ActiveRecord
     module Base
       module ClassMethods
-        delegate :shard, :to => :scoped
+        if ::Rails.version < '4'
+          delegate :shard, to: :scoped
+        else
+          delegate :shard, to: :all
+        end
 
         def shard_category
           @shard_category || :default
@@ -29,7 +33,7 @@ module Switchman
         end
 
         def transaction(*args)
-          if current_scope
+          if self != ::ActiveRecord::Base && current_scope
             current_scope.activate do
               db = Shard.current(shard_category).database_server
               if ::Shackles.environment != db.shackles_environment
@@ -78,16 +82,16 @@ module Switchman
 
       def save(*args)
         @shard_set_in_stone = true
-        self.class.with_scope(self.class.shard(shard), :overwrite) { super }
+        self.class.shard(shard).scoping { super }
       end
 
       def save!(*args)
         @shard_set_in_stone = true
-        self.class.with_scope(self.class.shard(shard), :overwrite) { super }
+        self.class.shard(shard).scoping { super }
       end
 
       def destroy
-        self.class.with_scope(self.class.shard(shard), :overwrite) { super }
+        self.class.shard(shard).scoping { super }
       end
 
       def clone

@@ -96,9 +96,13 @@ module Switchman
           shards.each do |shard|
             shard.activate do
               # this is how AR does it in fixtures.rb
-              ::ActiveRecord::Base.connection.increment_open_transactions
-              ::ActiveRecord::Base.connection.transaction_joinable = false
-              ::ActiveRecord::Base.connection.begin_db_transaction
+              if ::Rails.version < '4'
+                ::ActiveRecord::Base.connection.increment_open_transactions
+                ::ActiveRecord::Base.connection.transaction_joinable = false
+                ::ActiveRecord::Base.connection.begin_db_transaction
+              else
+                ::ActiveRecord::Base.connection.begin_transaction joinable: false
+              end
             end
           end
         end
@@ -110,9 +114,13 @@ module Switchman
           shards << @shard1 unless @shard1.database_server == Shard.default.database_server
           shards.each do |shard|
             shard.activate do
-              if ::ActiveRecord::Base.connection.open_transactions != 0
-                ::ActiveRecord::Base.connection.rollback_db_transaction
-                ::ActiveRecord::Base.connection.decrement_open_transactions
+              if ::Rails.version < '4'
+                if ::ActiveRecord::Base.connection.open_transactions != 0
+                  ::ActiveRecord::Base.connection.rollback_db_transaction
+                  ::ActiveRecord::Base.connection.decrement_open_transactions
+                end
+              else
+                ::ActiveRecord::Base.connection.rollback_transaction if ::ActiveRecord::Base.connection.transaction_open?
               end
             end
           end

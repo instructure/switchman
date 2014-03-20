@@ -42,7 +42,7 @@ module Switchman
 
         activate { return true if connection.select_value(relation, "#{name} Exists") }
         false
-      rescue ThrowResult
+      rescue ::ActiveRecord::ThrowResult
         false
       end
     end

@@ -75,7 +75,7 @@ module Switchman
         ::ActiveRecord::Associations::Association.send(:include, ActiveRecord::Association)
         ::ActiveRecord::Associations::BelongsToAssociation.send(:include, ActiveRecord::BelongsToAssociation)
         ::ActiveRecord::Associations::CollectionProxy.send(:include, ActiveRecord::CollectionProxy)
-        ::ActiveRecord::Associations::Builder::Association.send(:include, ActiveRecord::Builder::Association)
+        ::ActiveRecord::Associations::Builder::CollectionAssociation.send(:include, ActiveRecord::Builder::CollectionAssociation)
 
         ::ActiveRecord::Associations::Preloader::Association.send(:include, ActiveRecord::Preloader::Association)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.send(:include, ActiveRecord::AbstractAdapter)

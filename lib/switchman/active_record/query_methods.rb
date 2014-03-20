@@ -12,36 +12,59 @@ module Switchman
       #                  for foreign key transposition
       #   :to_a        - a special value that Relation#to_a uses when querying multiple shards to
       #                  remove primary keys from conditions that aren't applicable to the current shard
-      attr_accessor :shard_value, :shard_source_value
+      if ::Rails.version < '4'
+        attr_accessor :shard_value, :shard_source_value
+      else
+        def shard_value
+          @values[:shard]
+        end
+        def shard_source_value
+          @values[:shard_source]
+        end
+        def shard_value=(value)
+          raise ImmutableRelation if @loaded
+          @values[:shard] = value
+        end
+        def shard_source_value=(value)
+          raise ImmutableRelation if @loaded
+          @values[:shard_source] = value
+        end
+      end
 
       def shard(value, source = :explicit)
-        relation = clone
-        relation.shard_value = value
-        relation.shard_source_value = source
-        if (primary_shard != relation.primary_shard || source == :to_a)
-          relation.where_values = relation.transpose_predicates(relation.where_values, primary_shard, relation.primary_shard, source == :to_a) if !relation.where_values.empty?
-          relation.having_values = relation.transpose_predicates(relation.having_values, primary_shard, relation.primary_shard, source == :to_a) if !relation.having_values.empty?
+        (::Rails.version < '4' ? clone : spawn).shard!(value, source)
+      end
+
+      def shard!(value, source = :explicit)
+        primary_shard = self.primary_shard
+        self.shard_value = value
+        self.shard_source_value = source
+        if (primary_shard != self.primary_shard || source == :to_a)
+          self.where_values = transpose_predicates(where_values, primary_shard, self.primary_shard, source == :to_a) if !where_values.empty?
+          self.having_values = transpose_predicates(having_values, primary_shard, self.primary_shard, source == :to_a) if !having_values.empty?
         end
-        relation
+        self
       end
 
-      # replace these with versions that call build_where on the
-      # result relation, not the source relation (so build_where
-      # is able to implicitly change the shard_value)
-      def where(opts, *rest)
-        return self if opts.blank?
+      if ::Rails.version < '4'
+        # replace these with versions that call build_where on the
+        # result relation, not the source relation (so build_where
+        # is able to implicitly change the shard_value)
+        def where(opts, *rest)
+          return self if opts.blank?
 
-        relation = clone
-        relation.where_values += relation.build_where(opts, rest)
-        relation
-      end
+          relation = clone
+          relation.where_values += relation.build_where(opts, rest)
+          relation
+        end
 
-      def having(opts, *rest)
-        return self if opts.blank?
+        def having(opts, *rest)
+          return self if opts.blank?
 
-        relation = clone
-        relation.having_values += relation.build_where(opts, rest)
-        relation
+          relation = clone
+          relation.having_values += relation.build_where(opts, rest)
+          relation
+        end
       end
 
       def build_where(opts, other = [])
@@ -147,6 +170,7 @@ module Switchman
       end
 
       def sharded_primary_key?(relation, column)
+        return column == 'id' if relation.engine == ::ActiveRecord::Base
         relation.engine.primary_key == column
       end
 
@@ -165,6 +189,7 @@ module Switchman
         attribute = attribute.relation if attribute.relation.is_a?(Arel::Nodes::TableAlias)
         [attribute.relation, column]
       end
+
       # semi-private
       public
       def transpose_predicates(predicates, source_shard, target_shard, remove_nonlocal_primary_keys = false)
@@ -194,11 +219,11 @@ module Switchman
             local_ids
           when Arel::Nodes::BindParam
             # look for a bind param with a matching column name
-            if @bind_params && idx = @bind_params.find_index{|b| b.is_a?(Array) && b.first.try(:name) == predicate.left}
-              column, value = @bind_params[idx]
+            if bind_values && idx = bind_values.find_index{|b| b.is_a?(Array) && b.first.try(:name) == predicate.left.name}
+              column, value = bind_values[idx]
               local_id = Shard.relative_id_for(value, current_source_shard, target_shard)
               local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
-              @bind_params[idx] = [column, local_id]
+              bind_values[idx] = [column, local_id]
             end
             predicate.right
           else

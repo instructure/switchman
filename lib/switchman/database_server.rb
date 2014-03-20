@@ -125,7 +125,7 @@ module Switchman
     end
 
     def create_new_shard(options = {})
-      raise MethodNotImplemented unless Shard.default.is_a?(Shard)
+      raise NotImplementedError.new("Cannot create new shards when sharding isn't initialized") unless Shard.default.is_a?(Shard)
 
       db_name = options[:db_name]
       create_schema = options[:schema]
@@ -193,13 +193,15 @@ module Switchman
                     ::ActiveRecord::Base.connection.execute(stmt)
                   end
                   # have to disconnect and reconnect to the correct db
+                  shard.name = db_name
                   if self.shareable? && other_shard
                     other_shard.activate { ::ActiveRecord::Base.connection }
                   else
                     ::ActiveRecord::Base.connection_pool.current_pool.disconnect!
                   end
+                else
+                  shard.name = db_name
                 end
-                shard.name = db_name
                 old_proc = ::ActiveRecord::Base.connection.raw_connection.set_notice_processor {} if config[:adapter] == 'postgresql'
                 old_verbose = ::ActiveRecord::Migration.verbose
                 ::ActiveRecord::Migration.verbose = false

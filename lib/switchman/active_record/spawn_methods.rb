@@ -1,17 +1,13 @@
 module Switchman
   module ActiveRecord
     module SpawnMethods
-      def merge(r)
-        return self unless r
-        return to_a & r if r.is_a?(Array)
-
-        # have to figure out shard stuff *before* conditions are merged
+      def shard_values_for_merge(r)
         if shard_value != r.shard_value
-          if (r.shard_source_value == :implicit)
+          if r.shard_source_value == :implicit
             final_shard_value = shard_value
             final_primary_shard = primary_shard
             final_shard_source_value = shard_source_value
-          elsif (shard_source_value == :implicit)
+          elsif shard_source_value == :implicit
             final_shard_value = r.shard_value
             final_primary_shard = r.primary_shard
             final_shard_source_value = r.shard_source_value
@@ -30,7 +26,6 @@ module Switchman
               final_primary_shard = Shard.default
             else
               final_shard_value = lhs_shard_value.to_a & rhs_shard_value.to_a
-              return none if final_shard_value.length == 0
               final_primary_shard = final_shard_value.first
               final_shard_value = final_shard_value.first if final_shard_value.length == 1
             end
@@ -40,34 +35,86 @@ module Switchman
             shard_source_value == source_value || r.shard_source_value == source_value
           end
           raise "unknown shard_source_value" unless final_shard_source_value
-
-          result = super
-          result.shard_source_value = final_shard_source_value
-          return result
         else
           # nothing fancy
-          return super
         end
 
-        # change the primary shard if necessary before merging
-        result = if primary_shard != final_primary_shard && r.primary_shard != final_primary_shard
-          lhs = shard(final_primary_shard)
-          r = r.shard(final_primary_shard)
-          lhs.merge(r)
-        elsif primary_shard != final_primary_shard
-          lhs = shard(final_primary_shard)
-          lhs.merge(r)
-        elsif r.primary_shard != final_primary_shard
-          r = r.shard(final_primary_shard)
-          super(r)
-        else
-          super
+        [final_shard_value, final_primary_shard, final_shard_source_value]
+      end
+
+      if ::Rails.version < '4'
+        def merge(r)
+          return self unless r
+          return super unless r.is_a?(Relation)
+
+          # have to figure out shard stuff *before* conditions are merged
+          final_shard_value, final_primary_shard, final_shard_source_value = shard_values_for_merge(r)
+
+          return super unless final_shard_source_value
+
+          if !final_shard_value
+            result = super
+            result.shard_source_value = final_shard_source_value
+            return result
+          end
+
+          return none if final_shard_value == []
+
+          # change the primary shard if necessary before merging
+          result = if primary_shard != final_primary_shard && r.primary_shard != final_primary_shard
+                     lhs = shard(final_primary_shard)
+                     r = r.shard(final_primary_shard)
+                     lhs.merge(r)
+                   elsif primary_shard != final_primary_shard
+                     lhs = shard(final_primary_shard)
+                     lhs.merge(r)
+                   elsif r.primary_shard != final_primary_shard
+                     r = r.shard(final_primary_shard)
+                     super(r)
+                   else
+                     super
+                   end
+
+          result.shard_value = final_shard_value
+          result.shard_source_value = final_shard_source_value
+
+          result
         end
+      else
+        def merge!(r)
+          # have to figure out shard stuff *before* conditions are merged
+          final_shard_value, final_primary_shard, final_shard_source_value = shard_values_for_merge(r)
 
-        result.shard_value = final_shard_value
-        result.shard_source_value = final_shard_source_value
+          return super unless final_shard_source_value
 
-        result
+          if !final_shard_value
+            super
+            self.shard_source_value = final_shard_source_value
+            return self
+          end
+
+          return none! if final_shard_value == []
+
+          # change the primary shard if necessary before merging
+          if primary_shard != final_primary_shard && r.primary_shard != final_primary_shard
+            shard!(final_primary_shard)
+            r = r.shard(final_primary_shard)
+            super(r)
+          elsif primary_shard != final_primary_shard
+            shard!(final_primary_shard)
+            super(r)
+          elsif r.primary_shard != final_primary_shard
+            r = r.shard(final_primary_shard)
+            super(r)
+          else
+            super
+          end
+
+          self.shard_value = final_shard_value
+          self.shard_source_value = final_shard_source_value
+
+          self
+        end
       end
     end
   end

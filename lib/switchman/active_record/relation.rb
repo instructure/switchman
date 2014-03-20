@@ -13,10 +13,10 @@ module Switchman
         end
       end
 
-      def initialize_with_sharding(klass, table)
-        initialize_without_sharding(klass, table)
-        self.shard_value = Shard.current(klass.shard_category)
-        self.shard_source_value = :implicit
+      def initialize_with_sharding(*args)
+        initialize_without_sharding(*args)
+        self.shard_value = Shard.current(klass.try(:shard_category) || :default) unless shard_value
+        self.shard_source_value = :implicit unless shard_source_value
       end
 
       def merge(*args)

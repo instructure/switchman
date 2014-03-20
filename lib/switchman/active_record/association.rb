@@ -2,7 +2,8 @@ module Switchman
   module ActiveRecord
     module Association
       def self.included(klass)
-        %w{build_record creation_attributes load_target scoped}.each do |method|
+        %w{build_record creation_attributes load_target scope}.each do |method|
+          method = 'scoped' if method == 'scope' && ::Rails.version < '4'
           klass.alias_method_chain(method, :sharding)
         end
       end
@@ -24,10 +25,14 @@ module Switchman
         self.shard.activate { load_target_without_sharding }
       end
 
-      def scoped_with_sharding
-        shard_value = @reflection.options[:multishard] ? @owner : self.shard
-        @owner.shard.activate { scoped_without_sharding.shard(shard_value, :association) }
-      end
+      # scoped is renamed to scope in Rails 4
+      method = ::Rails.version < '4' ? 'scoped' : 'scope'
+      class_eval <<-RUBY, __FILE__, __LINE__ + 1
+        def #{method}_with_sharding
+          shard_value = @reflection.options[:multishard] ? @owner : self.shard
+          @owner.shard.activate { #{method}_without_sharding.shard(shard_value, :association) }
+        end
+      RUBY
 
       def creation_attributes_with_sharding
         attributes = creation_attributes_without_sharding
@@ -65,9 +70,17 @@ module Switchman
     end
 
     module Builder
-      module Association
+      module CollectionAssociation
         def self.included(klass)
-          klass.descendants.each{|d| d.valid_options += [:multishard]}
+          if ::Rails.version < '4'
+            [klass] + klass.descendants.each do |k|
+              k.valid_options << :multishard
+            end
+          end
+        end
+
+        def valid_options
+          super + [:multishard]
         end
       end
     end
@@ -77,7 +90,11 @@ module Switchman
         def self.included(klass)
           klass.send(:remove_method, :associated_records_by_owner)
           klass.send(:remove_method, :owners_by_key)
-          klass.send(:remove_method, :scoped)
+          if ::Rails.version < '4'
+            klass.send(:remove_method, :scoped)
+          else
+            klass.send(:remove_method, :scope)
+          end
         end
 
         def associated_records_by_owner
@@ -126,15 +143,24 @@ module Switchman
           end
         end
 
-        def scoped
+        def scope
           build_scope
+        end
+        # renamed to just scope in Rails 4
+        if ::Rails.version < '4'
+          alias_method :scoped, :scope
+          remove_method(:scope)
         end
       end
     end
 
     module CollectionProxy
       def shard(*args)
-        scoped.shard(*args)
+        if ::Rails.version < '4'
+          scoped.shard(*args)
+        else
+          scope.shard(*args)
+        end
       end
     end
   end

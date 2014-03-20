@@ -16,7 +16,7 @@ module Switchman
         end
 
         it "should activate multiple shards if necessary" do
-          User.where(:id => [@user1.id, @user2.id]).all.sort_by(&:id).should == [@user1, @user2].sort_by(&:id)
+          User.where(:id => [@user1.id, @user2.id]).sort_by(&:id).should == [@user1, @user2].sort_by(&:id)
         end
       end
 

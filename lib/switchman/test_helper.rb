@@ -5,9 +5,9 @@ module Switchman
         # recreate the default shard (it got buhleted)
         if Shard.default(true).is_a?(DefaultShard)
           begin
-            Shard.create!(:default => true)
+            Shard.create!(default: true)
           rescue
-            # database doesn't exist yet, presumably
+            # database doesn't exist yet, presumably cause we're creating it right now
             [nil, nil]
           end
           Shard.default(true)
@@ -15,7 +15,8 @@ module Switchman
 
         # can't auto-create a new shard on the default shard's db server if the
         # default shard is split across multiple db servers
-        if ::ActiveRecord::Base.connection_handler.connection_pools.length > 1
+        if (::Rails.version < '4' ? ::ActiveRecord::Base.connection_handler.connection_pools.length :
+            ::ActiveRecord::Base.connection_handler.connection_pool_list.length) > 1
           server1 = DatabaseServer.create(:config => Shard.default.database_server.config)
         else
           server1 = Shard.default.database_server

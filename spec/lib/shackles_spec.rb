@@ -23,11 +23,13 @@ module Switchman
     end
 
     it "should correctly set up pools for sharding categories" do
-      models = ::ActiveRecord::Base.connection_handler.connection_pools
-      default_pools = Hash[models.map { |k, v| [k, v.current_pool] }]
+      models = ::ActiveRecord::Base.connection_handler.send(:class_to_pool)
+      default_pools = {}
+      models.each_pair { |k, v| default_pools[k] = v.current_pool }
       ::Shackles.activate(:slave_that_no_one_else_uses) do
-        models = ::ActiveRecord::Base.connection_handler.connection_pools
-        pools = Hash[models.map { |k, v| [k, v.current_pool] }]
+        models = ::ActiveRecord::Base.connection_handler.send(:class_to_pool)
+        pools = {}
+        models.each_pair { |k, v| pools[k] = v.current_pool }
         default_pools.keys.sort.should == pools.keys.sort
         default_pools.keys.each do |model|
           default_pools[model].should_not == pools[model]
@@ -71,7 +73,7 @@ module Switchman
 
         u = User.create!
         Shard.default.database_server.expects(:unshackle).once.returns([])
-        User.scoped(lock: true).first
+        User.lock.first
         Shard.default.database_server.expects(:unshackle).once.returns([])
         lambda { u.lock! }.should raise_error(::ActiveRecord::RecordNotFound)
       ensure
@@ -143,7 +145,7 @@ module Switchman
       end
 
       def actual_connection_count
-        ::ActiveRecord::Base.connection_pool.current_pool.instance_variable_get(:@reserved_connections).length
+        ::ActiveRecord::Base.connection_pool.current_pool.instance_variable_get(:@reserved_connections).size
       end
 
       it "should really return active connections to the pool in all envs" do

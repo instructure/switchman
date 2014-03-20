@@ -52,7 +52,7 @@ module Switchman
         @shard3.activate do
           User.create!
         end
-        @shard1.activate { User.all }.should_not == @shard3.activate { User.all }
+        @shard1.activate { User.all.to_a }.should_not == @shard3.activate { User.all.to_a }
       end
 
       describe "query_cache_enabled" do
@@ -167,13 +167,13 @@ module Switchman
       describe "select_all" do
         it "should cache when query cache enabled" do
           User.connection.enable_query_cache!
-          User.all
+          User.all.to_a
           User.connection.query_cache.should_not be_empty
         end
 
         it "should not cache when query cache disabled" do
           User.connection.disable_query_cache!
-          User.all
+          User.all.to_a
           User.connection.query_cache.should be_empty
         end
 
@@ -181,12 +181,12 @@ module Switchman
           User.connection.disable_query_cache!
           threaded(
             lambda{ |cc| User.connection.cache{ cc.call } },
-            lambda{ User.all; User.connection.query_cache.should be_empty })
+            lambda{ User.all.to_a; User.connection.query_cache.should be_empty })
         end
 
         it "should not cache when query is locked" do
           User.connection.enable_query_cache!
-          User.lock.all
+          User.lock.to_a
           User.connection.query_cache.should be_empty
         end
       end
@@ -194,14 +194,14 @@ module Switchman
       describe "insert" do
         it "should clear thread's query cache if enabled" do
           User.connection.enable_query_cache!
-          User.all
+          User.all.to_a
           User.create!
           User.connection.query_cache.should be_empty
         end
 
         it "should not clear thread's query cache if disabled" do
           User.connection.enable_query_cache!
-          User.all
+          User.all.to_a
           User.connection.disable_query_cache!
           User.create!
           User.connection.query_cache.should_not be_empty
@@ -209,7 +209,7 @@ module Switchman
 
         it "should not clear thread's query cache if disabled but other thread's enabled" do
           User.connection.enable_query_cache!
-          User.all
+          User.all.to_a
           User.connection.disable_query_cache!
           threaded(
             lambda{ |cc| User.create!; cc.call },
@@ -218,7 +218,7 @@ module Switchman
 
         it "should not clear other thread's query cache" do
           User.connection.enable_query_cache!
-          User.all
+          User.all.to_a
           User.connection.disable_query_cache!
           threaded(
             lambda{ |cc| User.create!; cc.call },
@@ -233,14 +233,14 @@ module Switchman
 
         it "should clear thread's query cache if enabled" do
           User.connection.enable_query_cache!
-          User.all
+          User.all.to_a
           User.update_all(updated_at: Time.now)
           User.connection.query_cache.should be_empty
         end
 
         it "should not clear thread's query cache if disabled" do
           User.connection.enable_query_cache!
-          User.all
+          User.all.to_a
           User.connection.disable_query_cache!
           User.update_all(updated_at: Time.now)
           User.connection.query_cache.should_not be_empty
@@ -257,7 +257,7 @@ module Switchman
 
           it "should not clear thread's query cache if disabled but other thread's enabled" do
             User.connection.enable_query_cache!
-            User.all
+            User.all.to_a
             User.connection.disable_query_cache!
             threaded(
               lambda{ |cc| User.update_all(updated_at: Time.now); cc.call },
@@ -266,7 +266,7 @@ module Switchman
 
           it "should not clear other thread's query cache" do
             User.connection.enable_query_cache!
-            User.all
+            User.all.to_a
             User.connection.disable_query_cache!
             threaded(
               lambda{ |cc| User.update_all(updated_at: Time.now); cc.call },
@@ -282,14 +282,14 @@ module Switchman
 
         it "should clear thread's query cache if enabled" do
           User.connection.enable_query_cache!
-          User.all
+          User.all.to_a
           User.delete_all
           User.connection.query_cache.should be_empty
         end
 
         it "should not clear thread's query cache if disabled" do
           User.connection.enable_query_cache!
-          User.all
+          User.all.to_a
           User.connection.disable_query_cache!
           User.delete_all
           User.connection.query_cache.should_not be_empty
@@ -306,7 +306,7 @@ module Switchman
 
           it "should not clear thread's query cache if disabled but other thread's enabled" do
             User.connection.enable_query_cache!
-            User.all
+            User.all.to_a
             User.connection.disable_query_cache!
             threaded(
               lambda{ |cc| User.delete_all; cc.call },
@@ -315,7 +315,7 @@ module Switchman
 
           it "should not clear other thread's query cache" do
             User.connection.enable_query_cache!
-            User.all
+            User.all.to_a
             User.connection.disable_query_cache!
             threaded(
               lambda{ |cc| User.delete_all; cc.call },

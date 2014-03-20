@@ -16,8 +16,6 @@ module Switchman
     private_constant :CATEGORIES
     @shard_category = :unsharded
 
-    attr_accessible :name, :database_server, :default
-
     # only allow one default
     validates_uniqueness_of :default, :if => lambda { |s| s.default? }
 
@@ -87,7 +85,11 @@ module Switchman
             nil
           else
             shard = Shard.new
-            shard.assign_attributes(attributes, :without_protection => true)
+            if ::Rails.version < '4'
+              shard.assign_attributes(attributes, :without_protection => true)
+            else
+              shard.assign_attributes(attributes)
+            end
             shard.instance_variable_set(:@new_record, false)
             # connection info doesn't exist in database.yml;
             # pretend the shard doesn't exist either
@@ -518,6 +520,11 @@ module Switchman
     def ==(rhs)
       return true if rhs.is_a?(DefaultShard) && default?
       super
+    end
+
+    # skip global_id.hash
+    def hash
+      id.hash
     end
 
     private

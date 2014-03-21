@@ -3,6 +3,9 @@ module Switchman
     isolate_namespace Switchman
 
     initializer 'switchman.initialize_cache', :before => 'initialize_cache' do
+      require "switchman/active_support/cache"
+      ::ActiveSupport::Cache::Store.send(:include, ActiveSupport::Cache::Store)
+
       # if we haven't already setup our cache map out-of-band, set it up from
       # config.cache_store now. behaves similarly to Rails' default
       # initialize_cache initializer, but for each value in the map, rather
@@ -46,11 +49,13 @@ module Switchman
       else
         ::Rails.cache = Switchman.config[:cache_map][::Rails.env]
       end
+
+      require "switchman/rails"
+      ::Rails.send(:include, Rails)
     end
 
     initializer 'switchman.extend_ar', :before => "active_record.initialize_database" do
       ::ActiveSupport.on_load(:active_record) do
-        require "switchman/active_support/cache"
         require "switchman/active_record/abstract_adapter"
         require "switchman/active_record/association"
         require "switchman/active_record/attribute_methods"
@@ -64,9 +69,7 @@ module Switchman
         require "switchman/active_record/query_methods"
         require "switchman/active_record/relation"
         require "switchman/active_record/spawn_methods"
-        require "switchman/rails"
 
-        ::ActiveSupport::Cache::Store.send(:include, ActiveSupport::Cache::Store)
         include ActiveRecord::Base
         include ActiveRecord::AttributeMethods
         ::ActiveRecord::Associations::Association.send(:include, ActiveRecord::Association)
@@ -91,7 +94,6 @@ module Switchman
         ::ActiveRecord::Relation.send(:include, ActiveRecord::QueryMethods)
         ::ActiveRecord::Relation.send(:include, ActiveRecord::Relation)
         ::ActiveRecord::Relation.send(:include, ActiveRecord::SpawnMethods)
-        ::Rails.send(:include, Rails)
       end
     end
 

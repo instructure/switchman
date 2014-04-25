@@ -8,7 +8,10 @@ gemspec
 # if put in the gemspec, the :require => false is ignored
 gem 'mocha', :require => false
 
-if ENV['RAILS'] == '4'
+if ENV['RAILS'] == '4.1' || ENV['RAILS'] == '4'
+  gem 'activerecord', '~> 4.1.0'
+  gem 'railties', '~> 4.1.0'
+elsif ENV['RAILS'] == '4.0'
   gem 'activerecord', '~> 4.0.4'
   gem 'railties', '~> 4.0.4'
 else

@@ -17,9 +17,9 @@ Gem::Specification.new do |s|
   s.files = Dir["{app,config,db,lib}/**/*"] + ["Rakefile"]
   s.test_files = Dir["spec/**/*"]
 
-  s.add_dependency "railties", ">= 3.2", "< 4.1"
-  s.add_dependency "activerecord", ">= 3.2", "< 4.1"
-  s.add_dependency "shackles", ">= 1.0.3", "< 2"
+  s.add_dependency "railties", ">= 3.2", "< 4.2"
+  s.add_dependency "activerecord", ">= 3.2", "< 4.2"
+  s.add_dependency "shackles", "~> 1.0.5"
 
   s.add_development_dependency "debugger"
   s.add_development_dependency "mysql2", "~> 0.3"

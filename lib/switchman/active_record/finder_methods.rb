@@ -25,24 +25,33 @@ module Switchman
         primary_shard.activate { super }
       end
 
-      def exists?(id = false)
-        id = id.id if ActiveRecord::Base === id
-        return false if id.nil?
+      def exists?(conditions = :none)
+        conditions = conditions.id if ::ActiveRecord::Base === conditions
+        return false if !conditions
 
-        join_dependency = construct_join_dependency_for_association_find
-        relation = construct_relation_for_association_find(join_dependency)
-        relation = relation.except(:select, :order).select("1 AS one").limit(1)
-
-        case id
-          when Array, Hash
-            relation = relation.where(id)
-          else
-            relation = relation.where(table[primary_key].eq(id)) if id
+        if ::Rails.version >= '4.1'
+          relation = apply_join_dependency(self, construct_join_dependency)
+          return false if ::ActiveRecord::NullRelation === relation
+        else
+          join_dependency = construct_join_dependency_for_association_find
+          relation = construct_relation_for_association_find(join_dependency)
         end
 
-        activate { return true if connection.select_value(relation, "#{name} Exists") }
+        relation = relation.except(:select, :order).select("1 AS one").limit(1)
+
+        case conditions
+        when Array, Hash
+          relation = relation.where(conditions)
+        else
+          relation = relation.where(table[primary_key].eq(conditions)) if conditions != :none
+        end
+
+        args = [relation, "#{name} Exists"]
+        args << relation.bind_values if ::Rails.version >= '4.1'
+        activate { return true if connection.select_value(*args) }
         false
-      rescue ::ActiveRecord::ThrowResult
+      rescue
+        raise if ::Rails.version >= '4.1' || !(::ActiveRecord::ThrowResult === $!)
         false
       end
     end

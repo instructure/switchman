@@ -97,7 +97,7 @@ module Switchman
           end
         end
 
-        def associated_records_by_owner
+        def associated_records_by_owner(preloader = nil)
           owners_map = owners_by_key
 
           if klass.nil? || owners_map.empty?
@@ -123,7 +123,9 @@ module Switchman
           end
 
           # Each record may have multiple owners, and vice-versa
-          records_by_owner = Hash[owners.map { |owner| [owner, []] }]
+          records_by_owner = owners.each_with_object({}) do |owner,h|
+            h[owner] = []
+          end
           records.each do |record|
             owner_key = record[association_key_name]
             owner_key = Shard.global_id_for(owner_key, record.shard) if owner_key && record.class.sharded_column?(association_key_name)

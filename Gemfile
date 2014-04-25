@@ -9,9 +9,9 @@ gemspec
 gem 'mocha', :require => false
 
 if ENV['RAILS'] == '4'
-  gem 'activerecord', '~> 4.0'
-  gem 'railties', '~> 4.0'
+  gem 'activerecord', '~> 4.0.4'
+  gem 'railties', '~> 4.0.4'
 else
-  gem 'activerecord', '~> 3.2'
-  gem 'railties', '~> 3.2'
+  gem 'activerecord', '~> 3.2.17'
+  gem 'railties', '~> 3.2.17'
 end

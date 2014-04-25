@@ -149,10 +149,13 @@ module Switchman
         @class_to_pool
       end
 
+      # semi-private
+      public
       def uninitialize_ar(model = ::ActiveRecord::Base)
         # take the proxies out
         if ::Rails.version >= '4'
-          owner_to_pool[model.name] = owner_to_pool[model.name].default_pool
+          pool = owner_to_pool[model.name]
+          owner_to_pool[model.name] = pool.default_pool if pool
         else
           class_to_pool.each_key do |model_name|
             pool_model = model_name.constantize
@@ -179,8 +182,6 @@ module Switchman
         end
       end
 
-      # semi-private
-      public
       def initialize_categories(model = ::ActiveRecord::Base)
         if ::Rails.version < '4'
           # now set up pools for models that inherit from this model, but with a different

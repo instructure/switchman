@@ -77,6 +77,24 @@ module Switchman
           appendage.attributes["user_id"].should == user.global_id
         end
       end
+
+      describe ".shard_category=" do
+        it "should set up connection pools correctly for a model on a different db in the default shard" do
+          pending "remove_connection working properly"
+          ::Rails.env.stubs(:test?).returns(false)
+          begin
+            config = { :adapter => 'sqlite3', :database => ':memory:', :something_unique_in_the_spec => true }
+            MirrorUser.establish_connection(config)
+
+            MirrorUser.connection.should_not == ::ActiveRecord::Base.connection
+            ::Shackles.activate(:slave) do
+              MirrorUser.connection.should_not == ::ActiveRecord::Base.connection
+            end
+          ensure
+            MirrorUser.remove_connection
+          end
+        end
+      end
     end
   end
 end

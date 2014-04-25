@@ -18,7 +18,7 @@ module Switchman
             categories[shard_category].delete(self)
             categories.delete(shard_category) if categories[shard_category].empty?
           end
-          # TODO: de-initialize the proxy
+          connection_handler.uninitialize_ar(self)
           categories[category] ||= []
           categories[category] << self
           @shard_category = category

@@ -35,6 +35,7 @@ module Switchman
       end
 
       before do
+        User.connection.clear_query_cache
         @orig_enabled = User.connection.query_cache_enabled
         @orig_cache = User.connection.query_cache.dup
       end
@@ -320,6 +321,23 @@ module Switchman
             threaded(
               lambda{ |cc| User.delete_all; cc.call },
               lambda{ User.connection.query_cache.should_not be_empty })
+          end
+
+          it "should clear cache for all connections" do
+            u = User.create!(name: 'a')
+            User.connection.cache do
+              u.reload.name.should == 'a'
+              ::Shackles.activate(:slave) do
+                u.reload.name.should == 'a'
+              end
+              u.reload.name.should == 'a'
+              u.name = 'b'
+              u.save!
+              u.reload.name.should == 'b'
+              ::Shackles.activate(:slave) do
+                u.reload.name.should == 'b'
+              end
+            end
           end
         end
       end

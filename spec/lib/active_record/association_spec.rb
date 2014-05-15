@@ -76,6 +76,22 @@ module Switchman
         expect(@user1.digits.find(d1.id)).to eq d1
       end
 
+      it "should resolve include? correctly for a has_many :through" do
+        @shard1.activate do
+          child = @user1.children.create!
+          @grandchild = child.children.create!
+          @user1.reload
+          expect(@user1.grandchildren.loaded?).to eq false
+          expect(@user1.grandchildren.include?(@grandchild)).to eq true
+        end
+        @shard2.activate do
+          fake = User.create!(id: @grandchild.local_id)
+          @user1.reload
+          expect(@user1.grandchildren.loaded?).to eq false
+          expect(@user1.grandchildren.include?(fake)).to eq false
+        end
+      end
+
       it "shard should be changeable, and change conditions when it is changed" do
         a1 = @user1.appendages.create!
         relation = @user1.appendages.where(:id => a1).shard(@shard1)

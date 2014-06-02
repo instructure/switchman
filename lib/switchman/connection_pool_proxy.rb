@@ -87,7 +87,12 @@ module Switchman
           config = config.first if config.is_a?(Array)
           config = config.dup
         else
-          config = default_pool.spec.config
+          # we read @config instead of calling config so that we get the config
+          # *before* %{shard_name} is applied
+          # also, we can't just read the database server's config, because
+          # different models could be using different configs on the default
+          # shard, and database server wouldn't know about that
+          config = default_pool.spec.instance_variable_get(:@config)
           if config[active_shackles_environment].is_a?(Hash)
             config = config.merge(config[active_shackles_environment])
           else

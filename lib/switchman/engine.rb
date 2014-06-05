@@ -138,7 +138,7 @@ module Switchman
       end
     end
 
-    initializer 'switchman.extend_shackles', :after => "shackles.extend_ar" do
+    initializer 'switchman.extend_shackles', :before => "switchman.extend_ar" do
       ::ActiveSupport.on_load(:active_record) do
         require "switchman/shackles"
 

@@ -4,6 +4,7 @@ module Switchman
       def self.included(klass)
         klass.alias_method_chain(:checkout_new_connection, :sharding)
         klass.alias_method_chain(:connection, :sharding)
+        klass.alias_method_chain(:release_connection, :idle_timeout)
       end
 
       attr_writer :shard
@@ -33,6 +34,33 @@ module Switchman
         conn = connection_without_sharding
         switch_database(conn) if conn.shard != self.shard
         conn
+      end
+
+      def release_connection_with_idle_timeout(*args)
+        if ::Rails.version < '4'
+          raise ArgumentError, "wrong number of arguments (1 for 0)" unless args.empty?
+          release_connection_without_idle_timeout
+        else
+          release_connection_without_idle_timeout(*args)
+        end
+
+        # TODO may need a synchronize (or to be included in a synchronize
+        # inside release_connection_without_idle_timeout) when we make
+        # switchman thread-safe
+        if spec.config[:idle_timeout]
+          clear_idle_connections!(Time.now - spec.config[:idle_timeout].to_i)
+        end
+      end
+
+      def clear_idle_connections!(since_when)
+        @connections.reject! do |conn|
+          if conn.last_query_at < since_when && !conn.in_use?
+            conn.disconnect!
+            true
+          else
+            false
+          end
+        end
       end
 
       def switch_database(conn)

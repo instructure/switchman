@@ -18,6 +18,64 @@ module Switchman
           lambda { User.count }.should_not raise_exception
         end
       end
+
+      describe "clear_idle_connections!" do
+        before do
+          pending 'A "real" database"' unless Shard.default.database_server.shareable?
+          @server = DatabaseServer.create(:config => Shard.default.database_server.config.dup)
+          @shard = @server.shards.create!
+          @conn, @pool = @shard.activate{ [User.connection, User.connection_pool.current_pool] }
+        end
+
+        it "should disconnect idle connections" do
+          @pool.checkin(@conn)
+          @conn.expects(:disconnect!).once
+          @pool.clear_idle_connections!(@conn.last_query_at + 1)
+        end
+
+        it "should remove idle connections" do
+          @pool.checkin(@conn)
+          @pool.clear_idle_connections!(@conn.last_query_at + 1)
+          @pool.connections.should be_empty
+        end
+
+        it "should not affect idle but checked out connections" do
+          @conn.expects(:disconnect!).never
+          @pool.clear_idle_connections!(@conn.last_query_at + 1)
+        end
+
+        it "should not affect checked in but recently active connections" do
+          @pool.checkin(@conn)
+          @conn.expects(:disconnect!).never
+          @pool.clear_idle_connections!(@conn.last_query_at - 1)
+        end
+      end
+
+      describe "release_connection" do
+        before do
+          pending 'A "real" database"' unless Shard.default.database_server.shareable?
+          @server = DatabaseServer.create(:config => Shard.default.database_server.config.dup)
+          @shard = @server.shards.create!
+          @pool = @shard.activate{ User.connection_pool.current_pool }
+          @timeout_was = @pool.spec.config[:idle_timeout]
+        end
+
+        after do
+          @pool.spec.config[:idle_timeout] = @timeout_was
+        end
+
+        it "should clear idle connections if idle timeout is configured" do
+          @pool.spec.config[:idle_timeout] = 1.minute
+          @pool.expects(:clear_idle_connections!).at_least_once
+          @pool.release_connection
+        end
+
+        it "should still work if idle timeout is not configured" do
+          @pool.spec.config[:idle_timeout] = nil
+          @pool.expects(:clear_idle_connections!).never
+          lambda { @pool.release_connection }.should_not raise_exception
+        end
+      end
     end
   end
 end

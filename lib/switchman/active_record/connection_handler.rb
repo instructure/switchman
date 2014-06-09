@@ -141,6 +141,11 @@ module Switchman
         end
       end
 
+      def clear_idle_connections!(since_when)
+        # TODO in rails 4.2+ s/connection_pools.values/connection_pool_list/
+        connection_pools.values.each{ |pool| pool.clear_idle_connections!(since_when) }
+      end
+
       private
 
       # AR3 only; AR4 defines it, and hides this version,

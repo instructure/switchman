@@ -68,6 +68,10 @@ module Switchman
       EOS
     end
 
+    def clear_idle_connections!(since_when)
+      @connection_pools.values.each { |pool| pool.clear_idle_connections!(since_when) }
+    end
+
     protected
 
     def pool_key

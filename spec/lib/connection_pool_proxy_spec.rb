@@ -11,5 +11,12 @@ module Switchman
       ::ActiveRecord::Base.connection.should_not == @sqlite_shard2.activate { ::ActiveRecord::Base.connection }
       @sqlite_shard1.activate { ::ActiveRecord::Base.connection }.should_not == @sqlite_shard2.activate { ::ActiveRecord::Base.connection }
     end
+
+    it "should forward clear_idle_connections! to each of its pools" do
+      proxy = User.connection_pool
+      @shard1.activate{ proxy.current_pool.expects(:clear_idle_connections!).once }
+      @shard2.activate{ proxy.current_pool.expects(:clear_idle_connections!).once }
+      proxy.clear_idle_connections!(Time.now)
+    end
   end
 end

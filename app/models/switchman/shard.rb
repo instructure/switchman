@@ -79,7 +79,14 @@ module Switchman
           # that calls this method
           attributes = ::Rails.cache.fetch(['shard', id].join('/')) do
             shard = find_by_id(id)
-            shard.try(:attributes) || :nil
+            if shard
+              attributes = shard.attributes
+              attributes.each_key do |key|
+                attributes[key] = attributes[key].unserialize if attributes[key].is_a?(::ActiveRecord::AttributeMethods::Serialization::Attribute)
+              end
+            else
+              :nil
+            end
           end
           if attributes == :nil
             nil

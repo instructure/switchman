@@ -31,6 +31,12 @@ module Switchman
         db.shareable?.should be_false
         ::Shackles.activate(:deploy) { db.shareable? }.should be_true
       end
+
+      it "should handle string keys" do
+        db = DatabaseServer.new(config: { adapter: 'postgresql', username: '%{schema_search_path}', deploy: { 'username' => 'deploy' }})
+        db.shareable?.should be_false
+        ::Shackles.activate(:deploy) { db.shareable? }.should be_true
+      end
     end
 
     describe "#create_new_shard" do

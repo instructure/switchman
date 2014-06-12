@@ -43,7 +43,7 @@ module Switchman
 
     def initialize(settings = {})
       @id = settings[:id]
-      @config = (settings[:config] || {}).symbolize_keys
+      @config = (settings[:config] || {}).deep_symbolize_keys
       @configs = {}
     end
 
@@ -98,7 +98,7 @@ module Switchman
 
     def shareable?
       @shareable_environment_key ||= []
-      environment = ::Shackles.environment
+      environment = shackles_environment
       explicit_user = ::Shackles.global_config[:username]
       return @shareable if @shareable_environment_key == [environment, explicit_user]
       @shareable_environment_key = [environment, explicit_user]

@@ -153,5 +153,21 @@ module Switchman
         ::ActionController::Base.send(:include, ActionController::Caching)
       end
     end
+
+    initializer 'switchman.set_reloader_hooks', :before => "active_record.set_reloader_hooks" do |app|
+      hook = lambda do
+        require_dependency 'switchman/default_shard'
+      end
+
+      if app.config.reload_classes_only_on_change
+        ::ActiveSupport.on_load(:active_record) do
+          ActionDispatch::Reloader.to_prepare(&hook)
+        end
+      else
+        ::ActiveSupport.on_load(:active_record) do
+          ActionDispatch::Reloader.to_cleanup(&hook)
+        end
+      end
+    end
   end
 end

@@ -7,7 +7,10 @@ module Switchman
 
     def instrument(name, payload={})
       shard = @shard_host.try(:shard)
-      if shard.is_a?(Shard)
+      # attribute_methods_generated? will be false during a reload -
+      # when we might be doing a query while defining attribute methods,
+      # so just avoid logging then
+      if shard.is_a?(Shard) && Shard.instance_variable_get(:@attribute_methods_generated)
         payload[:shard] = {
           id: shard.id,
           env: shard.database_server.shackles_environment

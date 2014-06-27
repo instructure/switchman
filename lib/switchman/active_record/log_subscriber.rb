@@ -2,7 +2,7 @@ module Switchman
   module ActiveRecord
     module LogSubscriber
       def self.included(klass)
-        klass.send(:remove_method, :sql)
+        klass.send(:remove_method, :sql) if klass.instance_method(:sql).owner == klass
       end
 
       # sadly, have to completely replace this

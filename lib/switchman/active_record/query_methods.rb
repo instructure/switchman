@@ -93,6 +93,12 @@ module Switchman
         when ::ActiveRecord::Relation
           Shard.default
         else
+          # A class reload may cause Shard and DefaultShard to be redefined,
+          # but we have a reference to the old class - just reload it silently
+          if shard_value.respond_to?(:default?) && shard_value.default?
+            shard_value = Shard.default
+            return primary_shard
+          end
           raise ArgumentError("invalid shard value #{shard_value}")
         end
       end

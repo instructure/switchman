@@ -23,8 +23,8 @@ module Switchman
       end
 
       def self.included(klass)
-        klass.alias_method_chain :initialize, :shard
-        klass.alias_method_chain :log, :timestamp
+        klass.alias_method_chain :initialize, :shard unless klass.private_instance_methods.include?(:initialize_without_shard)
+        klass.alias_method_chain :log, :timestamp unless klass.instance_methods.include?(:log_without_timestamp)
       end
     end
   end

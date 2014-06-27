@@ -86,7 +86,7 @@ module Switchman
         # we want it to find the definition from
         # ActiveRecord::ConnectionAdapters::DatabaseStatements, not
         # ActiveRecord::ConnectionAdapters::QueryCache
-        ::ActiveRecord::ConnectionAdapters::QueryCache.send(:remove_method, :select_all)
+        ::ActiveRecord::ConnectionAdapters::QueryCache.send(:remove_method, :select_all) if ::ActiveRecord::ConnectionAdapters::QueryCache.instance_methods.include?(:select_all)
 
         ::ActiveRecord::LogSubscriber.send(:include, ActiveRecord::LogSubscriber)
         ::ActiveRecord::Relation.send(:include, ActiveRecord::Calculations)

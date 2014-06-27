@@ -26,9 +26,9 @@ module Switchman
 
     def self.included(klass)
       klass.extend(ClassMethods)
-      klass.singleton_class.send(:remove_method, :ensure_handler)
-      klass.singleton_class.send(:remove_method, :activate!)
-      klass.singleton_class.send(:remove_method, :activate)
+      klass.singleton_class.send(:remove_method, :ensure_handler) if klass.method(:ensure_handler).owner == klass.singleton_class
+      klass.singleton_class.send(:remove_method, :activate!) if klass.method(:activate!).owner == klass.singleton_class
+      klass.singleton_class.send(:remove_method, :activate) if klass.method(:activate).owner == klass.singleton_class
     end
   end
 end

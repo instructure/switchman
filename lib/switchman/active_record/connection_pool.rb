@@ -2,9 +2,9 @@ module Switchman
   module ActiveRecord
     module ConnectionPool
       def self.included(klass)
-        klass.alias_method_chain(:checkout_new_connection, :sharding)
-        klass.alias_method_chain(:connection, :sharding)
-        klass.alias_method_chain(:release_connection, :idle_timeout)
+        klass.alias_method_chain(:checkout_new_connection, :sharding) unless klass.private_instance_methods.include?(:checkout_new_connection_without_sharding)
+        klass.alias_method_chain(:connection, :sharding) unless klass.instance_methods.include?(:connection_without_sharding)
+        klass.alias_method_chain(:release_connection, :idle_timeout) unless klass.instance_methods.include?(:release_connection_without_idle_timeout)
       end
 
       attr_writer :shard

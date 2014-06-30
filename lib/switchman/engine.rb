@@ -159,14 +159,8 @@ module Switchman
         require_dependency 'switchman/default_shard'
       end
 
-      if app.config.reload_classes_only_on_change
-        ::ActiveSupport.on_load(:active_record) do
-          ActionDispatch::Reloader.to_prepare(&hook)
-        end
-      else
-        ::ActiveSupport.on_load(:active_record) do
-          ActionDispatch::Reloader.to_cleanup(&hook)
-        end
+      ::ActiveSupport.on_load(:active_record) do
+        ActionDispatch::Reloader.to_prepare(&hook)
       end
     end
   end

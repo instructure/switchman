@@ -3,7 +3,7 @@ module Switchman
     module Calculations
       def self.included(klass)
         %w{execute_simple_calculation pluck}.each do |method|
-          klass.alias_method_chain(method, :sharding) unless (klass.instance_methods + klass.private_instance_methods).include?("#{method}_without_sharding".to_sym)
+          klass.alias_method_chain(method, :sharding)
         end
       end
 

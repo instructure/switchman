@@ -5,11 +5,11 @@ module Switchman
         klass::SINGLE_VALUE_METHODS.concat [ :shard, :shard_source ]
 
         %w{exec_queries update_all delete_all}.each do |method|
-          klass.alias_method_chain(method, :deshackles) unless (klass.instance_methods + klass.private_instance_methods).include?("#{method}_without_deshackles".to_sym)
+          klass.alias_method_chain(method, :deshackles)
         end
 
         %w{initialize exec_queries update_all delete_all new create create!}.each do |method|
-          klass.alias_method_chain(method, :sharding) unless (klass.instance_methods + klass.private_instance_methods).include?("#{method}_without_sharding".to_sym)
+          klass.alias_method_chain(method, :sharding)
         end
       end
 

@@ -9,7 +9,7 @@ module Switchman
         end
 
         def self.included(klass)
-          klass.alias_method_chain(:initialize, :sharding) unless klass.private_instance_methods.include?(:initialize_without_sharding)
+          klass.alias_method_chain(:initialize, :sharding)
         end
       end
     end

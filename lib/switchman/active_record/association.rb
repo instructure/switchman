@@ -4,7 +4,7 @@ module Switchman
       def self.included(klass)
         %w{build_record creation_attributes load_target scope}.each do |method|
           method = 'scoped' if method == 'scope' && ::Rails.version < '4'
-          klass.alias_method_chain(method, :sharding) unless (klass.instance_methods + klass.private_instance_methods).include?("#{method}_without_sharding".to_sym)
+          klass.alias_method_chain(method, :sharding)
         end
       end
 
@@ -47,7 +47,7 @@ module Switchman
 
     module BelongsToAssociation
       def self.included(klass)
-        klass.send(:alias_method_chain, :replace_keys, :sharding) unless klass.private_instance_methods.include?(:replace_keys_without_sharding)
+        klass.send(:alias_method_chain, :replace_keys, :sharding)
       end
 
       def replace_keys_with_sharding(record)
@@ -88,12 +88,12 @@ module Switchman
     module Preloader
       module Association
         def self.included(klass)
-          klass.send(:remove_method, :associated_records_by_owner) if klass.instance_method(:associated_records_by_owner).owner == klass
-          klass.send(:remove_method, :owners_by_key) if klass.instance_method(:owners_by_key).owner == klass
+          klass.send(:remove_method, :associated_records_by_owner)
+          klass.send(:remove_method, :owners_by_key)
           if ::Rails.version < '4'
-            klass.send(:remove_method, :scoped) if klass.instance_method(:scoped).owner == klass
+            klass.send(:remove_method, :scoped)
           else
-            klass.send(:remove_method, :scope) if klass.instance_method(:scope).owner == klass
+            klass.send(:remove_method, :scope)
           end
         end
 

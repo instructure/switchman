@@ -20,9 +20,9 @@ module Switchman
       end
 
       def self.included(klass)
-        klass.alias_method_chain(:establish_connection, :sharding) unless klass.instance_methods.include?(:establish_connection_without_sharding)
-        klass.alias_method_chain(:remove_connection, :sharding) unless klass.instance_methods.include?(:remove_connection_without_sharding)
-        klass.send(:remove_method, :retrieve_connection_pool) if ::Rails.version >= '4' && klass.instance_method(:retrieve_connection_pool).owner == klass
+        klass.alias_method_chain(:establish_connection, :sharding)
+        klass.alias_method_chain(:remove_connection, :sharding)
+        klass.send(:remove_method, :retrieve_connection_pool) if ::Rails.version >= '4'
       end
 
       def establish_connection_with_sharding(owner, spec)

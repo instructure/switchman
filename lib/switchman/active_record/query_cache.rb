@@ -93,9 +93,9 @@ module Switchman
           # from ActiveRecord::ConnectionAdapters::DatabaseStatements as
           # 'super'), not the ones defined on base by
           # ActiveRecord::ConnectionAdapters::QueryCache.
-          remove_method :insert if instance_method(:insert).owner == base
-          remove_method :update if instance_method(:update).owner == base
-          remove_method :delete if instance_method(:delete).owner == base
+          remove_method :insert
+          remove_method :update
+          remove_method :delete
         end
       end
     end

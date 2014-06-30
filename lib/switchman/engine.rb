@@ -134,7 +134,7 @@ module Switchman
     initializer 'switchman.eager_load' do
       ::ActiveSupport.on_load(:before_eager_load) do
         # This needs to be loaded before Switchman::Shard, otherwise it won't autoload it correctly
-        require_dependency('active_record/base')
+        require 'active_record/base'
       end
     end
 
@@ -155,12 +155,10 @@ module Switchman
     end
 
     initializer 'switchman.set_reloader_hooks', :before => "active_record.set_reloader_hooks" do |app|
-      hook = lambda do
-        require_dependency 'switchman/default_shard'
-      end
-
       ::ActiveSupport.on_load(:active_record) do
-        ActionDispatch::Reloader.to_prepare(&hook)
+        ActionDispatch::Reloader.to_prepare do
+          require_dependency 'switchman/default_shard'
+        end
       end
     end
   end

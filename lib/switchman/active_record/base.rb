@@ -82,16 +82,16 @@ module Switchman
 
       def save(*args)
         @shard_set_in_stone = true
-        self.class.shard(shard).scoping { super }
+        self.class.shard(shard, :implicit).scoping { super }
       end
 
       def save!(*args)
         @shard_set_in_stone = true
-        self.class.shard(shard).scoping { super }
+        self.class.shard(shard, :implicit).scoping { super }
       end
 
       def destroy
-        self.class.shard(shard).scoping { super }
+        self.class.shard(shard, :implicit).scoping { super }
       end
 
       def clone

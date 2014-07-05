@@ -15,11 +15,10 @@ module Switchman
 
       def create(settings = {})
         raise "database servers should be set up in database.yml" unless ::Rails.env.test?
-        id = 1
-        while database_servers[id.to_s]; id += 1; end
-        server = DatabaseServer.new({ :id => id.to_s }.merge(settings))
+        @id ||= 0
+        @id += 1
+        server = DatabaseServer.new({ :id => @id.to_s }.merge(settings))
         server.instance_variable_set(:@fake, true)
-        raise "database server #{server.id} already exists" if database_servers[server.id]
         database_servers[server.id] = server
       end
 

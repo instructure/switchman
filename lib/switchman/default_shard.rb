@@ -28,7 +28,7 @@ module Switchman
     end
 
     def ==(rhs)
-      return true if rhs.is_a?(Shard) && rhs.default?
+      return true if rhs.is_a?(DefaultShard) || (rhs.is_a?(Shard) && rhs.default?)
       super
     end
 

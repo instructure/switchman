@@ -38,7 +38,7 @@ module Switchman
         MirrorUser.find(mu.local_id).should == mu
         # didn't activate the :mirror_universe category
         @shard1.activate { MirrorUser.find(mu.local_id).should == mu }
-        @shard1.activate(:mirror_universe) { MirrorUser.find_by_id(mu.local_id).should == nil }
+        @shard1.activate(:mirror_universe) { MirrorUser.where(id: mu.local_id).first.should == nil }
       end
     end
   end

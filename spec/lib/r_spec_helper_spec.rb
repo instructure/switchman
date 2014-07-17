@@ -2,6 +2,32 @@ require "spec_helper"
 
 module Switchman
   describe RSpecHelper do
+    context "unsharded" do
+      it "doesn't make shards accessible" do
+        # by virtue of including RSpecHelper somewhere, test shards will
+        # always already be set up by this point (though not accessible),
+        # but only if we are running a sharding spec
+        Shard.count.should == 0
+        Shard.default.should be_a(DefaultShard)
+      end
+
+      it "doesn't set up sharding at all if no sharded specs are run" do
+        run_groups = RSpec.world.filtered_examples.select{ |k, v| v.present? }.map(&:first)
+        pending "run without other sharding specs" if run_groups.any?{ |group| RSpecHelper.included_in?(group) }
+
+        RSpecHelper.class_variable_defined?(:@@default_shard).should be_false
+        RSpecHelper.class_variable_get(:@@shard1).should be_nil
+      end
+
+      it "sets up sharding but hides it if other sharding specs are run" do
+        run_groups = RSpec.world.filtered_examples.select{ |k, v| v.present? }.map(&:first)
+        pending "run alongside sharding specs" unless run_groups.any?{ |group| RSpecHelper.included_in?(group) }
+
+        RSpecHelper.class_variable_get(:@@default_shard).should be_a(Shard)
+        RSpecHelper.class_variable_get(:@@shard1).should be_a(Shard)
+      end
+    end
+
     context "sharding" do
       # strategically place these before we include the module
       before(:all) do

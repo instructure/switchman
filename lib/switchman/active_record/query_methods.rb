@@ -93,7 +93,7 @@ module Switchman
         when ::ActiveRecord::Relation
           Shard.default
         else
-          raise ArgumentError("invalid shard value #{shard_value}")
+          raise ArgumentError, "invalid shard value #{shard_value}"
         end
       end
 

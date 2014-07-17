@@ -122,7 +122,7 @@ module Switchman
       #    :exception - :ignore, :raise, :defer (wait until the end and raise the first
       #                error), or a proc
       def with_each_shard(*args)
-        raise ArgumentError("wrong number of arguments (#{args.length} for 0...3)") if args.length > 3
+        raise ArgumentError, "wrong number of arguments (#{args.length} for 0...3)" if args.length > 3
 
         unless default.is_a?(Shard)
           return Array(yield)

@@ -38,12 +38,12 @@ module Switchman
         it "should work for an out-of-shard scope" do
           scope = @shard1.activate { User.where(id: @user) }
           scope.shard_value.should == @shard1
-          scope.exists?.should be_true
+          scope.exists?.should == true
         end
 
         it "should work for a multi-shard scope" do
           user2 = @shard2.activate { User.create!(name: "multi-shard exists") }
-          User.where(name: "multi-shard exists").shard(::Rails.version < '4' ? Shard.scoped : Shard.all).exists?.should be_true
+          User.where(name: "multi-shard exists").shard(::Rails.version < '4' ? Shard.scoped : Shard.all).exists?.should == true
         end
       end
     end

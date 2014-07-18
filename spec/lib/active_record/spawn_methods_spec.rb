@@ -14,7 +14,7 @@ module Switchman
 
         it "should merge shard_value relations for multiple explicits" do
           result = User.shard(Shard.where("id IN (?)", [@shard1, @shard2])).merge(User.shard(Shard.where(id: [Shard.default, @shard1])))
-          (::ActiveRecord::Relation === result.shard_value).should be_true
+          (::ActiveRecord::Relation === result.shard_value).should == true
           result.shard_value.to_a.should == [@shard1]
           result.shard_source_value.should == :explicit
         end

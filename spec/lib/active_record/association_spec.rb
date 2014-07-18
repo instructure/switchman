@@ -269,7 +269,7 @@ module Switchman
 
             begin
               users = User.where(:id => [@user1, @user2]).includes(:appendages).to_a
-              users.each {|u| u.appendages.loaded?.should be_true}
+              users.each {|u| u.appendages.loaded?.should == true}
 
               u1 = users.detect {|u| u.id == @user1.id}
               u2 = users.detect {|u| u.id == @user2.id}
@@ -305,7 +305,7 @@ module Switchman
 
             begin
               users = User.where(:id => [@user1, @user2]).includes(:digits).to_a
-              users.each {|u| u.digits.loaded?.should be_true}
+              users.each {|u| u.digits.loaded?.should == true}
 
               u1 = users.detect {|u| u.id == @user1.id}
               u2 = users.detect {|u| u.id == @user2.id}

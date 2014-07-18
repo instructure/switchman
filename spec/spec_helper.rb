@@ -2,7 +2,6 @@
 ENV["RAILS_ENV"] ||= 'test'
 require File.expand_path("../dummy/config/environment", __FILE__)
 require 'rspec/rails'
-require 'rspec/autorun'
 
 require_dependency 'switchman/r_spec_helper'
 
@@ -14,6 +13,7 @@ RSpec.configure do |config|
   # ## Mock Framework
   config.mock_with :mocha
 
+  config.infer_spec_type_from_file_location!
   # If you're not using ActiveRecord, or you'd prefer not to run each of your
   # examples within a transaction, remove the following line or assign false
   # instead of true.

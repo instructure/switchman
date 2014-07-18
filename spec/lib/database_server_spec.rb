@@ -5,37 +5,37 @@ module Switchman
     describe "shareable?" do
       it "should be false for sqlite" do
         db = DatabaseServer.new(config: { adapter: 'sqlite3', database: '%{shard_name}' })
-        db.shareable?.should be_false
+        db.shareable?.should == false
       end
 
       it "should be true for mysql" do
         db = DatabaseServer.new(config: { adapter: 'mysql' })
-        db.shareable?.should be_true
+        db.shareable?.should == true
 
         db = DatabaseServer.new(config: { adapter: 'mysql2' })
-        db.shareable?.should be_true
+        db.shareable?.should == true
       end
 
       it "should be true for postgres with a non-variable username" do
         db = DatabaseServer.new(config: { adapter: 'postgresql' })
-        db.shareable?.should be_true
+        db.shareable?.should == true
       end
 
       it "should be false for postgres with variable username" do
         db = DatabaseServer.new(config: { adapter: 'postgresql', username: '%{schema_search_path}' })
-        db.shareable?.should be_false
+        db.shareable?.should == false
       end
 
       it "should depend on the database environment" do
         db = DatabaseServer.new(config: { adapter: 'postgresql', username: '%{schema_search_path}', deploy: { username: 'deploy' }})
-        db.shareable?.should be_false
-        ::Shackles.activate(:deploy) { db.shareable? }.should be_true
+        db.shareable?.should == false
+        ::Shackles.activate(:deploy) { db.shareable? }.should == true
       end
 
       it "should handle string keys" do
         db = DatabaseServer.new(config: { adapter: 'postgresql', username: '%{schema_search_path}', deploy: { 'username' => 'deploy' }})
-        db.shareable?.should be_false
-        ::Shackles.activate(:deploy) { db.shareable? }.should be_true
+        db.shareable?.should == false
+        ::Shackles.activate(:deploy) { db.shareable? }.should == true
       end
     end
 

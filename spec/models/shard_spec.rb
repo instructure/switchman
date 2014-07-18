@@ -132,23 +132,23 @@ module Switchman
 
         it "should disconnect when switching among different database servers" do
           User.connection
-          User.connected?.should be_true
+          User.connected?.should == true
           Shard.with_each_shard([Shard.default, @shard2]) {}
-          User.connected?.should be_false
+          User.connected?.should  == false
         end
 
         it "should not disconnect when it's the current shard" do
           User.connection
-          User.connected?.should be_true
+          User.connected?.should == true
           Shard.with_each_shard([Shard.default]) {}
-          User.connected?.should be_true
+          User.connected?.should == true
         end
 
         it "should not disconnect for zero shards" do
           User.connection
-          User.connected?.should be_true
+          User.connected?.should == true
           Shard.with_each_shard([]) {}
-          User.connected?.should be_true
+          User.connected?.should == true
         end
       end
     end
@@ -157,13 +157,13 @@ module Switchman
       it "should work" do
         ids = [2, 48, Shard::IDS_PER_SHARD * @shard1.id + 6, Shard::IDS_PER_SHARD * @shard1.id + 8, 10, 12]
         results = Shard.partition_by_shard(ids) do |ids|
-          (ids.length == 4 || ids.length == 2).should be_true
+          (ids.length == 4 || ids.length == 2).should == true
           ids.map { |id| id + 1}
         end
 
         # could have done either shard first, but we can't sort, because we want to see the shards grouped together
         (results == [3, 49, 11, 13, 7, 9] ||
-            results == [7, 9, 3, 49, 11, 13]).should be_true
+            results == [7, 9, 3, 49, 11, 13]).should == true
       end
 
       it "should work for a partition_proc that returns a shard" do
@@ -180,7 +180,7 @@ module Switchman
         ids = [@shard1.global_id_for(1), "#{@shard2.id}~2"]
         result = Shard.partition_by_shard(ids) do |ids|
           ids.length.should == 1
-          [@shard1, @shard2].include?(Shard.current).should be_true
+          [@shard1, @shard2].include?(Shard.current).should == true
           ids.first.should == 1 if Shard.current == @shard1
           ids.first.should == 2 if Shard.current == @shard2
           ids.first

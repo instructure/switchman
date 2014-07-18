@@ -13,15 +13,15 @@ module Switchman
 
       it "doesn't set up sharding at all if no sharded specs are run" do
         run_groups = RSpec.world.filtered_examples.select{ |k, v| v.present? }.map(&:first)
-        skip "run without other sharding specs" if run_groups.any?{ |group| RSpecHelper.included_in?(group) }
+        pending "run without other sharding specs" if run_groups.any?{ |group| RSpecHelper.included_in?(group) }
 
-        expect(RSpecHelper.class_variable_defined?(:@@default_shard)).to be_falsey
+        expect(RSpecHelper.class_variable_defined?(:@@default_shard)).to eq false
         expect(RSpecHelper.class_variable_get(:@@shard1)).to be_nil
       end
 
       it "sets up sharding but hides it if other sharding specs are run" do
         run_groups = RSpec.world.filtered_examples.select{ |k, v| v.present? }.map(&:first)
-        skip "run alongside sharding specs" unless run_groups.any?{ |group| RSpecHelper.included_in?(group) }
+        pending "run alongside sharding specs" unless run_groups.any?{ |group| RSpecHelper.included_in?(group) }
 
         expect(RSpecHelper.class_variable_get(:@@default_shard)).to be_a(Shard)
         expect(RSpecHelper.class_variable_get(:@@shard1)).to be_a(Shard)

@@ -1,7 +1,7 @@
 require "spec_helper"
 
 module Switchman
-  describe Shard, :type => :model do
+  describe Shard do
     include RSpecHelper
 
     describe ".activate" do

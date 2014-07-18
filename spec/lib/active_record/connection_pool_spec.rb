@@ -4,24 +4,24 @@ module Switchman
   module ActiveRecord
     describe ConnectionPool do
       it "should be able to access another shard on a db server after the 'primary' shard is gone" do
-        pending 'A "real" database"' unless Shard.default.database_server.shareable?
+        skip 'A "real" database"' unless Shard.default.database_server.shareable?
         # separate connections
         server = DatabaseServer.create(:config => Shard.default.database_server.config.dup)
         s1 = server.shards.create!(:name => 'non_existent_shard') # don't actually create any schema
         s2 = server.shards.create! # inherit's the default shard's config, which is functional
         s1.activate do
-          lambda { User.count }.should raise_exception
+          expect { User.count }.to raise_exception
         end
         # the config for s1 should not be the permanent default for all new
         # connections now
         s2.activate do
-          lambda { User.count }.should_not raise_exception
+          expect { User.count }.not_to raise_exception
         end
       end
 
       describe "clear_idle_connections!" do
         before do
-          pending 'A "real" database"' unless Shard.default.database_server.shareable?
+          skip 'A "real" database"' unless Shard.default.database_server.shareable?
           @server = DatabaseServer.create(:config => Shard.default.database_server.config.dup)
           @shard = @server.shards.create!
           @conn, @pool = @shard.activate{ [User.connection, User.connection_pool.current_pool] }
@@ -36,7 +36,7 @@ module Switchman
         it "should remove idle connections" do
           @pool.checkin(@conn)
           @pool.clear_idle_connections!(@conn.last_query_at + 1)
-          @pool.connections.should be_empty
+          expect(@pool.connections).to be_empty
         end
 
         it "should not affect idle but checked out connections" do
@@ -53,7 +53,7 @@ module Switchman
 
       describe "release_connection" do
         before do
-          pending 'A "real" database"' unless Shard.default.database_server.shareable?
+          skip 'A "real" database"' unless Shard.default.database_server.shareable?
           @server = DatabaseServer.create(:config => Shard.default.database_server.config.dup)
           @shard = @server.shards.create!
           @pool = @shard.activate{ User.connection_pool.current_pool }
@@ -73,7 +73,7 @@ module Switchman
         it "should still work if idle timeout is not configured" do
           @pool.spec.config[:idle_timeout] = nil
           @pool.expects(:clear_idle_connections!).never
-          lambda { @pool.release_connection }.should_not raise_exception
+          expect { @pool.release_connection }.not_to raise_exception
         end
       end
     end

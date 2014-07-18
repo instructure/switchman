@@ -9,7 +9,7 @@ module Switchman
         conn = @shard1.activate{ User.connection }
         Time.stubs(:now).returns(conn.last_query_at + 1.minute)
         @shard1.activate{ User.create! }
-        conn.last_query_at.should == Time.now
+        expect(conn.last_query_at).to eq Time.now
       end
     end
   end

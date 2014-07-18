@@ -18,32 +18,32 @@ module Switchman
         end
 
         it "should return non-id columns" do
-          User.where(:id => [@user1.id, @user2.id]).pluck(:name).sort.should == ["user1", "user2"]
+          expect(User.where(:id => [@user1.id, @user2.id]).pluck(:name).sort).to eq ["user1", "user2"]
         end
 
         it "should return primary ids relative to current shard" do
-          Appendage.where(:id => @appendage1).pluck(:id).should == [@appendage1.global_id]
-          Appendage.where(:id => @appendage2).pluck(:id).should == [@appendage2.global_id]
+          expect(Appendage.where(:id => @appendage1).pluck(:id)).to eq [@appendage1.global_id]
+          expect(Appendage.where(:id => @appendage2).pluck(:id)).to eq [@appendage2.global_id]
           @shard1.activate do
-            Appendage.where(:id => @appendage1).pluck(:id).should == [@appendage1.local_id]
-            Appendage.where(:id => @appendage2).pluck(:id).should == [@appendage2.global_id]
+            expect(Appendage.where(:id => @appendage1).pluck(:id)).to eq [@appendage1.local_id]
+            expect(Appendage.where(:id => @appendage2).pluck(:id)).to eq [@appendage2.global_id]
           end
           @shard2.activate do
-            Appendage.where(:id => @appendage1).pluck(:id).should == [@appendage1.global_id]
-            Appendage.where(:id => @appendage2).pluck(:id).should == [@appendage2.local_id]
+            expect(Appendage.where(:id => @appendage1).pluck(:id)).to eq [@appendage1.global_id]
+            expect(Appendage.where(:id => @appendage2).pluck(:id)).to eq [@appendage2.local_id]
           end
         end
 
         it "should return foreign ids relative to current shard" do
-          Appendage.where(:id => @appendage1).pluck(:user_id).should == [@user1.global_id]
-          Appendage.where(:id => @appendage2).pluck(:user_id).should == [@user2.global_id]
+          expect(Appendage.where(:id => @appendage1).pluck(:user_id)).to eq [@user1.global_id]
+          expect(Appendage.where(:id => @appendage2).pluck(:user_id)).to eq [@user2.global_id]
           @shard1.activate do
-            Appendage.where(:id => @appendage1).pluck(:user_id).should == [@user1.local_id]
-            Appendage.where(:id => @appendage2).pluck(:user_id).should == [@user2.global_id]
+            expect(Appendage.where(:id => @appendage1).pluck(:user_id)).to eq [@user1.local_id]
+            expect(Appendage.where(:id => @appendage2).pluck(:user_id)).to eq [@user2.global_id]
           end
           @shard2.activate do
-            Appendage.where(:id => @appendage1).pluck(:user_id).should == [@user1.global_id]
-            Appendage.where(:id => @appendage2).pluck(:user_id).should == [@user2.local_id]
+            expect(Appendage.where(:id => @appendage1).pluck(:user_id)).to eq [@user1.global_id]
+            expect(Appendage.where(:id => @appendage2).pluck(:user_id)).to eq [@user2.local_id]
           end
         end
       end
@@ -65,53 +65,53 @@ module Switchman
         end
 
         it "should calculate average across shards" do
-          @user1.appendages.average(:value).should == 1.5
-          @shard1.activate {Appendage.average(:value)}.should == 1.5
+          expect(@user1.appendages.average(:value)).to eq 1.5
+          expect(@shard1.activate {Appendage.average(:value)}).to eq 1.5
 
-          @user2.appendages.average(:value).should == 4
-          @shard2.activate {Appendage.average(:value)}.should == 4
+          expect(@user2.appendages.average(:value)).to eq 4
+          expect(@shard2.activate {Appendage.average(:value)}).to eq 4
 
-          Appendage.where(:id => @appendages).average(:value).should == 3
+          expect(Appendage.where(:id => @appendages).average(:value)).to eq 3
         end
 
         it "should count across shards" do
-          @user1.appendages.count.should == 2
-          @shard1.activate {Appendage.count}.should == 2
+          expect(@user1.appendages.count).to eq 2
+          expect(@shard1.activate {Appendage.count}).to eq 2
 
-          @user2.appendages.count.should == 3
-          @shard2.activate {Appendage.count}.should == 3
+          expect(@user2.appendages.count).to eq 3
+          expect(@shard2.activate {Appendage.count}).to eq 3
 
-          Appendage.where(:id => @appendages).count.should == 5
+          expect(Appendage.where(:id => @appendages).count).to eq 5
         end
 
         it "should calculate minimum across shards" do
-          @user1.appendages.minimum(:value).should == 1
-          @shard1.activate {Appendage.minimum(:value)}.should == 1
+          expect(@user1.appendages.minimum(:value)).to eq 1
+          expect(@shard1.activate {Appendage.minimum(:value)}).to eq 1
 
-          @user2.appendages.minimum(:value).should == 3
-          @shard2.activate {Appendage.minimum(:value)}.should == 3
+          expect(@user2.appendages.minimum(:value)).to eq 3
+          expect(@shard2.activate {Appendage.minimum(:value)}).to eq 3
 
-          Appendage.where(:id => @appendages).minimum(:value).should == 1
+          expect(Appendage.where(:id => @appendages).minimum(:value)).to eq 1
         end
 
         it "should calculate maximum across shards" do
-          @user1.appendages.maximum(:value).should == 2
-          @shard1.activate {Appendage.maximum(:value)}.should == 2
+          expect(@user1.appendages.maximum(:value)).to eq 2
+          expect(@shard1.activate {Appendage.maximum(:value)}).to eq 2
 
-          @user2.appendages.maximum(:value).should == 5
-          @shard2.activate {Appendage.maximum(:value)}.should == 5
+          expect(@user2.appendages.maximum(:value)).to eq 5
+          expect(@shard2.activate {Appendage.maximum(:value)}).to eq 5
 
-          Appendage.where(:id => @appendages).maximum(:value).should == 5
+          expect(Appendage.where(:id => @appendages).maximum(:value)).to eq 5
         end
 
         it "should calculate sum across shards" do
-          @user1.appendages.sum(:value).should == 3
-          @shard1.activate {Appendage.sum(:value)}.should == 3
+          expect(@user1.appendages.sum(:value)).to eq 3
+          expect(@shard1.activate {Appendage.sum(:value)}).to eq 3
 
-          @user2.appendages.sum(:value).should == 12
-          @shard2.activate {Appendage.sum(:value)}.should == 12
+          expect(@user2.appendages.sum(:value)).to eq 12
+          expect(@shard2.activate {Appendage.sum(:value)}).to eq 12
 
-          Appendage.where(:id => @appendages).sum(:value).should == 15
+          expect(Appendage.where(:id => @appendages).sum(:value)).to eq 15
         end
       end
 
@@ -133,93 +133,113 @@ module Switchman
         end
 
         it "should calculate average across shards" do
-          Appendage.shard([@shard1, @shard2]).group("appendages.user_id").average(:value).should ==
+          expect(Appendage.shard([@shard1, @shard2]).group("appendages.user_id").average(:value)).to eq(
               {@user1.global_id => 1.5, @user2.global_id => 4}
+          )
 
           @shard1.activate do
-            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").average(:value).should ==
+            expect(Appendage.shard([@shard1, @shard2]).group("appendages.user_id").average(:value)).to eq(
                 {@user1.local_id => 1.5, @user2.global_id => 4}
+            )
           end
 
           @shard2.activate do
-            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").average(:value).should ==
+            expect(Appendage.shard([@shard1, @shard2]).group("appendages.user_id").average(:value)).to eq(
                 {@user1.global_id => 1.5, @user2.local_id => 4}
+            )
           end
 
-          Appendage.shard([@shard1, @shard2]).group(:user).average(:value).should ==
+          expect(Appendage.shard([@shard1, @shard2]).group(:user).average(:value)).to eq(
               {@user1 => 1.5, @user2 => 4}
+          )
         end
 
         it "should count across shards" do
-          Appendage.shard([@shard1, @shard2]).group("appendages.user_id").count.should ==
+          expect(Appendage.shard([@shard1, @shard2]).group("appendages.user_id").count).to eq(
               {@user1.global_id => 2, @user2.global_id => 3}
+          )
 
           @shard1.activate do
-            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").count.should ==
+            expect(Appendage.shard([@shard1, @shard2]).group("appendages.user_id").count).to eq(
                 {@user1.local_id => 2, @user2.global_id => 3}
+            )
           end
 
           @shard2.activate do
-            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").count.should ==
+            expect(Appendage.shard([@shard1, @shard2]).group("appendages.user_id").count).to eq(
                 {@user1.global_id => 2, @user2.local_id => 3}
+            )
           end
 
-          Appendage.shard([@shard1, @shard2]).group(:user).count.should ==
+          expect(Appendage.shard([@shard1, @shard2]).group(:user).count).to eq(
               {@user1 => 2, @user2 => 3}
+          )
         end
 
         it "should calculate minimum across shards" do
-          Appendage.shard([@shard1, @shard2]).group("appendages.user_id").minimum(:value).should ==
+          expect(Appendage.shard([@shard1, @shard2]).group("appendages.user_id").minimum(:value)).to eq(
               {@user1.global_id => 1, @user2.global_id => 3}
+          )
 
           @shard1.activate do
-            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").minimum(:value).should ==
+            expect(Appendage.shard([@shard1, @shard2]).group("appendages.user_id").minimum(:value)).to eq(
                 {@user1.local_id => 1, @user2.global_id => 3}
+            )
           end
 
           @shard2.activate do
-            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").minimum(:value).should ==
+            expect(Appendage.shard([@shard1, @shard2]).group("appendages.user_id").minimum(:value)).to eq(
                 {@user1.global_id => 1, @user2.local_id => 3}
+            )
           end
 
-          Appendage.shard([@shard1, @shard2]).group(:user).minimum(:value).should ==
+          expect(Appendage.shard([@shard1, @shard2]).group(:user).minimum(:value)).to eq(
               {@user1 => 1, @user2 => 3}
+          )
         end
 
         it "should calculate maximum across shards" do
-          Appendage.shard([@shard1, @shard2]).group("appendages.user_id").maximum(:value).should ==
+          expect(Appendage.shard([@shard1, @shard2]).group("appendages.user_id").maximum(:value)).to eq(
               {@user1.global_id => 2, @user2.global_id => 5}
+          )
 
           @shard1.activate do
-            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").maximum(:value).should ==
+            expect(Appendage.shard([@shard1, @shard2]).group("appendages.user_id").maximum(:value)).to eq(
                 {@user1.local_id => 2, @user2.global_id => 5}
+            )
           end
 
           @shard2.activate do
-            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").maximum(:value).should ==
+            expect(Appendage.shard([@shard1, @shard2]).group("appendages.user_id").maximum(:value)).to eq(
                 {@user1.global_id => 2, @user2.local_id => 5}
+            )
           end
 
-          Appendage.shard([@shard1, @shard2]).group(:user).maximum(:value).should ==
+          expect(Appendage.shard([@shard1, @shard2]).group(:user).maximum(:value)).to eq(
               {@user1 => 2, @user2 => 5}
+          )
         end
 
         it "should calculate sum across shards" do
-          Appendage.shard([@shard1, @shard2]).group("appendages.user_id").sum(:value).should ==
+          expect(Appendage.shard([@shard1, @shard2]).group("appendages.user_id").sum(:value)).to eq(
               {@user1.global_id => 3, @user2.global_id => 12}
+          )
 
           @shard1.activate do
-            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").sum(:value).should ==
+            expect(Appendage.shard([@shard1, @shard2]).group("appendages.user_id").sum(:value)).to eq(
                 {@user1.local_id => 3, @user2.global_id => 12}
+            )
           end
 
           @shard2.activate do
-            Appendage.shard([@shard1, @shard2]).group("appendages.user_id").sum(:value).should ==
+            expect(Appendage.shard([@shard1, @shard2]).group("appendages.user_id").sum(:value)).to eq(
                 {@user1.global_id => 3, @user2.local_id => 12}
+            )
           end
 
-          Appendage.shard([@shard1, @shard2]).group(:user).sum(:value).should ==
+          expect(Appendage.shard([@shard1, @shard2]).group(:user).sum(:value)).to eq(
               {@user1 => 3, @user2 => 12}
+          )
         end
 
         it "should respect order for a single shard" do
@@ -227,7 +247,7 @@ module Switchman
             @user1.appendages.create!
             user2 = User.create!
             user2.appendages.create!
-            Appendage.group(:user_id).order("COUNT(*) DESC").limit(1).count.should == { @user1.id => 2 }
+            expect(Appendage.group(:user_id).order("COUNT(*) DESC").limit(1).count).to eq({ @user1.id => 2 })
           end
         end
       end

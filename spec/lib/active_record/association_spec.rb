@@ -16,34 +16,34 @@ module Switchman
 
       it "should associate built objects with parent shard" do
         a1 = @user1.appendages.build
-        a1.shard.should == @shard1
+        expect(a1.shard).to eq @shard1
       end
 
       it "should associate created objects with parent shard" do
         a1 = @user1.appendages.create!
-        a1.shard.should == @shard1
+        expect(a1.shard).to eq @shard1
       end
 
       it "should set shard value to parent for association scope" do
         scope = @user1.appendages
         scope = ::Rails.version < '4' ? scope.scoped : scope.scope
-        scope.shard_value.should == @user1
-        scope.shard_source_value.should == :association
+        expect(scope.shard_value).to eq @user1
+        expect(scope.shard_source_value).to eq :association
       end
 
       it "should find by id through association" do
         a1 = @user1.appendages.create!
 
-        @user1.appendages.find(a1.id).should == a1
-        lambda { @user2.appendages.find(a1.id) }.should raise_exception(::ActiveRecord::RecordNotFound)
+        expect(@user1.appendages.find(a1.id)).to eq a1
+        expect { @user2.appendages.find(a1.id) }.to raise_exception(::ActiveRecord::RecordNotFound)
       end
 
       describe "transaction" do
         it "should activate the owner's shard and start the transaction on that shard" do
           base_value = @user1.shard.activate { User.connection.open_transactions }
           @user1.appendages.transaction(:requires_new => true) do
-            Shard.current.should == @shard1
-            User.connection.open_transactions.should == base_value + 1
+            expect(Shard.current).to eq @shard1
+            expect(User.connection.open_transactions).to eq base_value + 1
           end
         end
       end
@@ -51,42 +51,42 @@ module Switchman
       it "should get the record size" do
         a1 = @user1.appendages.create!
         a2 = @user1.appendages.build
-        @user1.appendages.size.should == 2
+        expect(@user1.appendages.size).to eq 2
         @user1.reload
-        @user1.appendages.size.should == 1
+        expect(@user1.appendages.size).to eq 1
       end
 
       it "should reverse the association" do
         a1 = @user1.appendages.create!
         a1.reload
-        a1.user.shard.should == @shard1
-        a1.user.should == @user1
+        expect(a1.user.shard).to eq @shard1
+        expect(a1.user).to eq @user1
       end
 
       it "should work with has_many through associations" do
         a1 = @user1.appendages.create!
         d1 = a1.digits.create!
-        d1.shard.should == @shard1
+        expect(d1.shard).to eq @shard1
 
         if ::Rails.version < '4'
-          @user1.digits.scoped.shard_value.should == @user1
+          expect(@user1.digits.scoped.shard_value).to eq @user1
         else
-          @user1.digits.scope.shard_value.should == @user1
+          expect(@user1.digits.scope.shard_value).to eq @user1
         end
-        @user1.digits.find(d1.id).should == d1
+        expect(@user1.digits.find(d1.id)).to eq d1
       end
 
       it "shard should be changeable, and change conditions when it is changed" do
         a1 = @user1.appendages.create!
         relation = @user1.appendages.where(:id => a1).shard(@shard1)
-        relation.shard_value.should == @shard1
-        relation.shard_source_value.should == :explicit
-        relation.where_values.detect{|v| v.left.name == "id"}.right.should == a1.local_id
+        expect(relation.shard_value).to eq @shard1
+        expect(relation.shard_source_value).to eq :explicit
+        expect(relation.where_values.detect{|v| v.left.name == "id"}.right).to eq a1.local_id
 
         relation = @user1.appendages.where(:id => a1).shard(@shard2)
-        relation.shard_value.should == @shard2
-        relation.shard_source_value.should == :explicit
-        relation.where_values.detect{|v| v.left.name == "id"}.right.should == a1.global_id
+        expect(relation.shard_value).to eq @shard2
+        expect(relation.shard_source_value).to eq :explicit
+        expect(relation.where_values.detect{|v| v.left.name == "id"}.right).to eq a1.global_id
       end
 
       it "should transpose predicates correctly" do
@@ -94,12 +94,12 @@ module Switchman
         a2 = @user2.appendages.create!
 
         relation = @user1.appendages.where(:id => a2)
-        relation.shard_value.should == @user1
-        relation.where_values.detect{|v| v.left.name == "id"}.right.should == a2.global_id
+        expect(relation.shard_value).to eq @user1
+        expect(relation.where_values.detect{|v| v.left.name == "id"}.right).to eq a2.global_id
 
         relation = @user1.appendages.where(:id => [a1, a2])
-        relation.shard_value.should == @user1
-        relation.where_values.detect{|v| v.left.name == "id"}.right.should == [a1.local_id, a2.global_id]
+        expect(relation.shard_value).to eq @user1
+        expect(relation.where_values.detect{|v| v.left.name == "id"}.right).to eq [a1.local_id, a2.global_id]
       end
 
       it "should properly set up a cross-shard-category query" do
@@ -107,12 +107,12 @@ module Switchman
           mirror_user = MirrorUser.create!
           relation = mirror_user.association(:user)
           relation = ::Rails.version < '4' ? relation.scoped : relation.scope
-          relation.shard_value.should == Shard.default
+          expect(relation.shard_value).to eq Shard.default
           if ::Rails.version < '4'
-            relation.where_values.first.right.should == mirror_user.global_id
+            expect(relation.where_values.first.right).to eq mirror_user.global_id
           else
-            relation.where_values.first.right.should be_a(Arel::Nodes::BindParam)
-            relation.bind_values.map(&:last).should == [mirror_user.global_id]
+            expect(relation.where_values.first.right).to be_a(Arel::Nodes::BindParam)
+            expect(relation.bind_values.map(&:last)).to eq [mirror_user.global_id]
           end
         end
       end
@@ -122,22 +122,22 @@ module Switchman
           @shard1.activate{ Appendage.create!(:user_id => @user1, :value => 1) }
           @shard2.activate{ Appendage.create!(:user => @user1, :value => 2) }
 
-          @user1.appendages.to_a.map(&:value).should == [1]
+          expect(@user1.appendages.to_a.map(&:value)).to eq [1]
 
           @user1.reload
           @user1.associated_shards = [@shard1, @shard2]
-          @user1.appendages.to_a.map(&:value).sort.should == [1, 2]
+          expect(@user1.appendages.to_a.map(&:value).sort).to eq [1, 2]
         end
 
         it "follow shards for has_many :through" do
           @shard1.activate{ a1 = Appendage.create!(:user_id => @user1); a1.digits.create!(:value => 1) }
           @shard2.activate{ a2 = Appendage.create!(:user_id => @user1); a2.digits.create!(:value => 2) }
 
-          @user1.digits.to_a.map(&:value).should == [1]
+          expect(@user1.digits.to_a.map(&:value)).to eq [1]
 
           @user1.reload
           @user1.associated_shards = [@shard1, @shard2]
-          @user1.digits.to_a.map(&:value).sort.should == [1, 2]
+          expect(@user1.digits.to_a.map(&:value).sort).to eq [1, 2]
         end
 
         it "should include the shard in scopes created by associations" do
@@ -146,10 +146,10 @@ module Switchman
           @shard1.activate{ Appendage.create!(:user_id => @user1, :value => 1) }
           @shard2.activate{ Appendage.create!(:user => @user1) }
 
-          @user1.appendages.has_no_value.to_a.count.should == 1
+          expect(@user1.appendages.has_no_value.to_a.count).to eq 1
 
           @user1.reload
-          @shard2.activate {@user1.appendages.has_no_value.to_a.count.should == 1}
+          @shard2.activate {expect(@user1.appendages.has_no_value.to_a.count).to eq 1}
         end
 
         it "should include the shard in scopes created by has_many :through associations" do
@@ -158,10 +158,10 @@ module Switchman
           @shard1.activate{ a1 = Appendage.create!(:user_id => @user1); a1.digits.create! }
           @shard2.activate{ a2 = Appendage.create!(:user_id => @user1); a2.digits.create!(:value => 2) }
 
-          @user1.digits.has_no_value.count.should == 1
+          expect(@user1.digits.has_no_value.count).to eq 1
 
           @user1.reload
-          @shard2.activate {@user1.digits.has_no_value.to_a.count.should == 1}
+          @shard2.activate {expect(@user1.digits.has_no_value.to_a.count).to eq 1}
         end
 
         it "should work with calculations in scopes created by associations" do
@@ -171,10 +171,10 @@ module Switchman
           @shard2.activate{ Appendage.create!(:user => @user1); @user1.appendages.create!(:value => 2) }
 
           @user1.reload
-          @user1.appendages.has_value.sum(:value).should == 3
+          expect(@user1.appendages.has_value.sum(:value)).to eq 3
 
           @user1.reload
-          @shard2.activate {@user1.appendages.has_value.sum(:value).should == 3}
+          @shard2.activate {expect(@user1.appendages.has_value.sum(:value)).to eq 3}
         end
 
         it "should work with calculations in scopes created by has_many :through associations" do
@@ -182,9 +182,9 @@ module Switchman
           @shard1.activate{ a1 = Appendage.create!(:user_id => @user1); a1.digits.create!; a1.digits.create!(:value => 1) }
           @shard2.activate{ a2 = Appendage.create!(:user_id => @user1); a2.digits.create!(:value => 2) }
 
-          @user1.digits.has_value.sum(:value).should == 3
+          expect(@user1.digits.has_value.sum(:value)).to eq 3
           @user1.reload
-          @shard2.activate {@user1.digits.has_value.sum(:value).should == 3}
+          @shard2.activate {expect(@user1.digits.has_value.sum(:value)).to eq 3}
         end
 
         it "should be able to explicitly set the shard and still work with named scopes" do
@@ -193,22 +193,22 @@ module Switchman
           @shard1.activate{ a1 = Appendage.create!(:user_id => @user1); a1.digits.create! }
           @shard2.activate{ a2 = Appendage.create!(:user_id => @user1); a2.digits.create!(:value => 2) }
 
-          @user1.digits.shard(@shard1).has_no_value.to_a.count.should == 1
-          @user1.digits.shard(@shard2).has_no_value.to_a.count.should == 0
+          expect(@user1.digits.shard(@shard1).has_no_value.to_a.count).to eq 1
+          expect(@user1.digits.shard(@shard2).has_no_value.to_a.count).to eq 0
 
           @user1.reload
 
-          @user1.digits.has_no_value.shard(@shard1).to_a.count.should == 1
-          @user1.digits.has_no_value.shard(@shard2).to_a.count.should == 0
+          expect(@user1.digits.has_no_value.shard(@shard1).to_a.count).to eq 1
+          expect(@user1.digits.has_no_value.shard(@shard2).to_a.count).to eq 0
         end
 
         describe "unsharded associations" do
           it "should be able to create an unsharded new record through a collection" do
             root = @user2.roots.create!
             root.reload
-            root.shard.should == Shard.default
-            root.user_id.should == @user2.global_id
-            root.user.should == @user2
+            expect(root.shard).to eq Shard.default
+            expect(root.user_id).to eq @user2.global_id
+            expect(root.user).to eq @user2
           end
         end
 
@@ -216,7 +216,7 @@ module Switchman
           it "should identify an implied shard value based on the foreign id" do
             @shard1.activate do
               @appendage = Appendage.create!(:user_id => @user2.global_id)
-              @appendage.reload.user.should == @user2
+              expect(@appendage.reload.user).to eq @user2
             end
           end
 
@@ -228,8 +228,8 @@ module Switchman
               copy.shard = @user1.shard
               copy.save!
               copy.reload
-              copy.user.shard.should == @shard1
-              copy.user.should == @user1
+              expect(copy.user.shard).to eq @shard1
+              expect(copy.user).to eq @user1
             end
           end
         end
@@ -244,7 +244,7 @@ module Switchman
             appendages = Appendage.includes(:user).to_a
             @user1.delete
 
-            appendages.map(&:user).sort.should == [@user1, @user2, user3].sort
+            expect(appendages.map(&:user).sort).to eq [@user1, @user2, user3].sort
           end
 
           it "should preload belongs_to :through associations across shards" do
@@ -257,7 +257,7 @@ module Switchman
             digits = Digit.includes(:user).to_a
             @user1.delete
 
-            digits.map(&:user).sort.should == [@user1, @user2].sort
+            expect(digits.map(&:user).sort).to eq [@user1, @user2].sort
           end
 
           it "should preload has_many associations across associated shards" do
@@ -269,14 +269,14 @@ module Switchman
 
             begin
               users = User.where(:id => [@user1, @user2]).includes(:appendages).to_a
-              users.each {|u| u.appendages.loaded?.should == true}
+              users.each {|u| expect(u.appendages.loaded?).to eq true}
 
               u1 = users.detect {|u| u.id == @user1.id}
               u2 = users.detect {|u| u.id == @user2.id}
 
               a1.delete
-              u1.appendages.sort.should == [a1, a2].sort
-              u2.appendages.should be_empty
+              expect(u1.appendages.sort).to eq [a1, a2].sort
+              expect(u2.appendages).to be_empty
             ensure
               User.associated_shards_map = nil
             end
@@ -305,15 +305,15 @@ module Switchman
 
             begin
               users = User.where(:id => [@user1, @user2]).includes(:digits).to_a
-              users.each {|u| u.digits.loaded?.should == true}
+              users.each {|u| expect(u.digits.loaded?).to eq true}
 
               u1 = users.detect {|u| u.id == @user1.id}
               u2 = users.detect {|u| u.id == @user2.id}
 
               d1.delete
 
-              u1.digits.sort.should == [d1, d2, d3].sort
-              u2.digits.should == [d7]
+              expect(u1.digits.sort).to eq [d1, d2, d3].sort
+              expect(u2.digits).to eq [d7]
             ensure
               User.associated_shards_map = nil
               Appendage.associated_shards_map = nil
@@ -327,27 +327,27 @@ module Switchman
             feature = Feature.create!(:owner => appendage)
 
             feature.reload
-            feature.owner.should == appendage
-            feature.owner_id.should == appendage.id
-            feature.owner_type.should == "Appendage"
+            expect(feature.owner).to eq appendage
+            expect(feature.owner_id).to eq appendage.id
+            expect(feature.owner_type).to eq "Appendage"
 
             feature.owner = @user1
             feature.save!
 
             feature.reload
-            feature.owner_id.should == @user1.global_id
-            feature.owner_type.should == "User"
+            expect(feature.owner_id).to eq @user1.global_id
+            expect(feature.owner_type).to eq "User"
           end
 
           it "should work with multi-shard associations" do
             @shard1.activate{ Feature.create!(:owner => @user1, :value => 1) }
             @shard2.activate{ Feature.create!(:owner => @user1, :value => 2) }
 
-            @user1.features.to_a.map(&:value).should == [1]
+            expect(@user1.features.to_a.map(&:value)).to eq [1]
 
             @user1.reload
             @user1.associated_shards = [@shard1, @shard2]
-            @user1.features.to_a.map(&:value).sort.should == [1, 2]
+            expect(@user1.features.to_a.map(&:value).sort).to eq [1, 2]
           end
         end
       end

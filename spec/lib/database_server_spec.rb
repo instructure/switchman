@@ -5,37 +5,37 @@ module Switchman
     describe "shareable?" do
       it "should be false for sqlite" do
         db = DatabaseServer.new(config: { adapter: 'sqlite3', database: '%{shard_name}' })
-        db.shareable?.should == false
+        expect(db.shareable?).to eq false
       end
 
       it "should be true for mysql" do
         db = DatabaseServer.new(config: { adapter: 'mysql' })
-        db.shareable?.should == true
+        expect(db.shareable?).to eq true
 
         db = DatabaseServer.new(config: { adapter: 'mysql2' })
-        db.shareable?.should == true
+        expect(db.shareable?).to eq true
       end
 
       it "should be true for postgres with a non-variable username" do
         db = DatabaseServer.new(config: { adapter: 'postgresql' })
-        db.shareable?.should == true
+        expect(db.shareable?).to eq true
       end
 
       it "should be false for postgres with variable username" do
         db = DatabaseServer.new(config: { adapter: 'postgresql', username: '%{schema_search_path}' })
-        db.shareable?.should == false
+        expect(db.shareable?).to eq false
       end
 
       it "should depend on the database environment" do
         db = DatabaseServer.new(config: { adapter: 'postgresql', username: '%{schema_search_path}', deploy: { username: 'deploy' }})
-        db.shareable?.should == false
-        ::Shackles.activate(:deploy) { db.shareable? }.should == true
+        expect(db.shareable?).to eq false
+        expect(::Shackles.activate(:deploy) { db.shareable? }).to eq true
       end
 
       it "should handle string keys" do
         db = DatabaseServer.new(config: { adapter: 'postgresql', username: '%{schema_search_path}', deploy: { 'username' => 'deploy' }})
-        db.shareable?.should == false
-        ::Shackles.activate(:deploy) { db.shareable? }.should == true
+        expect(db.shareable?).to eq false
+        expect(::Shackles.activate(:deploy) { db.shareable? }).to eq true
       end
     end
 
@@ -50,19 +50,19 @@ module Switchman
       adapter = ::ActiveRecord::Base.connection.adapter_name
       def create_shard(server)
         new_shard = server.create_new_shard
-        new_shard.should_not be_new_record
-        new_shard.name.should match /shard_#{new_shard.id}/
+        expect(new_shard).not_to be_new_record
+        expect(new_shard.name).to match /shard_#{new_shard.id}/
         # They should share a connection pool
         if server == Shard.default.database_server
-          User.connection_pool.current_pool.should == new_shard.activate { User.connection_pool.current_pool }
-          User.connection_pool.current_pool.should == Shard.connection_pool.current_pool
+          expect(User.connection_pool.current_pool).to eq new_shard.activate { User.connection_pool.current_pool }
+          expect(User.connection_pool.current_pool).to eq Shard.connection_pool.current_pool
         else
-          User.connection_pool.current_pool.should_not == new_shard.activate { User.connection_pool.current_pool }
+          expect(User.connection_pool.current_pool).not_to eq new_shard.activate { User.connection_pool.current_pool }
         end
         # The tables should be created, ready to use
         new_shard.activate {
           a = User.create!
-          a.should_not be_new_record
+          expect(a).not_to be_new_record
         }
       ensure
         if new_shard
@@ -90,7 +90,7 @@ module Switchman
 
       it "should be able to create a new shard from a db server that doesn't have any shards" do
         # otherwise it's a repeat of the sqlite spec above
-        pending 'A "real" database"' unless %w{MySQL Mysql2 PostgreSQL}.include?(adapter)
+        skip 'A "real" database"' unless %w{MySQL Mysql2 PostgreSQL}.include?(adapter)
 
         # So, it's really the same server, but we want separate connections
         db = DatabaseServer.create(:config => Shard.default.database_server.config)
@@ -105,7 +105,7 @@ module Switchman
       it "should use the connection's db name as temp db name" do
         db = DatabaseServer.new(config: { adapter: 'postgresql' })
         Shard.expects(:create!).with(:name => Shard.default.name, :database_server => db).raises(MyException.new)
-        lambda { db.create_new_shard }.should raise_error(MyException)
+        expect { db.create_new_shard }.to raise_error(MyException)
       end
     end
 
@@ -115,38 +115,38 @@ module Switchman
                         slave: [nil, { database: 'slave' }],
                         deploy: { username: 'deploy' }}
         ds = DatabaseServer.new(config: base_config)
-        ds.config.should == base_config
-        ds.config(:slave).should == [{ database: 'db', deploy: base_config[:deploy] },
+        expect(ds.config).to eq base_config
+        expect(ds.config(:slave)).to eq [{ database: 'db', deploy: base_config[:deploy] },
                                      { database: 'slave', deploy: base_config[:deploy] }]
-        ds.config(:deploy).should == { database: 'db', username: 'deploy', slave: base_config[:slave], deploy: base_config[:deploy] }
+        expect(ds.config(:deploy)).to eq({ database: 'db', username: 'deploy', slave: base_config[:slave], deploy: base_config[:deploy] })
       end
     end
 
     describe "#shackles_environment" do
       it "should inherit from Shackles.environment" do
         ds = DatabaseServer.new
-        ds.shackles_environment.should == :master
+        expect(ds.shackles_environment).to eq :master
         ::Shackles.activate(:slave) do
-          ds.shackles_environment.should == :slave
+          expect(ds.shackles_environment).to eq :slave
         end
       end
 
       it "should override Shackles.environment when explicitly set" do
         ds = DatabaseServer.new
         ds.shackle!
-        ds.shackles_environment.should == :slave
+        expect(ds.shackles_environment).to eq :slave
         ds.unshackle do
-          ds.shackles_environment.should == :master
+          expect(ds.shackles_environment).to eq :master
         end
-        ds.shackles_environment.should == :slave
+        expect(ds.shackles_environment).to eq :slave
         ::Shackles.activate(:slave) do
-          ds.shackles_environment.should == :slave
+          expect(ds.shackles_environment).to eq :slave
           ds.unshackle do
-            ds.shackles_environment.should == :slave
+            expect(ds.shackles_environment).to eq :slave
           end
-          ds.shackles_environment.should == :slave
+          expect(ds.shackles_environment).to eq :slave
         end
-        ds.shackles_environment.should == :slave
+        expect(ds.shackles_environment).to eq :slave
       end
     end
 
@@ -164,12 +164,12 @@ module Switchman
       end
 
       it "should prefer the cache specific to the database" do
-        @db.cache_store.object_id.should == @db_store.object_id
+        expect(@db.cache_store.object_id).to eq @db_store.object_id
       end
 
       it "should fallback to Rails.cache_without_sharding if no specific cache" do
         Switchman.config[:cache_map].delete(@db.id)
-        @db.cache_store.object_id.should == @default_store.object_id
+        expect(@db.cache_store.object_id).to eq @default_store.object_id
       end
     end
 
@@ -200,20 +200,20 @@ module Switchman
       end
 
       it "should return the default server if that's the only one around" do
-        DatabaseServer.server_for_new_shard.should == @db1
+        expect(DatabaseServer.server_for_new_shard).to eq @db1
       end
 
       it "should return on open server" do
         @db1.config[:open] = true
-        DatabaseServer.server_for_new_shard.should == @db1
+        expect(DatabaseServer.server_for_new_shard).to eq @db1
       end
 
       it "should return another server if it's the only one open" do
         @db2 = DatabaseServer.create(:config => { :open => true})
-        4.times { DatabaseServer.server_for_new_shard.should == @db2 }
+        4.times { expect(DatabaseServer.server_for_new_shard).to eq @db2 }
         @db2.config.delete(:open)
         @db1.config[:open] = true
-        4.times { DatabaseServer.server_for_new_shard.should == @db1 }
+        4.times { expect(DatabaseServer.server_for_new_shard).to eq @db1 }
       end
 
       it "should return multiple open servers" do
@@ -223,8 +223,8 @@ module Switchman
         20.times do
           dbs << DatabaseServer.server_for_new_shard
         end
-        dbs.should include(@db1)
-        dbs.should include(@db2)
+        expect(dbs).to include(@db1)
+        expect(dbs).to include(@db2)
       end
     end
   end

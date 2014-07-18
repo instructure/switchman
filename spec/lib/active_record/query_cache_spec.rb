@@ -53,27 +53,27 @@ module Switchman
         @shard3.activate do
           User.create!
         end
-        @shard1.activate { User.all.to_a }.should_not == @shard3.activate { User.all.to_a }
+        expect(@shard1.activate { User.all.to_a }).not_to eq @shard3.activate { User.all.to_a }
       end
 
       describe "query_cache_enabled" do
         it "should be shared across shards on the same server" do
           @shard1.activate{ User.connection.query_cache_enabled = true }
           @shard3.activate{ User.connection.query_cache_enabled = false }
-          @shard1.activate{ User.connection.query_cache_enabled.should == false }
+          @shard1.activate{ expect(User.connection.query_cache_enabled).to eq false }
         end
 
         it "should be shared across servers" do
           @shard1.activate{ User.connection.query_cache_enabled = true }
           @shard2.activate{ User.connection.query_cache_enabled = false }
-          @shard1.activate{ User.connection.query_cache_enabled.should == false }
+          @shard1.activate{ expect(User.connection.query_cache_enabled).to eq false }
         end
 
         it "should be distinct across threads" do
           User.connection.query_cache_enabled = true
           threaded(
             lambda{ |cc| User.connection.query_cache_enabled = false; cc.call },
-            lambda{ User.connection.query_cache_enabled.should == true })
+            lambda{ expect(User.connection.query_cache_enabled).to eq true })
         end
       end
 
@@ -84,10 +84,10 @@ module Switchman
             lambda{ |cc|
               User.connection.query_cache_enabled = false
               User.connection.enable_query_cache!
-              User.connection.query_cache_enabled.should == true
+              expect(User.connection.query_cache_enabled).to eq true
               cc.call
             },
-            lambda{ User.connection.query_cache_enabled.should == false })
+            lambda{ expect(User.connection.query_cache_enabled).to eq false })
         end
       end
 
@@ -98,10 +98,10 @@ module Switchman
             lambda{ |cc|
               User.connection.query_cache_enabled = true
               User.connection.disable_query_cache!
-              User.connection.query_cache_enabled.should == false
+              expect(User.connection.query_cache_enabled).to eq false
               cc.call
             },
-            lambda{ User.connection.query_cache_enabled.should == true })
+            lambda{ expect(User.connection.query_cache_enabled).to eq true })
         end
       end
 
@@ -112,15 +112,15 @@ module Switchman
           User.connection.disable_query_cache!
           threaded(
             lambda{ |cc| User.connection.cache{ cc.call } },
-            lambda{ User.connection.query_cache_enabled.should == false })
+            lambda{ expect(User.connection.query_cache_enabled).to eq false })
         end
 
         it "should only enable for the duration of the block" do
           User.connection.disable_query_cache!
           User.connection.cache do
-            User.connection.query_cache_enabled.should == true
+            expect(User.connection.query_cache_enabled).to eq true
           end
-          User.connection.query_cache_enabled.should == false
+          expect(User.connection.query_cache_enabled).to eq false
         end
 
         it "should clear query cache if disabling query cache after block" do
@@ -128,7 +128,7 @@ module Switchman
           User.connection.cache do
             User.connection.query_cache[:key][:binds] = :value
           end
-          User.connection.query_cache[:key][:binds].should be_nil
+          expect(User.connection.query_cache[:key][:binds]).to be_nil
         end
 
         it "should not clear query cache if the cache was already enabled" do
@@ -136,7 +136,7 @@ module Switchman
           User.connection.cache do
             User.connection.query_cache[:key][:binds] = :value
           end
-          User.connection.query_cache[:key][:binds].should == :value
+          expect(User.connection.query_cache[:key][:binds]).to eq :value
         end
       end
 
@@ -147,21 +147,21 @@ module Switchman
           User.connection.enable_query_cache!
           threaded(
             lambda{ |cc| User.connection.uncached{ cc.call } },
-            lambda{ User.connection.query_cache_enabled.should == true })
+            lambda{ expect(User.connection.query_cache_enabled).to eq true })
         end
 
         it "should only disable for the duration of the block" do
           User.connection.enable_query_cache!
           User.connection.uncached do
-            User.connection.query_cache_enabled.should == false
+            expect(User.connection.query_cache_enabled).to eq false
           end
-          User.connection.query_cache_enabled.should == true
+          expect(User.connection.query_cache_enabled).to eq true
         end
 
         it "should not clear query cache" do
           User.connection.query_cache[:key][:binds] = :value
           User.connection.uncached{}
-          User.connection.query_cache[:key][:binds].should == :value
+          expect(User.connection.query_cache[:key][:binds]).to eq :value
         end
       end
 
@@ -169,26 +169,26 @@ module Switchman
         it "should cache when query cache enabled" do
           User.connection.enable_query_cache!
           User.all.to_a
-          User.connection.query_cache.should_not be_empty
+          expect(User.connection.query_cache).not_to be_empty
         end
 
         it "should not cache when query cache disabled" do
           User.connection.disable_query_cache!
           User.all.to_a
-          User.connection.query_cache.should be_empty
+          expect(User.connection.query_cache).to be_empty
         end
 
         it "should not cache when query cache disabled but other thread's enabled" do
           User.connection.disable_query_cache!
           threaded(
             lambda{ |cc| User.connection.cache{ cc.call } },
-            lambda{ User.all.to_a; User.connection.query_cache.should be_empty })
+            lambda{ User.all.to_a; expect(User.connection.query_cache).to be_empty })
         end
 
         it "should not cache when query is locked" do
           User.connection.enable_query_cache!
           User.lock.to_a
-          User.connection.query_cache.should be_empty
+          expect(User.connection.query_cache).to be_empty
         end
       end
 
@@ -197,7 +197,7 @@ module Switchman
           User.connection.enable_query_cache!
           User.all.to_a
           User.create!
-          User.connection.query_cache.should be_empty
+          expect(User.connection.query_cache).to be_empty
         end
 
         it "should not clear thread's query cache if disabled" do
@@ -205,7 +205,7 @@ module Switchman
           User.all.to_a
           User.connection.disable_query_cache!
           User.create!
-          User.connection.query_cache.should_not be_empty
+          expect(User.connection.query_cache).not_to be_empty
         end
 
         it "should not clear thread's query cache if disabled but other thread's enabled" do
@@ -214,7 +214,7 @@ module Switchman
           User.connection.disable_query_cache!
           threaded(
             lambda{ |cc| User.create!; cc.call },
-            lambda{ User.connection.query_cache.should_not be_empty })
+            lambda{ expect(User.connection.query_cache).not_to be_empty })
         end
 
         it "should not clear other thread's query cache" do
@@ -223,7 +223,7 @@ module Switchman
           User.connection.disable_query_cache!
           threaded(
             lambda{ |cc| User.create!; cc.call },
-            lambda{ User.connection.query_cache.should_not be_empty })
+            lambda{ expect(User.connection.query_cache).not_to be_empty })
         end
       end
 
@@ -236,7 +236,7 @@ module Switchman
           User.connection.enable_query_cache!
           User.all.to_a
           User.update_all(updated_at: Time.now)
-          User.connection.query_cache.should be_empty
+          expect(User.connection.query_cache).to be_empty
         end
 
         it "should not clear thread's query cache if disabled" do
@@ -244,7 +244,7 @@ module Switchman
           User.all.to_a
           User.connection.disable_query_cache!
           User.update_all(updated_at: Time.now)
-          User.connection.query_cache.should_not be_empty
+          expect(User.connection.query_cache).not_to be_empty
         end
 
         context "non-transactional" do
@@ -262,7 +262,7 @@ module Switchman
             User.connection.disable_query_cache!
             threaded(
               lambda{ |cc| User.update_all(updated_at: Time.now); cc.call },
-              lambda{ User.connection.query_cache.should_not be_empty })
+              lambda{ expect(User.connection.query_cache).not_to be_empty })
           end
 
           it "should not clear other thread's query cache" do
@@ -271,7 +271,7 @@ module Switchman
             User.connection.disable_query_cache!
             threaded(
               lambda{ |cc| User.update_all(updated_at: Time.now); cc.call },
-              lambda{ User.connection.query_cache.should_not be_empty })
+              lambda{ expect(User.connection.query_cache).not_to be_empty })
           end
         end
       end
@@ -285,7 +285,7 @@ module Switchman
           User.connection.enable_query_cache!
           User.all.to_a
           User.delete_all
-          User.connection.query_cache.should be_empty
+          expect(User.connection.query_cache).to be_empty
         end
 
         it "should not clear thread's query cache if disabled" do
@@ -293,7 +293,7 @@ module Switchman
           User.all.to_a
           User.connection.disable_query_cache!
           User.delete_all
-          User.connection.query_cache.should_not be_empty
+          expect(User.connection.query_cache).not_to be_empty
         end
 
         context "non-transactional" do
@@ -311,7 +311,7 @@ module Switchman
             User.connection.disable_query_cache!
             threaded(
               lambda{ |cc| User.delete_all; cc.call },
-              lambda{ User.connection.query_cache.should_not be_empty })
+              lambda{ expect(User.connection.query_cache).not_to be_empty })
           end
 
           it "should not clear other thread's query cache" do
@@ -320,22 +320,22 @@ module Switchman
             User.connection.disable_query_cache!
             threaded(
               lambda{ |cc| User.delete_all; cc.call },
-              lambda{ User.connection.query_cache.should_not be_empty })
+              lambda{ expect(User.connection.query_cache).not_to be_empty })
           end
 
           it "should clear cache for all connections" do
             u = User.create!(name: 'a')
             User.connection.cache do
-              u.reload.name.should == 'a'
+              expect(u.reload.name).to eq 'a'
               ::Shackles.activate(:slave) do
-                u.reload.name.should == 'a'
+                expect(u.reload.name).to eq 'a'
               end
-              u.reload.name.should == 'a'
+              expect(u.reload.name).to eq 'a'
               u.name = 'b'
               u.save!
-              u.reload.name.should == 'b'
+              expect(u.reload.name).to eq 'b'
               ::Shackles.activate(:slave) do
-                u.reload.name.should == 'b'
+                expect(u.reload.name).to eq 'b'
               end
             end
           end

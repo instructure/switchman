@@ -8,21 +8,21 @@ module Switchman
       describe "to_param" do
         it "should return nil if no id" do
           user = User.new
-          user.to_param.should be_nil
+          expect(user.to_param).to be_nil
         end
 
         it "should return the id even if not persisted" do
           user = User.new
           user.id = 1
-          user.to_param.should == '1'
+          expect(user.to_param).to eq '1'
         end
 
         it "should return local id if in the current shard" do
           user = User.create!
-          user.to_param.should == user.local_id.to_s
+          expect(user.to_param).to eq user.local_id.to_s
           @shard1.activate do
             user2 = User.create!
-            user2.to_param.should == user2.local_id.to_s
+            expect(user2.to_param).to eq user2.local_id.to_s
           end
         end
 
@@ -32,7 +32,7 @@ module Switchman
             user = User.create!
           end
           @shard2.activate do
-            user.to_param.should == "#{@shard1.id}~#{user.local_id}"
+            expect(user.to_param).to eq "#{@shard1.id}~#{user.local_id}"
           end
         end
 
@@ -45,25 +45,25 @@ module Switchman
             user = User.create!
             appendage = Appendage.create!
 
-            helpers.user_path(user).should == "/users/#{user.local_id}"
-            helpers.user_appendages_path(user).should == "/users/#{user.local_id}/appendages"
-            helpers.user_appendage_path(user, appendage).should == "/users/#{user.local_id}/appendages/#{appendage.local_id}"
-            helpers.user_test1_path(user).should == "/users/#{user.local_id}"
-            helpers.user_test2_path(user).should == "/users/#{user.local_id}/test2"
+            expect(helpers.user_path(user)).to eq "/users/#{user.local_id}"
+            expect(helpers.user_appendages_path(user)).to eq "/users/#{user.local_id}/appendages"
+            expect(helpers.user_appendage_path(user, appendage)).to eq "/users/#{user.local_id}/appendages/#{appendage.local_id}"
+            expect(helpers.user_test1_path(user)).to eq "/users/#{user.local_id}"
+            expect(helpers.user_test2_path(user)).to eq "/users/#{user.local_id}/test2"
           end
 
           @shard2.activate do
             user_short_id = "#{@shard1.id}~#{user.local_id}"
             appendage_short_id = "#{@shard1.id}~#{appendage.local_id}"
 
-            helpers.user_path(user).should == "/users/#{user_short_id}"
-            helpers.user_appendages_path(user).should == "/users/#{user_short_id}/appendages"
-            helpers.user_appendage_path(user, appendage).should == "/users/#{user_short_id}/appendages/#{appendage_short_id}"
-            helpers.user_test1_path(user).should == "/users/#{user_short_id}"
-            helpers.user_test2_path(user).should == "/users/#{user_short_id}/test2"
+            expect(helpers.user_path(user)).to eq "/users/#{user_short_id}"
+            expect(helpers.user_appendages_path(user)).to eq "/users/#{user_short_id}/appendages"
+            expect(helpers.user_appendage_path(user, appendage)).to eq "/users/#{user_short_id}/appendages/#{appendage_short_id}"
+            expect(helpers.user_test1_path(user)).to eq "/users/#{user_short_id}"
+            expect(helpers.user_test2_path(user)).to eq "/users/#{user_short_id}/test2"
 
             appendage2 = Appendage.create!
-            helpers.user_appendage_path(user, appendage2).should == "/users/#{user_short_id}/appendages/#{appendage2.local_id}"
+            expect(helpers.user_appendage_path(user, appendage2)).to eq "/users/#{user_short_id}/appendages/#{appendage2.local_id}"
           end
         end
       end
@@ -74,21 +74,21 @@ module Switchman
           appendage = Appendage.new
           appendage.user_id = user.id
           appendage.shard = @shard1
-          appendage.attributes["user_id"].should == user.global_id
+          expect(appendage.attributes["user_id"]).to eq user.global_id
         end
       end
 
       describe ".shard_category=" do
         it "should set up connection pools correctly for a model on a different db in the default shard" do
-          pending "remove_connection working properly"
+          skip "remove_connection working properly"
           ::Rails.env.stubs(:test?).returns(false)
           begin
             config = { :adapter => 'sqlite3', :database => ':memory:', :something_unique_in_the_spec => true }
             MirrorUser.establish_connection(config)
 
-            MirrorUser.connection.should_not == ::ActiveRecord::Base.connection
+            expect(MirrorUser.connection).not_to eq ::ActiveRecord::Base.connection
             ::Shackles.activate(:slave) do
-              MirrorUser.connection.should_not == ::ActiveRecord::Base.connection
+              expect(MirrorUser.connection).not_to eq ::ActiveRecord::Base.connection
             end
           ensure
             MirrorUser.remove_connection

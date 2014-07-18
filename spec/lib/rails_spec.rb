@@ -9,19 +9,19 @@ module Switchman
       s1 = db.shards.create!
       s2 = db.shards.create!
 
-      s1.activate { ::Rails.cache }.should == s2.activate { ::Rails.cache }
+      expect(s1.activate { ::Rails.cache }).to eq s2.activate { ::Rails.cache }
 
       from_1 = s1.activate { ::Rails.cache.fetch('key') { 1 } }
-      from_1.should == 1
+      expect(from_1).to eq 1
       from_2 = s2.activate do
         ::Rails.cache.fetch('key') { 2 }
       end
-      from_2.should == 2
+      expect(from_2).to eq 2
 
       from_1 = s1.activate { ::Rails.cache.fetch('key') }
-      from_1.should == 1
+      expect(from_1).to eq 1
       from_2 = s2.activate { ::Rails.cache.fetch('key') }
-      from_2.should == 2
+      expect(from_2).to eq 2
     end
 
     it "should not be assignable" do

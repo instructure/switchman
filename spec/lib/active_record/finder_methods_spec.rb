@@ -11,17 +11,17 @@ module Switchman
 
       describe "#find_one" do
         it "should find with a global id" do
-          User.find(@user.global_id).should == @user
+          expect(User.find(@user.global_id)).to eq @user
         end
       end
 
       describe "#find_by_attributes" do
         it "should find with a global id" do
-          User.find_by_id(@user.global_id).should == @user
+          expect(User.find_by_id(@user.global_id)).to eq @user
         end
 
         it "should find with an array of global ids" do
-          User.find_by_id([@user.global_id]).should == @user
+          expect(User.find_by_id([@user.global_id])).to eq @user
         end
       end
 
@@ -29,21 +29,21 @@ module Switchman
         it "should initialize with the shard from the scope" do
           @user.destroy
           u = User.shard(@shard1).where(id: @user).first_or_initialize
-          u.should be_new_record
-          u.shard.should == @shard1
+          expect(u).to be_new_record
+          expect(u.shard).to eq @shard1
         end
       end
 
       describe "#exists?" do
         it "should work for an out-of-shard scope" do
           scope = @shard1.activate { User.where(id: @user) }
-          scope.shard_value.should == @shard1
-          scope.exists?.should == true
+          expect(scope.shard_value).to eq @shard1
+          expect(scope.exists?).to eq true
         end
 
         it "should work for a multi-shard scope" do
           user2 = @shard2.activate { User.create!(name: "multi-shard exists") }
-          User.where(name: "multi-shard exists").shard(::Rails.version < '4' ? Shard.scoped : Shard.all).exists?.should == true
+          expect(User.where(name: "multi-shard exists").shard(::Rails.version < '4' ? Shard.scoped : Shard.all).exists?).to eq true
         end
       end
     end

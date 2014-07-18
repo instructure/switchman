@@ -8,8 +8,8 @@ module Switchman
       @db = DatabaseServer.create(:config => { :adapter => 'sqlite3', :database => ':memory:' })
       @sqlite_shard1 = @db.shards.create!
       @sqlite_shard2 = @db.shards.create!
-      ::ActiveRecord::Base.connection.should_not == @sqlite_shard2.activate { ::ActiveRecord::Base.connection }
-      @sqlite_shard1.activate { ::ActiveRecord::Base.connection }.should_not == @sqlite_shard2.activate { ::ActiveRecord::Base.connection }
+      expect(::ActiveRecord::Base.connection).not_to eq @sqlite_shard2.activate { ::ActiveRecord::Base.connection }
+      expect(@sqlite_shard1.activate { ::ActiveRecord::Base.connection }).not_to eq @sqlite_shard2.activate { ::ActiveRecord::Base.connection }
     end
 
     it "should forward clear_idle_connections! to each of its pools" do

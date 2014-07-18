@@ -18,7 +18,7 @@ module Switchman
         @current_pool = ::Shackles.activate(:slave) { ::ActiveRecord::Base.connection_pool.current_pool }
       end
       ::Shackles.activate(:slave) do
-        ::ActiveRecord::Base.connection_pool.default_pool.should_not == @current_pool
+        expect(::ActiveRecord::Base.connection_pool.default_pool).not_to eq @current_pool
       end
     end
 
@@ -30,9 +30,9 @@ module Switchman
         models = ::ActiveRecord::Base.connection_handler.send(:class_to_pool)
         pools = {}
         models.each_pair { |k, v| pools[k] = v.current_pool }
-        default_pools.keys.sort.should == pools.keys.sort
+        expect(default_pools.keys.sort).to eq pools.keys.sort
         default_pools.keys.each do |model|
-          default_pools[model].should_not == pools[model]
+          expect(default_pools[model]).not_to eq pools[model]
         end
       end
     end
@@ -47,7 +47,7 @@ module Switchman
       s = ds.shards.create!
       s.activate do
         User.connection
-        User.connection_pool.spec.config[:host].should_not == 'some.postgres.server'
+        expect(User.connection_pool.spec.config[:host]).not_to eq 'some.postgres.server'
       end
     end
 
@@ -55,8 +55,8 @@ module Switchman
       begin
         Shard.default.database_server.shackle!
         @shard2.activate do
-          Shard.default.database_server.shackles_environment.should == :slave
-          ::Shackles.environment.should == :master
+          expect(Shard.default.database_server.shackles_environment).to eq :slave
+          expect(::Shackles.environment).to eq :master
 
           Shard.default.database_server.expects(:unshackle).once
           User.shard(Shard.default).update_all(updated_at: nil)
@@ -69,13 +69,13 @@ module Switchman
     it "should deshackle for FOR UPDATE queries" do
       begin
         Shard.default.database_server.shackle!
-        Shard.default.database_server.shackles_environment.should == :slave
+        expect(Shard.default.database_server.shackles_environment).to eq :slave
 
         u = User.create!
         Shard.default.database_server.expects(:unshackle).once.returns([])
         User.lock.first
         Shard.default.database_server.expects(:unshackle).once.returns([])
-        lambda { u.lock! }.should raise_error(::ActiveRecord::RecordNotFound)
+        expect { u.lock! }.to raise_error(::ActiveRecord::RecordNotFound)
       ensure
         Shard.default.database_server.unshackle!
       end
@@ -90,7 +90,7 @@ module Switchman
         ::Rails.env.stubs(:test?).returns(false)
         s = ds.shards.create!
         s.activate do
-          User.connection_pool.spec.config[:host].should == 'notshackled'
+          expect(User.connection_pool.spec.config[:host]).to eq 'notshackled'
         end
       ensure
         Shard.default.database_server.unshackle!
@@ -102,44 +102,44 @@ module Switchman
 
       it "should really disconnect all envs" do
         ::ActiveRecord::Base.connection
-        ::ActiveRecord::Base.connection_pool.should be_connected
+        expect(::ActiveRecord::Base.connection_pool).to be_connected
         @shard1.activate do
           ::ActiveRecord::Base.connection
-          ::ActiveRecord::Base.connection_pool.should be_connected
+          expect(::ActiveRecord::Base.connection_pool).to be_connected
         end
         @shard2.activate do
           ::ActiveRecord::Base.connection
-          ::ActiveRecord::Base.connection_pool.should be_connected
+          expect(::ActiveRecord::Base.connection_pool).to be_connected
         end
 
         ::Shackles.activate(:slave) do
           ::ActiveRecord::Base.connection
-          ::ActiveRecord::Base.connection_pool.should be_connected
+          expect(::ActiveRecord::Base.connection_pool).to be_connected
           @shard1.activate do
             ::ActiveRecord::Base.connection
-            ::ActiveRecord::Base.connection_pool.should be_connected
+            expect(::ActiveRecord::Base.connection_pool).to be_connected
           end
           @shard2.activate do
             ::ActiveRecord::Base.connection
-            ::ActiveRecord::Base.connection_pool.should be_connected
+            expect(::ActiveRecord::Base.connection_pool).to be_connected
           end
         end
 
         ::ActiveRecord::Base.clear_all_connections!
-        ::ActiveRecord::Base.connection_pool.should_not be_connected
+        expect(::ActiveRecord::Base.connection_pool).not_to be_connected
         @shard1.activate do
-          ::ActiveRecord::Base.connection_pool.should_not be_connected
+          expect(::ActiveRecord::Base.connection_pool).not_to be_connected
         end
         @shard2.activate do
-          ::ActiveRecord::Base.connection_pool.should_not be_connected
+          expect(::ActiveRecord::Base.connection_pool).not_to be_connected
         end
         ::Shackles.activate(:slave) do
-          ::ActiveRecord::Base.connection_pool.should_not be_connected
+          expect(::ActiveRecord::Base.connection_pool).not_to be_connected
           @shard1.activate do
-            ::ActiveRecord::Base.connection_pool.should_not be_connected
+            expect(::ActiveRecord::Base.connection_pool).not_to be_connected
           end
           @shard2.activate do
-            ::ActiveRecord::Base.connection_pool.should_not be_connected
+            expect(::ActiveRecord::Base.connection_pool).not_to be_connected
           end
         end
       end
@@ -150,53 +150,53 @@ module Switchman
 
       it "should really return active connections to the pool in all envs" do
         ::ActiveRecord::Base.connection
-        actual_connection_count.should_not == 0
+        expect(actual_connection_count).not_to eq 0
         @shard1.activate do
           ::ActiveRecord::Base.connection
-          actual_connection_count.should_not == 0
+          expect(actual_connection_count).not_to eq 0
         end
         @shard2.activate do
           ::ActiveRecord::Base.connection
-          actual_connection_count.should_not == 0
+          expect(actual_connection_count).not_to eq 0
         end
 
         ::Shackles.activate(:slave) do
           ::ActiveRecord::Base.connection
-          actual_connection_count.should_not == 0
+          expect(actual_connection_count).not_to eq 0
           @shard1.activate do
             ::ActiveRecord::Base.connection
-            actual_connection_count.should_not == 0
+            expect(actual_connection_count).not_to eq 0
           end
           @shard2.activate do
             ::ActiveRecord::Base.connection
-            actual_connection_count.should_not == 0
+            expect(actual_connection_count).not_to eq 0
           end
         end
 
         ::ActiveRecord::Base.clear_active_connections!
-        actual_connection_count.should == 0
+        expect(actual_connection_count).to eq 0
         @shard1.activate do
-          actual_connection_count.should == 0
+          expect(actual_connection_count).to eq 0
         end
         @shard2.activate do
-          actual_connection_count.should == 0
+          expect(actual_connection_count).to eq 0
         end
         ::Shackles.activate(:slave) do
-          actual_connection_count.should == 0
+          expect(actual_connection_count).to eq 0
           @shard1.activate do
-            actual_connection_count.should == 0
+            expect(actual_connection_count).to eq 0
           end
           @shard2.activate do
-            actual_connection_count.should == 0
+            expect(actual_connection_count).to eq 0
           end
         end
       end
 
       it "should not establish connections when switching environments" do
         ::ActiveRecord::Base.clear_all_connections!
-        ::ActiveRecord::Base.connection_pool.should_not be_connected
+        expect(::ActiveRecord::Base.connection_pool).not_to be_connected
         ::Shackles.activate(:slave) {}
-        ::ActiveRecord::Base.connection_pool.should_not be_connected
+        expect(::ActiveRecord::Base.connection_pool).not_to be_connected
       end
     end
   end

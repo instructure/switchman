@@ -55,6 +55,8 @@ module Switchman
           # automatically change config to allow for sharing connections with simple config
           ConnectionHandler.make_sharing_automagic(spec.config, Shard.default)
           ConnectionHandler.make_sharing_automagic(Shard.default.database_server.config, Shard.default)
+
+          ::ActiveRecord::Base.configurations[::Rails.env] = spec.config.stringify_keys
         end
         @shard_connection_pools ||= { Shard.default.database_server.id => pool }
 

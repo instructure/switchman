@@ -5,6 +5,11 @@ module Switchman
     old_task.actions.clear
 
     old_task.enhance do
+      if ::Rails.env.test?
+        require 'switchman/test_helper'
+        TestHelper.recreate_persistent_test_shards(dont_create: true)
+      end
+
       ::Shackles.activate(:deploy) do
 
         scope = Shard.order("database_server_id IS NOT NULL, database_server_id, id")

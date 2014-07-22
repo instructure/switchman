@@ -62,7 +62,7 @@ module Switchman
 
           ::ActiveRecord::Base.configurations[::Rails.env] = spec.config.stringify_keys
         end
-        @shard_connection_pools ||= { Shard.default.database_server.id => pool }
+        @shard_connection_pools ||= { [:master, Shard.default.database_server.shareable? ? ::Rails.env : Shard.default] => pool}
 
         proxy = ConnectionPoolProxy.new(model.shard_category,
                                         pool,

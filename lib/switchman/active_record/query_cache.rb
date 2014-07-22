@@ -51,6 +51,7 @@ module Switchman
 
       def select_all(arel, name = nil, binds = [])
         if self.query_cache_enabled && !locked?(arel)
+          arel, binds = binds_from_relation(arel, binds) unless ::Rails.version < '4'
           sql = to_sql(arel, binds)
           cache_sql(sql, binds) { super(sql, name, binds) }
         else
@@ -83,7 +84,11 @@ module Switchman
               query_cache[sql][binds] = yield
             end
 
-        result.collect { |row| row.dup }
+        if ::ActiveRecord::Result === result
+          result.dup
+        else
+          result.collect { |row| row.dup }
+        end
       end
 
       def self.included(base)

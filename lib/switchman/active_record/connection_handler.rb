@@ -4,14 +4,18 @@ require_dependency 'switchman/shard'
 module Switchman
   module ActiveRecord
     module ConnectionHandler
-      def self.make_sharing_automagic(config, shard)
+      def self.make_sharing_automagic(config)
         key = config[:adapter] == 'postgresql' ? :schema_search_path : :database
 
-        # we may not be able to connect to this shard yet, cause it might be an empty database server
-        shard_name = shard.name rescue nil
-        return unless shard_name
+        # only load the shard name from the db if we have to
+        if config[key] || !config[:shard_name]
+          # we may not be able to connect to this shard yet, cause it might be an empty database server
+          shard_name = Shard.current.name rescue nil
+          return unless shard_name
 
-        config[:shard_name] ||= shard_name
+          config[:shard_name] ||= shard_name
+        end
+
         if !config[key] || config[key] == shard_name
           # this may truncate the schema_search_path if it was not specified in database.yml
           # but that's what our old behavior was anyway, so I guess it's okay
@@ -53,8 +57,8 @@ module Switchman
           Shard.default
 
           # automatically change config to allow for sharing connections with simple config
-          ConnectionHandler.make_sharing_automagic(spec.config, Shard.default)
-          ConnectionHandler.make_sharing_automagic(Shard.default.database_server.config, Shard.default)
+          ConnectionHandler.make_sharing_automagic(spec.config)
+          ConnectionHandler.make_sharing_automagic(Shard.default.database_server.config)
 
           ::ActiveRecord::Base.configurations[::Rails.env] = spec.config.stringify_keys
         end
@@ -103,7 +107,10 @@ module Switchman
               next if server == Shard.default.database_server
               shard = server.shards.where(:name => nil).first
               shard ||= Shard.new(:database_server => server)
-              ConnectionHandler.make_sharing_automagic(server.config, shard)
+              shard.activate do
+                ConnectionHandler.make_sharing_automagic(server.config)
+                ConnectionHandler.make_sharing_automagic(proxy.current_pool.spec.config)
+              end
             end
           end
           # we may have established some connections above trying to infer the shard's name.

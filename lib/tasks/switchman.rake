@@ -64,6 +64,8 @@ module Switchman
         Shard.with_each_shard(shards, Shard.categories, :parallel => ENV['PARALLEL'].to_i) do
           shard = Shard.current
           puts "#{shard.id}: #{shard.description}"
+          ::ActiveRecord::Base.connection_pool.spec.config[:shard_name] = Shard.current.name
+          ::ActiveRecord::Base.configurations[::Rails.env] = ::ActiveRecord::Base.connection_pool.spec.config.stringify_keys
           shard.database_server.unshackle do
             old_actions.each(&:call)
           end

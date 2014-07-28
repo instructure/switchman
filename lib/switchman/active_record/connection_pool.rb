@@ -24,9 +24,6 @@ module Switchman
       def checkout_new_connection_with_sharding
         # TODO: this might be a threading issue
         spec.config[:shard_name] = self.shard.name
-        if self.shard.database_server.id == ::Rails.env
-          ::ActiveRecord::Base.configurations[::Rails.env] = spec.config.stringify_keys
-        end
 
         conn = checkout_new_connection_without_sharding
         conn.shard = self.shard

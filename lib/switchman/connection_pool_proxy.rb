@@ -95,6 +95,8 @@ module Switchman
           config = default_pool.spec.instance_variable_get(:@config)
           if config[active_shackles_environment].is_a?(Hash)
             config = config.merge(config[active_shackles_environment])
+          elsif config[active_shackles_environment].is_a?(Array)
+            config = config.merge(config[active_shackles_environment].first)
           else
             config = config.dup
           end

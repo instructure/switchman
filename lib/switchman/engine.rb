@@ -76,6 +76,7 @@ module Switchman
         require "switchman/active_record/connection_pool"
         require "switchman/active_record/finder_methods"
         require "switchman/active_record/log_subscriber"
+        require "switchman/active_record/persistence"
         require "switchman/active_record/query_cache"
         require "switchman/active_record/query_methods"
         require "switchman/active_record/relation"
@@ -83,6 +84,7 @@ module Switchman
 
         include ActiveRecord::Base
         include ActiveRecord::AttributeMethods
+        include ActiveRecord::Persistence
         ::ActiveRecord::Associations::Association.send(:include, ActiveRecord::Association)
         ::ActiveRecord::Associations::BelongsToAssociation.send(:include, ActiveRecord::BelongsToAssociation)
         ::ActiveRecord::Associations::CollectionProxy.send(:include, ActiveRecord::CollectionProxy)

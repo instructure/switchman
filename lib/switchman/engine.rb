@@ -2,6 +2,20 @@ module Switchman
   class Engine < ::Rails::Engine
     isolate_namespace Switchman
 
+    def self.lookup_stores(cache_store_config)
+      result = {}
+      cache_store_config.each do |key, value|
+        next if value.is_a?(String)
+        result[key] = ::ActiveSupport::Cache.lookup_store(value)
+      end
+
+      cache_store_config.each do |key, value|
+        next unless value.is_a?(String)
+        result[key] = result[value]
+      end
+      result
+    end
+
     initializer 'switchman.initialize_cache', :before => 'initialize_cache' do
       require "switchman/active_support/cache"
       ::ActiveSupport::Cache::Store.send(:include, ActiveSupport::Cache::Store)
@@ -17,14 +31,7 @@ module Switchman
           cache_store_config = {::Rails.env => cache_store_config}
         end
 
-        Switchman.config[:cache_map] = {}
-        cache_store_config.each do |key, value|
-          value = ::ActiveSupport::Cache.lookup_store(value)
-          Switchman.config[:cache_map][key] = value
-          if value.respond_to?(:middleware)
-            config.middleware.insert_before("Rack::Runtime", value.middleware)
-          end
-        end
+        Switchman.config[:cache_map] = Engine.lookup_stores(cache_store_config)
       end
 
       # if the configured cache map (either from before, or as populated from
@@ -34,9 +41,13 @@ module Switchman
       unless Switchman.config[:cache_map].has_key?(::Rails.env)
         value = ::ActiveSupport::Cache.lookup_store(nil)
         Switchman.config[:cache_map][::Rails.env] = value
-        if value.respond_to?(:middleware)
-          config.middleware.insert_before("Rack::Runtime", value.middleware)
-        end
+      end
+
+      middlewares = Switchman.config[:cache_map].values.map do |store|
+        value.middleware if value.respond_to?(:middleware)
+      end.compact.uniq
+      middlewares.each do |middleware|
+        config.middleware.insert_before("Rack::Runtime", middleware)
       end
 
       # prevent :initialize_cache from trying to (or needing to) set

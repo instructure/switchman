@@ -2,7 +2,7 @@ module Switchman
   module ActiveRecord
     module Association
       def self.included(klass)
-        %w{build_record creation_attributes load_target scope}.each do |method|
+        %w{build_record creation_attributes load_target association_scope scope}.each do |method|
           method = 'scoped' if method == 'scope' && ::Rails.version < '4'
           klass.alias_method_chain(method, :sharding)
         end
@@ -23,6 +23,12 @@ module Switchman
 
       def load_target_with_sharding
         self.shard.activate { load_target_without_sharding }
+      end
+
+      def association_scope_with_sharding
+        if klass
+          shard.activate(klass.shard_category) { association_scope_without_sharding }
+        end
       end
 
       # scoped is renamed to scope in Rails 4
@@ -167,4 +173,3 @@ module Switchman
     end
   end
 end
-

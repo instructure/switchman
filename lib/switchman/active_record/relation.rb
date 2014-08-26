@@ -8,7 +8,7 @@ module Switchman
           klass.alias_method_chain(method, :deshackles)
         end
 
-        %w{initialize exec_queries update_all delete_all new create create!}.each do |method|
+        %w{initialize explain to_a update_all delete_all new create create!}.each do |method|
           klass.alias_method_chain(method, :sharding)
         end
       end
@@ -50,9 +50,13 @@ module Switchman
         exec_queries_without_deshackles(*args)
       end
 
-      def exec_queries_with_sharding
+      def explain_with_sharding
+        self.activate { |relation| relation.send(:explain_without_sharding) }
+      end
+
+      def to_a_with_sharding
         return @records if loaded?
-        results = self.activate{|relation| relation.send(:exec_queries_without_sharding) }
+        results = self.activate { |relation| relation.send(:to_a_without_sharding) }
         case shard_value
         when Array, ::ActiveRecord::Relation, ::ActiveRecord::Base
           @records = results

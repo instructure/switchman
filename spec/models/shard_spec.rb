@@ -137,6 +137,20 @@ module Switchman
           expect(User.connected?).to  eq false
         end
 
+        it "should disconnect from other environments" do
+          ::Shackles.activate(:slave) do
+            Shard.with_each_shard([Shard.default, @shard2]) do
+              ::Shackles.activate(:master) do
+                User.connection
+                expect(User.connected?).to eq true
+              end
+            end
+          end
+
+          ::Shackles.activate(:slave) { expect(User.connected?).to eq false }
+          ::Shackles.activate(:master) { expect(User.connected?).to eq false }
+        end
+
         it "should not disconnect when it's the current shard" do
           User.connection
           expect(User.connected?).to eq true

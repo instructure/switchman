@@ -264,8 +264,12 @@ module Switchman
           if previous_shard && shard != previous_shard &&
             (shard.database_server != previous_shard.database_server || !previous_shard.database_server.shareable?)
             previous_shard.activate do
-              if ::ActiveRecord::Base.connected? && ::ActiveRecord::Base.connection.open_transactions == 0
-                ::ActiveRecord::Base.connection_pool.current_pool.disconnect!
+              ::Shackles.activated_environments.each do |env|
+                ::Shackles.activate(env) do
+                  if ::ActiveRecord::Base.connected? && ::ActiveRecord::Base.connection.open_transactions == 0
+                    ::ActiveRecord::Base.connection_pool.current_pool.disconnect!
+                  end
+                end
               end
             end
           end

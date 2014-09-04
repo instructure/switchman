@@ -9,6 +9,7 @@ module Switchman
       # Shackles' implementation.
       def activate!(environment)
         environment ||= :master
+        activated_environments << environment
         old_environment = self.environment
         @environment = environment
         old_environment

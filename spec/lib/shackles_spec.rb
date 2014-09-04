@@ -97,6 +97,13 @@ module Switchman
       end
     end
 
+    it "should track all activated environments" do
+      ::Shackles.activate(:slave) {}
+      ::Shackles.activate(:custom) {}
+      expected = Set.new([:master, :slave, :custom])
+      (::Shackles.activated_environments & expected).should == expected
+    end
+
     context "non-transactional" do
       self.use_transactional_fixtures = false
 

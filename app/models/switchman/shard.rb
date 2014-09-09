@@ -209,6 +209,7 @@ module Switchman
               details = Open4.pfork4(lambda do
                 begin
                   ::ActiveRecord::Base.clear_all_connections!
+                  Switchman.config[:on_fork_proc].try(:call)
                   $0 = [$0, ARGV, name].flatten.join(' ')
                   with_each_shard(subscope, categories, options) { yield }
                 rescue Exception => e

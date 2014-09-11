@@ -21,7 +21,7 @@ module Switchman
           end
           servers = servers.split(',')
           conditions = ["database_server_id #{ "NOT " if negative }IN (?)", servers]
-          conditions.first << " OR database_server_id IS NULL" if servers.include?(Rails.env) && !negative || !servers.include?(Rails.env) && negative
+          conditions.first << " OR database_server_id IS NULL" if servers.include?(::Rails.env) && !negative || !servers.include?(::Rails.env) && negative
           scope = scope.where(conditions)
         end
 

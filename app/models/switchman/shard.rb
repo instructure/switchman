@@ -323,7 +323,7 @@ module Switchman
               else
                 shard = partition_object.shard
               end
-            when Fixnum, /^\d+$/, /^(\d+)~(\d+)$/
+            when Integer, /^\d+$/, /^(\d+)~(\d+)$/
               local_id, shard = Shard.local_id_for(partition_object)
               local_id ||= partition_object
               object = local_id if !partition_proc
@@ -350,7 +350,7 @@ module Switchman
           # doesn't make sense to have a double-global id
           return nil if local_id > IDS_PER_SHARD
           $1.to_i * IDS_PER_SHARD + local_id
-        when Fixnum, /^\d+$/
+        when Integer, /^\d+$/
           any_id.to_i
         else
           nil

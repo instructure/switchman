@@ -1,0 +1,17 @@
+language: ruby
+rvm:
+  - 1.9.3
+  - 2.1.3
+env:
+  - "RAILS=3.2"
+  - "RAILS=4.0"
+  - "RAILS=4.1"
+script: bundle exec rake spec
+
+addons:
+  postgresql: "9.3"
+
+before_script:
+  - psql -c 'create database "switchman_test";' -U postgres
+  - cp spec/dummy/config/database.yml.travis spec/dummy/config/database.yml
+  - bundle exec rake db:migrate

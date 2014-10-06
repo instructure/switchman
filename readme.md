@@ -1,6 +1,9 @@
 Switchman
 ==========
 
+[![Build
+Status](https://travis-ci.org/instructure/switchman.svg?branch=master)](https://travis-ci.org/instructure/switchman)
+
 ## WARNING
 
 Switchman is being ported from private code used in Instructure's canvas-lms

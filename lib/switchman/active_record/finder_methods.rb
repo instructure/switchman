@@ -4,10 +4,11 @@ module Switchman
       # find_one uses binds, so we can't depend on QueryMethods
       # catching it
       def find_one(id)
+        if shard_source_value != :implicit
+          return super(Shard.relative_id_for(id, Shard.current(klass.shard_category), primary_shard))
+        end
+
         local_id, shard = Shard.local_id_for(id)
-
-        return super(local_id) if shard_source_value != :implicit
-
         if shard
           begin
             old_shard_value = shard_value

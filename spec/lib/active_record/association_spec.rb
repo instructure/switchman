@@ -76,6 +76,28 @@ module Switchman
         expect(@user1.digits.find(d1.id)).to eq d1
       end
 
+      it "should work with has_many through associations with shadow objects" do
+        @appendage = @user1.appendages.create!
+
+        @real_digit = @shard2.activate { Digit.create! }
+        shadow_digit = @shard1.activate do
+          digit = Digit.new
+          digit.id = @real_digit.global_id
+          digit.appendage_id = @appendage.id
+          digit.save!
+          digit
+        end
+
+        expect(shadow_digit.shard).to eq @shard1
+
+        if ::Rails.version < '4'
+          expect(@user1.digits.scoped.shard_value).to eq @user1
+        else
+          expect(@user1.digits.scope.shard_value).to eq @user1
+        end
+        expect(@user1.digits.find(shadow_digit.id)).to eq shadow_digit
+      end
+
       it "should resolve include? correctly for a has_many :through" do
         @shard1.activate do
           child = @user1.children.create!

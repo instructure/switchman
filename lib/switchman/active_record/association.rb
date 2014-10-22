@@ -109,9 +109,32 @@ module Switchman
           if klass.nil? || owners_map.empty?
             records = []
           else
-            # Some databases impose a limit on the number of ids in a list (in Oracle it's 1000)
-            # Make several smaller queries if necessary or make one query if the adapter supports it
-            records = Shard.partition_by_shard(owners) do |partitioned_owners|
+            # determine the shard to search for each owner
+            if reflection.macro == :belongs_to
+              # for belongs_to, it's the shard of the foreign_key
+              partition_proc = ->(owner) do
+                if owner.class.sharded_column?(owner_key_name)
+                  Shard.shard_for(owner, owner[owner_key_name])
+                else
+                  Shard.current
+                end
+              end
+            elsif !reflection.options[:multishard]
+              # for non-multishard associations, it's *just* the owner's shard
+              partition_proc = ->(owner) { owner.shard }
+            else
+              # for multishard associations, it's the owner object itself
+              # (all associated shards)
+
+              # this is the default behavior of partition_by_shard, so just set it to nil
+              # to avoid the proc call
+              # partition_proc = ->(owner) { owner }
+              partitition_proc = nil
+            end
+
+            records = Shard.partition_by_shard(owners, partition_proc) do |partitioned_owners|
+              # Some databases impose a limit on the number of ids in a list (in Oracle it's 1000)
+              # Make several smaller queries if necessary or make one query if the adapter supports it
               sliced_owners = partitioned_owners.each_slice(model.connection.in_clause_length || partitioned_owners.size)
               sliced_owners.map do |slice|
                 relative_owner_keys = slice.map do |owner|

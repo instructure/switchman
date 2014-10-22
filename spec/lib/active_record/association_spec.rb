@@ -320,6 +320,21 @@ module Switchman
             end
           end
 
+          it "should not find non-multishard records even if an object is associated with that shard" do
+            a = Appendage.create!
+            d1 = a.digits.create!
+            d2 = @shard1.activate { Digit.create!(:appendage_id => a) } # d2 is in associated shards, but not a's shard
+
+            Appendage.associated_shards_map = { a.global_id => [Shard.default, @shard1]}
+            begin
+              appendage = Appendage.where(:id => a).includes(:digits).first
+              expect(appendage.digits.loaded?).to be true
+              expect(appendage.digits).to eq [d1]
+            ensure
+              Appendage.associated_shards_map = nil
+            end
+          end
+
           it "should preload has_many :through associations across associated shards" do
             a1 = @user1.appendages.create!
             a2 = @shard2.activate { Appendage.create!(:user_id => @user1) }
@@ -327,7 +342,7 @@ module Switchman
 
             d1 = a1.digits.create!
             d2 = a2.digits.create! # a2 will be in @user1's associated shards
-            d3 = @shard1.activate { Digit.create!(:appendage_id => a2) } # d3 will be in a2's associated shards
+            d3 = @shard1.activate { Digit.create!(:appendage_id => a2) } # d3 will be in a2's associated shards, but that doesn't matter
             d4 = @shard1.activate { Digit.create!(:appendage_id => a3) } # d4 is not on a3's shard
 
             a4 = @shard1.activate { Appendage.create!(:user_id => @user2) }
@@ -336,7 +351,7 @@ module Switchman
 
             d5 = @shard2.activate { Digit.create!(:appendage_id => a4) } # d5 is on @user2's shard but a4 is not
             d6 = @shard1.activate { Digit.create!(:appendage_id => a5) } # a5 is on @user2's shard but d6 is not
-            d7 = @shard1.activate { Digit.create!(:appendage_id => a6) } # d7 will be in a6's associated shards
+            d7 = @shard2.activate { Digit.create!(:appendage_id => a6) } # d7 will be in a6's associated shards
 
             User.associated_shards_map = { @user1.global_id => [@shard1, @shard2] }
             Appendage.associated_shards_map = { a2.global_id => [@shard1, @shard2], a6.global_id => [@shard1] }
@@ -350,7 +365,7 @@ module Switchman
 
               d1.delete
 
-              expect(u1.digits.sort).to eq [d1, d2, d3].sort
+              expect(u1.digits.sort).to eq [d1, d2].sort
               expect(u2.digits).to eq [d7]
             ensure
               User.associated_shards_map = nil

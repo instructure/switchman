@@ -19,10 +19,10 @@ Gem::Specification.new do |s|
 
   s.add_dependency "railties", ">= 3.2", "< 4.2"
   s.add_dependency "activerecord", ">= 3.2", "< 4.2"
-  s.add_dependency "shackles", "~> 1.0.7"
+  s.add_dependency "shackles", "~> 1.0"
 
   s.add_development_dependency "mysql2", "~> 0.3"
-  s.add_development_dependency "pg"
+  s.add_development_dependency "pg", "~> 0"
   s.add_development_dependency "rspec-rails", "~> 3.0"
-  s.add_development_dependency "sqlite3"
+  s.add_development_dependency "sqlite3", "~> 1.3"
 end

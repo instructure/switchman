@@ -101,7 +101,7 @@ module Switchman
       ::Shackles.activate(:slave) {}
       ::Shackles.activate(:custom) {}
       expected = Set.new([:master, :slave, :custom])
-      (::Shackles.activated_environments & expected).should == expected
+      expect(::Shackles.activated_environments & expected).to eq expected
     end
 
     context "non-transactional" do

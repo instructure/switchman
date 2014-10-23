@@ -28,7 +28,7 @@ module Switchman
         end
 
         it "should activate multiple shards if necessary" do
-          User.where(:id => [@user1.id, @user2.id]).update_all(:name => 'a')
+          expect(User.where(:id => [@user1.id, @user2.id]).update_all(:name => 'a')).to eq 2
           expect(@user1.reload.name).to eq 'a'
           expect(@user2.reload.name).to eq 'a'
         end

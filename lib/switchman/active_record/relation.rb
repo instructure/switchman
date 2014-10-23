@@ -77,7 +77,9 @@ module Switchman
           end
 
           def #{method}_with_sharding(*args)
-            self.activate{|relation| relation.#{method}_without_sharding(*args)}
+            result = self.activate { |relation| relation.#{method}_without_sharding(*args) }
+            result = result.sum if result.is_a?(Array)
+            result
           end
         RUBY
       end

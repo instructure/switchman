@@ -126,32 +126,32 @@ module Switchman
     def create_new_shard(options = {})
       raise NotImplementedError.new("Cannot create new shards when sharding isn't initialized") unless Shard.default.is_a?(Shard)
 
-      db_name = options[:db_name]
+      name = options[:name]
       create_schema = options[:schema]
       # look for another shard associated with this db
       other_shard = self.shards.where("name<>':memory:' OR name IS NULL").order(:id).first
-      temp_db_name = other_shard.try(:name) unless id == ::Rails.env
-      temp_db_name = Shard.default.name if id == ::Rails.env
+      temp_name = other_shard.try(:name) unless id == ::Rails.env
+      temp_name = Shard.default.name if id == ::Rails.env
 
       case config[:adapter]
         when 'postgresql'
-          temp_db_name ||= 'public'
-          create_statement = lambda { "CREATE SCHEMA #{db_name}" }
+          temp_name ||= 'public'
+          create_statement = lambda { "CREATE SCHEMA #{name}" }
           password = " PASSWORD #{::ActiveRecord::Base.connection.quote(config[:password])}" if config[:password]
         when 'sqlite3'
-          if db_name
+          if name
             # Try to create a db on-disk even if the only shards for sqlite are in-memory
-            temp_db_name = nil if temp_db_name == ':memory:'
+            temp_name = nil if temp_name == ':memory:'
             # Put it in the db directory if there are no other sqlite shards
-            temp_db_name ||= 'db/dummy'
-            temp_db_name = File.join(File.dirname(temp_db_name), "#{db_name}.sqlite3")
+            temp_name ||= 'db/dummy'
+            temp_name = File.join(File.dirname(temp_name), "#{name}.sqlite3")
             # If they really asked for :memory:, give them :memory:
-            temp_db_name = db_name if db_name == ':memory:'
-            db_name = temp_db_name
+            temp_name = name if name == ':memory:'
+            name = temp_name
           end
         else
-          temp_db_name ||= self.config[:database] % self.config
-          create_statement = lambda { "CREATE DATABASE #{db_name}" }
+          temp_name ||= self.config[:database] % self.config
+          create_statement = lambda { "CREATE DATABASE #{name}" }
       end
       sharding_config = Switchman.config
       config_create_statement = sharding_config[config[:adapter]].try(:[], :create_statement)
@@ -159,29 +159,29 @@ module Switchman
       if config_create_statement
         create_commands = Array(config_create_statement).dup
         create_statement = lambda {
-          create_commands.map { |statement| statement.gsub('%{db_name}', db_name).gsub('%{password}', password || '') }
+          create_commands.map { |statement| statement.gsub('%{name}', name).gsub('%{password}', password || '') }
         }
       end
 
       create_shard = lambda do
-        shard = Shard.create!(:name => temp_db_name,
+        shard = Shard.create!(:name => temp_name,
                             :database_server => self) do |shard|
           shard.id = options[:id] if options[:id]
         end
         begin
-          if db_name.nil?
-            base_db_name = self.config[:database] % self.config
-            base_db_name = $1 if base_db_name =~ /(?:.*\/)(.+)_shard_\d+(?:\.sqlite3)?$/
-            base_db_name = nil if base_db_name == ':memory:'
-            base_db_name << '_' if base_db_name
-            db_name = "#{base_db_name}shard_#{shard.id}"
+          if name.nil?
+            base_name = self.config[:database] % self.config
+            base_name = $1 if base_name =~ /(?:.*\/)(.+)_shard_\d+(?:\.sqlite3)?$/
+            base_name = nil if base_name == ':memory:'
+            base_name << '_' if base_name
+            name = "#{base_name}shard_#{shard.id}"
             if config[:adapter] == 'sqlite3'
               # Try to create a db on-disk even if the only shards for sqlite are in-memory
-              temp_db_name = nil if temp_db_name == ':memory:'
+              temp_name = nil if temp_name == ':memory:'
               # Put it in the db directory if there are no other sqlite shards
-              temp_db_name ||= 'db/dummy'
-              db_name = File.join(File.dirname(temp_db_name), "#{db_name}.sqlite3")
-              shard.name = db_name
+              temp_name ||= 'db/dummy'
+              name = File.join(File.dirname(temp_name), "#{name}.sqlite3")
+              shard.name = name
             end
           end
           shard.activate(Shard.categories) do
@@ -192,14 +192,14 @@ module Switchman
                     ::ActiveRecord::Base.connection.execute(stmt)
                   end
                   # have to disconnect and reconnect to the correct db
-                  shard.name = db_name
+                  shard.name = name
                   if self.shareable? && other_shard
                     other_shard.activate { ::ActiveRecord::Base.connection }
                   else
                     ::ActiveRecord::Base.connection_pool.current_pool.disconnect!
                   end
                 else
-                  shard.name = db_name
+                  shard.name = name
                 end
                 old_proc = ::ActiveRecord::Base.connection.raw_connection.set_notice_processor {} if config[:adapter] == 'postgresql'
                 old_verbose = ::ActiveRecord::Migration.verbose
@@ -218,7 +218,7 @@ module Switchman
           shard
         rescue
           shard.destroy
-          shard.drop_database if shard.name == db_name rescue nil
+          shard.drop_database if shard.name == name rescue nil
           raise
         end
       end

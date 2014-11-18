@@ -46,6 +46,11 @@ module Switchman
             expect(Appendage.where(:id => @appendage2).pluck(:user_id)).to eq [@user2.local_id]
           end
         end
+
+        it "should post-uniq multi-shard" do
+          user3 = User.create!(name: 'user2')
+          expect(User.where(id: [@user1.id, @user2.id, user3.id]).uniq.pluck(:name).sort).to eq ["user1", "user2"]
+        end
       end
 
       describe "#execute_simple_calculation" do

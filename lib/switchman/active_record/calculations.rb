@@ -9,13 +9,19 @@ module Switchman
 
       def pluck_with_sharding(column_name)
         target_shard = Shard.current(klass.shard_category)
-        self.activate do |relation, shard|
+        shard_count = 0
+        result = self.activate do |relation, shard|
+          shard_count += 1
           results = relation.pluck_without_sharding(column_name)
           if klass.sharded_column?(column_name.to_s)
             results = results.map{|result| Shard.relative_id_for(result, shard, target_shard)}
           end
           results
         end
+        if uniq_value && shard_count > 1
+          result.uniq!
+        end
+        result
       end
 
       def execute_simple_calculation_with_sharding(operation, column_name, distinct)

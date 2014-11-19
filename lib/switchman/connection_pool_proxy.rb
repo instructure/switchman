@@ -1,3 +1,5 @@
+require 'switchman/schema_cache'
+
 module Switchman
   module ConnectionError
     def self.===(other)
@@ -21,6 +23,7 @@ module Switchman
       @category = category
       @default_pool = default_pool
       @connection_pools = shard_connection_pools
+      @schema_cache = SchemaCache.new(self)
     end
 
     def active_shard
@@ -41,7 +44,9 @@ module Switchman
     def connection
       pool = current_pool
       begin
-        pool.connection
+        connection = pool.connection
+        connection.instance_variable_set(:@schema_cache, @schema_cache)
+        connection
       rescue ConnectionError
         raise if active_shard.database_server == Shard.default.database_server && active_shackles_environment == :master
         configs = active_shard.database_server.config(active_shackles_environment)
@@ -50,6 +55,7 @@ module Switchman
           pool = create_pool(config.dup)
           begin
             connection = pool.connection
+            connection.instance_variable_set(:@schema_cache, @schema_cache)
           rescue ConnectionError
             raise if idx == configs.length - 1
             next

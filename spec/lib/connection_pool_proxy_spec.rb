@@ -29,5 +29,17 @@ module Switchman
       new_pool = proxy.send(:create_pool)
       expect(new_pool.spec.config[:database]).to eq 'slave1'
     end
+
+    it "should share schema caches between connections" do
+      conn1 = User.connection
+      conn2 = @shard2.activate { User.connection }
+      expect(conn1).to_not be conn2
+      expect(conn1.schema_cache).to be_a(Switchman::SchemaCache)
+      expect(conn1.schema_cache).to be conn2.schema_cache
+      expect(conn1.schema_cache.connection).to be conn1
+      @shard2.activate do
+        expect(conn1.schema_cache.connection).to be conn2
+      end
+    end
   end
 end

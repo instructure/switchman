@@ -44,7 +44,7 @@ module Switchman
       end
 
       middlewares = Switchman.config[:cache_map].values.map do |store|
-        value.middleware if value.respond_to?(:middleware)
+        store.middleware if store.respond_to?(:middleware)
       end.compact.uniq
       middlewares.each do |middleware|
         config.middleware.insert_before("Rack::Runtime", middleware)

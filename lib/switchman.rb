@@ -1,4 +1,5 @@
 require "shackles"
+require "open4"
 require "switchman/engine"
 
 module Switchman

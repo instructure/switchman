@@ -206,8 +206,15 @@ module Switchman
                 ::ActiveRecord::Migration.verbose = false
 
                 reset_column_information
-                ::ActiveRecord::Migrator.migrate(::Rails.root + "db/migrate/") unless create_schema == false
-                reset_column_information
+                unless create_schema == false
+                  migrate = -> { ::ActiveRecord::Migrator.migrate(::Rails.root + "db/migrate/") }
+                  if ::ActiveRecord::Base.connection.supports_ddl_transactions?
+                    ::ActiveRecord::Base.connection.transaction(requires_new: true, &migrate)
+                  else
+                    migrate.call
+                  end
+                  reset_column_information
+                end
               ensure
                 ::ActiveRecord::Migration.verbose = old_verbose
                 ::ActiveRecord::Base.connection.raw_connection.set_notice_processor(&old_proc) if old_proc

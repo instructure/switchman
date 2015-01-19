@@ -137,11 +137,13 @@ module Switchman
             shard.activate do
               if ::Rails.version < '4'
                 conn = ::ActiveRecord::Base.connection
-                conn.decrement_open_transactions
-                if conn.open_transactions == 0
-                  conn.rollback_db_transaction
-                else
-                  conn.rollback_to_savepoint
+                if conn.open_transactions > 0
+                  conn.decrement_open_transactions
+                  if conn.open_transactions == 0
+                    conn.rollback_db_transaction
+                  else
+                    conn.rollback_to_savepoint
+                  end
                 end
               else
                 ::ActiveRecord::Base.connection.rollback_transaction if ::ActiveRecord::Base.connection.transaction_open?

@@ -155,6 +155,10 @@ module Switchman
         connection_pools.values.each{ |pool| pool.clear_idle_connections!(since_when) }
       end
 
+      def switchman_connection_pool_proxies
+        class_to_pool.values.uniq
+      end
+
       private
 
       # AR3 only; AR4 defines it, and hides this version,

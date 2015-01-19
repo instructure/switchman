@@ -13,7 +13,7 @@ module Switchman
     delegate :spec, :connected?, :default_schema, :with_connection,
              :to => :current_pool
 
-    attr_reader :category
+    attr_reader :category, :schema_cache
 
     def default_pool
       @default_pool

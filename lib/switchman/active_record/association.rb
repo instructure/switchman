@@ -145,6 +145,7 @@ module Switchman
                   key && key.to_s
                 end
                 relative_owner_keys.compact!
+                relative_owner_keys.uniq!
                 records_for(relative_owner_keys)
               end
             end

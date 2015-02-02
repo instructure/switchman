@@ -77,7 +77,7 @@ module Switchman
         cached_shards[id] ||= Shard.default.activate do
           # can't simply cache the AR object since Shard has a custom serializer
           # that calls this method
-          attributes = ::Rails.cache.fetch(['shard', id].join('/')) do
+          attributes = Switchman.cache.fetch(['shard', id].join('/')) do
             shard = find_by_id(id)
             if shard
               attributes = shard.attributes
@@ -543,7 +543,7 @@ module Switchman
 
     def clear_cache
       Shard.default.activate do
-        ::Rails.cache.delete(['shard', id].join('/'))
+        Switchman.cache.delete(['shard', id].join('/'))
       end
     end
 

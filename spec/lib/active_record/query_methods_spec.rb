@@ -150,7 +150,7 @@ module Switchman
 
           attribute = relation.where_values.first.left
           expect(attribute.name.to_s).to eq 'parent_id'
-          expect(attribute.relation.class).to eq Arel::Nodes::TableAlias
+          expect(attribute.relation.class).to eq ::Arel::Nodes::TableAlias
 
           rel, column = relation.send(:relation_and_column, attribute)
           expect(relation.send(:sharded_primary_key?, rel, column)).to eq false

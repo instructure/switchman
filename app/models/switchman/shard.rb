@@ -441,7 +441,12 @@ module Switchman
     end
 
     def name
-      read_attribute(:name) || default_name
+      unless instance_variable_defined?(:@name)
+        # protect against re-entrancy
+        @name = nil
+        @name = read_attribute(:name) || default_name
+      end
+      @name
     end
 
     def name=(name)
@@ -563,12 +568,7 @@ module Switchman
     end
 
     def default_name
-      unless instance_variable_defined?(:@name)
-        # protect against re-entrancy
-        @name = nil
-        @name = database_server.shard_name(self)
-      end
-      @name
+      database_server.shard_name(self)
     end
 
     def hashify_categories(categories)

@@ -70,7 +70,7 @@ module Switchman
 
       def build_where(opts, other = [])
         case opts
-        when Hash, Arel::Nodes::Node
+        when Hash, ::Arel::Nodes::Node
           predicates = super
           infer_shards_from_primary_key(predicates) if shard_source_value == :implicit && shard_value.is_a?(Shard)
           predicates = transpose_predicates(predicates, nil, primary_shard) if shard_source_value != :explicit
@@ -113,8 +113,8 @@ module Switchman
       private
       def infer_shards_from_primary_key(predicates)
         primary_key = predicates.detect do |predicate|
-          predicate.is_a?(Arel::Nodes::Binary) && predicate.left.is_a?(Arel::Attributes::Attribute) &&
-            predicate.left.relation.is_a?(Arel::Table) && predicate.left.relation.engine == klass &&
+          predicate.is_a?(::Arel::Nodes::Binary) && predicate.left.is_a?(::Arel::Attributes::Attribute) &&
+            predicate.left.relation.is_a?(::Arel::Table) && predicate.left.relation.engine == klass &&
             klass.primary_key == predicate.left.name
         end
         if primary_key
@@ -188,7 +188,7 @@ module Switchman
 
       def relation_and_column(attribute)
         column = attribute.name
-        attribute = attribute.relation if attribute.relation.is_a?(Arel::Nodes::TableAlias)
+        attribute = attribute.relation if attribute.relation.is_a?(::Arel::Nodes::TableAlias)
         [attribute.relation, column]
       end
 
@@ -196,8 +196,8 @@ module Switchman
       public
       def transpose_predicates(predicates, source_shard, target_shard, remove_nonlocal_primary_keys = false)
         predicates.map do |predicate|
-          next predicate unless predicate.is_a?(Arel::Nodes::Binary)
-          next predicate unless predicate.left.is_a?(Arel::Attributes::Attribute)
+          next predicate unless predicate.is_a?(::Arel::Nodes::Binary)
+          next predicate unless predicate.left.is_a?(::Arel::Attributes::Attribute)
           relation, column = relation_and_column(predicate.left)
           next predicate unless (type = transposable_attribute_type(relation, column))
 
@@ -219,7 +219,7 @@ module Switchman
               local_ids << local_id unless remove && local_id > Shard::IDS_PER_SHARD
             end
             local_ids
-          when Arel::Nodes::BindParam
+          when ::Arel::Nodes::BindParam
             # look for a bind param with a matching column name
             if bind_values && idx = bind_values.find_index{|b| b.is_a?(Array) && b.first.try(:name).to_s == predicate.left.name.to_s}
               column, value = bind_values[idx]

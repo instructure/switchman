@@ -81,6 +81,7 @@ module Switchman
         require "switchman/active_record/query_methods"
         require "switchman/active_record/relation"
         require "switchman/active_record/spawn_methods"
+        require "switchman/arel"
 
         include ActiveRecord::Base
         include ActiveRecord::AttributeMethods
@@ -107,6 +108,8 @@ module Switchman
         ::ActiveRecord::Relation.send(:include, ActiveRecord::QueryMethods)
         ::ActiveRecord::Relation.send(:include, ActiveRecord::Relation)
         ::ActiveRecord::Relation.send(:include, ActiveRecord::SpawnMethods)
+
+        ::Arel::Visitors::PostgreSQL.send(:include, Arel::Visitors::PostgreSQL) if ::Rails.version < '4.2'
       end
     end
 

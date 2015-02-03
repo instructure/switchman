@@ -149,7 +149,7 @@ module Switchman
           if ::Rails.version < '4'
             expect(relation.where_values.first.right).to eq mirror_user.global_id
           else
-            expect(relation.where_values.first.right).to be_a(Arel::Nodes::BindParam)
+            expect(relation.where_values.first.right).to be_a(::Arel::Nodes::BindParam)
             expect(relation.bind_values.map(&:last)).to eq [mirror_user.global_id]
           end
         end

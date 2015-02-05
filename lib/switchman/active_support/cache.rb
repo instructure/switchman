@@ -1,16 +1,17 @@
 module Switchman
   module ActiveSupport
     module Cache
-      module Store
-        def initialize_with_sharding(options = nil)
-          options ||= {}
-          options[:namespace] ||= lambda { Shard.current.default? ? nil : "shard_#{Shard.current.id}" }
-          initialize_without_sharding(options)
+      module ClassMethods
+        def lookup_store_with_sharding(*store_options)
+          store = lookup_store_without_sharding(*store_options)
+          store.options[:namespace] ||= lambda { Shard.current.default? ? nil : "shard_#{Shard.current.id}" }
+          store
         end
+      end
 
-        def self.included(klass)
-          klass.alias_method_chain(:initialize, :sharding)
-        end
+      def self.included(klass)
+        klass.extend(ClassMethods)
+        klass.singleton_class.alias_method_chain(:lookup_store, :sharding)
       end
     end
   end

@@ -3,7 +3,7 @@ require "spec_helper"
 module Switchman
   describe Rails do
     it "should automatically isolate cache keys from different shards" do
-      cache = ::ActiveSupport::Cache::MemoryStore.new
+      cache = ::ActiveSupport::Cache.lookup_store(:memory_store)
       ::Rails.stubs(:cache).returns(cache)
       db = DatabaseServer.create(:settings => { :adapter => 'sqlite3' })
       s1 = db.shards.create!

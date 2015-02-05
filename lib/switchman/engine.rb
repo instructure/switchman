@@ -18,7 +18,7 @@ module Switchman
 
     initializer 'switchman.initialize_cache', :before => 'initialize_cache' do
       require "switchman/active_support/cache"
-      ::ActiveSupport::Cache::Store.send(:include, ActiveSupport::Cache::Store)
+      ::ActiveSupport::Cache.send(:include, ActiveSupport::Cache)
 
       # if we haven't already setup our cache map out-of-band, set it up from
       # config.cache_store now. behaves similarly to Rails' default

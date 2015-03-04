@@ -486,7 +486,7 @@ module Switchman
         drop_statement ||= sharding_config[:drop_statement]
         if drop_statement
           drop_statement = Array(drop_statement).dup.
-              map { |statement| statement.gsub('%{db_name}', self.name) }
+              map { |statement| statement.gsub('%{name}', self.name) }
         end
 
         case adapter

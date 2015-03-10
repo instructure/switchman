@@ -60,7 +60,7 @@ module Switchman
           ConnectionHandler.make_sharing_automagic(spec.config)
           ConnectionHandler.make_sharing_automagic(Shard.default.database_server.config)
 
-          ::ActiveRecord::Base.configurations[::Rails.env] = spec.config.stringify_keys
+          ::ActiveRecord::Base.configurations[::Rails.env] = spec.instance_variable_get(:@config).stringify_keys
         end
         @shard_connection_pools ||= { [:master, Shard.default.database_server.shareable? ? ::Rails.env : Shard.default] => pool}
 

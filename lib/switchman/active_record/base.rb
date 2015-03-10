@@ -110,7 +110,7 @@ module Switchman
       end
 
       def hash
-        global_id.hash
+        self.class.sharded_primary_key? ? global_id.hash : super
       end
 
       def to_param

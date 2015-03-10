@@ -5,6 +5,13 @@ module Switchman
     describe Base do
       include RSpecHelper
 
+      describe "hash" do
+        it "should work with unsharded models" do
+          root = Root.create!
+          expect(root.hash).to eq root.id.hash
+        end
+      end
+
       describe "to_param" do
         it "should return nil if no id" do
           user = User.new

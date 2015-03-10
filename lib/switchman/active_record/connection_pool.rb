@@ -17,7 +17,7 @@ module Switchman
         raise "Not postgres!" unless self.spec.config[:adapter] == 'postgresql'
         connection unless @schemas
         # default shard will not switch databases immediately, so it won't be set yet
-        @schemas ||= connection.schemas
+        @schemas ||= connection.current_schemas
         @schemas.first
       end
 
@@ -65,7 +65,7 @@ module Switchman
 
       def switch_database(conn)
         if !@schemas && conn.adapter_name == 'PostgreSQL' && !self.shard.database_server.config[:shard_name]
-          @schemas = conn.schemas
+          @schemas = conn.current_schemas
         end
 
         spec.config[:shard_name] = self.shard.name

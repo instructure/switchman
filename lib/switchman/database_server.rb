@@ -255,7 +255,7 @@ module Switchman
         if shard == :bootstrap
           # rescue nil because the database may not exist yet; if it doesn't,
           # it will shortly, and this will be re-invoked
-          ::ActiveRecord::Base.connection.schemas.first rescue nil
+          ::ActiveRecord::Base.connection.current_schemas.first rescue nil
         else
           shard.activate { ::ActiveRecord::Base.connection_pool.default_schema }
         end

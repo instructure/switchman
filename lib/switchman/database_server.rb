@@ -207,7 +207,7 @@ module Switchman
 
                 reset_column_information
                 unless create_schema == false
-                  migrate = -> { ::ActiveRecord::Migrator.migrate(::Rails.root + "db/migrate/") }
+                  migrate = -> { ::ActiveRecord::Migrator.migrate(::ActiveRecord::Migrator.migrations_paths) }
                   if ::ActiveRecord::Base.connection.supports_ddl_transactions?
                     ::ActiveRecord::Base.connection.transaction(requires_new: true, &migrate)
                   else

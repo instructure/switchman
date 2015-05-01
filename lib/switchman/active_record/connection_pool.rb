@@ -36,13 +36,8 @@ module Switchman
         conn
       end
 
-      def release_connection_with_idle_timeout(*args)
-        if ::Rails.version < '4'
-          raise ArgumentError, "wrong number of arguments (1 for 0)" unless args.empty?
-          release_connection_without_idle_timeout
-        else
-          release_connection_without_idle_timeout(*args)
-        end
+      def release_connection_with_idle_timeout(with_id = current_connection_id)
+        release_connection_without_idle_timeout(with_id)
 
         # TODO may need a synchronize (or to be included in a synchronize
         # inside release_connection_without_idle_timeout) when we make

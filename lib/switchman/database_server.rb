@@ -265,6 +265,13 @@ module Switchman
       end
     end
 
+    def primary_shard
+      unless instance_variable_defined?(:@primary_shard)
+        @primary_shard = shards.where(name: nil).first
+      end
+      @primary_shard
+    end
+
     private
     def reset_column_information
       ::ActiveRecord::Base.connection_handler.switchman_connection_pool_proxies.each { |pool| pool.schema_cache.clear! }

@@ -21,6 +21,8 @@ module Switchman
 
     after_save :clear_cache
 
+    scope :primary, -> { where(name: nil).order(:database_server_id, :id).distinct_on(:database_server_id) }
+
     class << self
       def categories
         CATEGORIES.keys
@@ -370,6 +372,10 @@ module Switchman
         else
           [nil, nil]
         end
+      end
+
+      def primary?
+        self == database_server.primary_shard
       end
 
       # takes an id-ish, and returns an integral id relative to

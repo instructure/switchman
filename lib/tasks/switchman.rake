@@ -72,6 +72,10 @@ module Switchman
           shard_ids << Shard.default.id
         elsif id == '-default'
           negative_shard_ids << Shard.default.id
+        elsif id == 'primary'
+          shard_ids.concat(Shard.primary.pluck(:id))
+        elsif id == '-primary'
+          negative_shard_ids.concat(Shard.primary.pluck(:id))
         elsif id =~ /(-?)(\d+)?\.\.(\.)?(\d+)?/
           negative, start, open, finish = $1.present?, $2, $3.present?, $4
           raise "Invalid shard id or range: #{id}" unless start || finish

@@ -36,6 +36,7 @@ module Switchman
       end
 
       def shard!(value, source = :explicit)
+        raise ArgumentError, "shard can't be nil" unless value
         primary_shard = self.primary_shard
         self.shard_value = value
         self.shard_source_value = source

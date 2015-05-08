@@ -47,8 +47,8 @@ module Switchman
             shard1.destroy
             shard2.drop_database rescue nil
             shard2.destroy
-            shard1 = server1.create_new_shard(:db_name => server1.config[:shard1])
-            shard2 = server2.create_new_shard(:db_name => server1.config[:shard2])
+            shard1 = server1.create_new_shard(:name => server1.config[:shard1])
+            shard2 = server2.create_new_shard(:name => server1.config[:shard2])
           end
           [shard1, shard2]
         else

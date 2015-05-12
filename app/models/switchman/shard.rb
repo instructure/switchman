@@ -374,10 +374,6 @@ module Switchman
         end
       end
 
-      def primary?
-        self == database_server.primary_shard
-      end
-
       # takes an id-ish, and returns an integral id relative to
       # target_shard. returns any_id itself if it can't be interpreted
       def relative_id_for(any_id, source_shard, target_shard)
@@ -451,6 +447,10 @@ module Switchman
     def database_server=(database_server)
       self.database_server_id = database_server.id
       @database_server = database_server
+    end
+
+    def primary?
+      self == database_server.primary_shard
     end
 
     def description

@@ -127,6 +127,18 @@ module Switchman
         end
       end
 
+      it "orders explicit scopes without an explicit order" do
+        scope = Shard.where(id: Shard.default)
+        scope.expects(:order).once.returns(scope)
+        Shard.with_each_shard(scope) {}
+      end
+
+      it "does not order explicit scopes that already have an order" do
+        scope = Shard.order(:id)
+        scope.expects(:order).never
+        Shard.with_each_shard(scope) {}
+      end
+
       context "non-transactional" do
         self.use_transactional_fixtures = false
 

@@ -150,10 +150,13 @@ module Switchman
                        options[:parallel]
                    end
         options.delete(:parallel)
-        scope ||= Shard.order("database_server_id IS NOT NULL, database_server_id, id")
+        scope ||= ::Rails.version < '4' ? Shard.scoped : Shard.all
+        if ::ActiveRecord::Relation === scope && scope.order_values.empty?
+          scope = scope.order("database_server_id IS NOT NULL, database_server_id, id")
+        end
 
         if parallel > 0
-          if scope.class == ::ActiveRecord::Relation
+          if ::ActiveRecord::Relation === scope
             # still need a post-uniq, cause the default database server could be NULL or Rails.env in the db
             database_servers = scope.reorder('database_server_id').select(:database_server_id).uniq.
                 map(&:database_server).compact.uniq
@@ -192,7 +195,7 @@ module Switchman
           pids = []
           exception_pipe = IO.pipe
           scopes.each do |server, subscopes|
-            if subscopes.first.class != ::ActiveRecord::Relation && subscopes.first.class != Array
+            if !(::ActiveRecord::Relation === subscopes.first) && subscopes.first.class != Array
               subscopes = [subscopes]
             end
             # only one process; don't bother forking

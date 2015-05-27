@@ -82,7 +82,7 @@ module Switchman
         end
       else
         def merge!(r)
-          return super unless r.is_a?(::ActiveRecord::Relation)
+          return super unless ::ActiveRecord::Relation === r
 
           # have to figure out shard stuff *before* conditions are merged
           final_shard_value, final_primary_shard, final_shard_source_value = shard_values_for_merge(r)

@@ -18,7 +18,7 @@ module Switchman
         sql   = payload[:sql].squeeze(' ')
         binds = nil
         shard = payload[:shard]
-        shard = "  [shard #{shard[:id]} #{shard[:env]}]" if shard
+        shard = "  [#{shard[:database_server_id]}:#{shard[:id]} #{shard[:env]}]" if shard
 
         unless (payload[:binds] || []).empty?
           binds = "  " + payload[:binds].map { |col,v|

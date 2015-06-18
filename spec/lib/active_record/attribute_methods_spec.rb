@@ -108,6 +108,14 @@ module Switchman
           f = Feature.select(:owner_id).where(id: f).first
           f.owner_id
         end
+
+        it "gives a useful error if the association doesn't exist" do
+          u = User.new
+          expect { u.global_broken_id }.to raise_error do |error|
+            expect(error).to be_a(NoMethodError)
+            expect(error.to_s).to eq "undefined method `global_broken_id'; are you missing an association?"
+          end
+        end
       end
     end
   end

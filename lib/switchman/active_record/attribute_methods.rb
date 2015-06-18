@@ -42,6 +42,8 @@ module Switchman
               alias_method 'global_#{attr_name}', :__temp__
               undef_method :__temp__
             RUBY
+          else
+            define_method_unsharded_column(attr_name, 'global')
           end
         end
 
@@ -54,6 +56,8 @@ module Switchman
               alias_method 'local_#{attr_name}', :__temp__
               undef_method :__temp__
             RUBY
+          else
+            define_method_unsharded_column(attr_name, 'local')
           end
         end
 
@@ -92,7 +96,19 @@ module Switchman
               alias_method '#{attr_name}=', :__temp__
               undef_method :__temp__
             RUBY
+          else
+            define_method_unsharded_column(attr_name, 'global')
           end
+        end
+
+        def define_method_unsharded_column(attr_name, prefix)
+          generated_attribute_methods.module_eval <<-RUBY, __FILE__, __LINE__ + 1
+              def __temp__
+                raise NoMethodError, "undefined method `#{prefix}_#{attr_name}'; are you missing an association?"
+              end
+              alias_method '#{prefix}_#{attr_name}', :__temp__
+              undef_method :__temp__
+          RUBY
         end
       end
 

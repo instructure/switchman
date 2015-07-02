@@ -171,6 +171,7 @@ module Switchman
       end
 
       def sharded_primary_key?(relation, column)
+        column = column.to_s
         return column == 'id' if relation.engine == ::ActiveRecord::Base
         relation.engine.primary_key == column
       end

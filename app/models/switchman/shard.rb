@@ -16,6 +16,10 @@ module Switchman
     private_constant :CATEGORIES
     @shard_category = :unsharded
 
+    if ::Rails.version < '4' || defined?(::ProtectedAttributes)
+      attr_accessible :default, :name, :database_server
+    end
+
     # only allow one default
     validates_uniqueness_of :default, :if => lambda { |s| s.default? }
 

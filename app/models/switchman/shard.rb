@@ -101,7 +101,9 @@ module Switchman
             if ::Rails.version < '4'
               shard.assign_attributes(attributes, :without_protection => true)
             else
-              shard.assign_attributes(attributes)
+              attributes.each do |attr, value|
+                shard.send(:"#{attr}=", value)
+              end
             end
             shard.instance_variable_set(:@new_record, false)
             # connection info doesn't exist in database.yml;

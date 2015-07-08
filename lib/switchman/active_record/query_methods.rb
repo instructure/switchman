@@ -221,7 +221,7 @@ module Switchman
             local_ids
           when Arel::Nodes::BindParam
             # look for a bind param with a matching column name
-            if bind_values && idx = bind_values.find_index{|b| b.is_a?(Array) && b.first.try(:name) == predicate.left.name}
+            if bind_values && idx = bind_values.find_index{|b| b.is_a?(Array) && b.first.try(:name).to_s == predicate.left.name.to_s}
               column, value = bind_values[idx]
               local_id = Shard.relative_id_for(value, current_source_shard, target_shard)
               local_id = [] if remove && local_id > Shard::IDS_PER_SHARD

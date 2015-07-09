@@ -7,14 +7,22 @@ module Switchman
         end
       end
 
-      def pluck_with_sharding(column_name)
+      def pluck_with_sharding(*column_names)
         target_shard = Shard.current(klass.shard_category)
         shard_count = 0
         result = self.activate do |relation, shard|
           shard_count += 1
-          results = relation.pluck_without_sharding(column_name)
-          if klass.sharded_column?(column_name.to_s)
-            results = results.map{|result| Shard.relative_id_for(result, shard, target_shard)}
+          results = relation.pluck_without_sharding(*column_names)
+          if column_names.length > 1
+            column_names.each_with_index do |column_name, idx|
+              if klass.sharded_column?(column_name)
+                results.each{|result| result[idx] = Shard.relative_id_for(result[idx], shard, target_shard)}
+              end
+            end
+          else
+            if klass.sharded_column?(column_names.first.to_s)
+              results = results.map{|result| Shard.relative_id_for(result, shard, target_shard)}
+            end
           end
           results
         end

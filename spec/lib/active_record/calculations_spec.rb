@@ -49,7 +49,22 @@ module Switchman
 
         it "should post-uniq multi-shard" do
           user3 = User.create!(name: 'user2')
-          expect(User.where(id: [@user1.id, @user2.id, user3.id]).uniq.pluck(:name).sort).to eq ["user1", "user2"]
+          expect(User.where(id: [@user1.id, @user2.id, user3.id]).uniq.pluck(:name).sort).to match_array ["user1", "user2"]
+        end
+
+        it "should work with multi-column plucking" do
+          skip "Rails 4 specific" if ::Rails.version < '4'
+
+          expect(Appendage.where(:id => @appendage1).pluck(:id, :user_id)).to eq [[@appendage1.global_id, @user1.global_id]]
+          expect(Appendage.where(:id => @appendage2).pluck(:id, :user_id)).to eq [[@appendage2.global_id, @user2.global_id]]
+          @shard1.activate do
+            expect(Appendage.where(:id => @appendage1).pluck(:id, :user_id)).to eq [[@appendage1.local_id, @user1.local_id]]
+            expect(Appendage.where(:id => @appendage2).pluck(:id, :user_id)).to eq [[@appendage2.global_id, @user2.global_id]]
+          end
+          @shard2.activate do
+            expect(Appendage.where(:id => @appendage1).pluck(:id, :user_id)).to eq [[@appendage1.global_id, @user1.global_id]]
+            expect(Appendage.where(:id => @appendage2).pluck(:id, :user_id)).to eq [[@appendage2.local_id, @user2.local_id]]
+          end
         end
       end
 

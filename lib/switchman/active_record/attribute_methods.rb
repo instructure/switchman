@@ -102,6 +102,7 @@ module Switchman
         end
 
         def define_method_unsharded_column(attr_name, prefix)
+          return if columns_hash["#{prefix}_#{attr_name}"]
           generated_attribute_methods.module_eval <<-RUBY, __FILE__, __LINE__ + 1
               def __temp__
                 raise NoMethodError, "undefined method `#{prefix}_#{attr_name}'; are you missing an association?"

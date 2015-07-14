@@ -128,6 +128,10 @@ module Switchman
           expect(Appendage.where(:id => @appendages).maximum(:value)).to eq 5
         end
 
+        it "should work with dates across shards" do
+          expect(Appendage.where(:id => @appendages).maximum(:created_at).to_i).to eq @appendages.map(&:created_at).map(&:to_i).max
+        end
+
         it "should calculate sum across shards" do
           expect(@user1.appendages.sum(:value)).to eq 3
           expect(@shard1.activate {Appendage.sum(:value)}).to eq 3

@@ -133,7 +133,7 @@ module Switchman
         raise ArgumentError, "wrong number of arguments (#{args.length} for 0...3)" if args.length > 3
 
         unless default.is_a?(Shard)
-          return Array(yield)
+          return Array.wrap(yield)
         end
 
         options = args.extract_options!
@@ -295,7 +295,7 @@ module Switchman
           close_connections_if_needed.call(shard)
           shard.activate(*categories) do
             begin
-              result.concat Array(yield)
+              result.concat Array.wrap(yield)
             rescue
               case options[:exception]
               when :ignore
@@ -346,7 +346,7 @@ module Switchman
         # TODO: use with_each_shard (or vice versa) to get
         # connection management and parallelism benefits
         shard_arrays.inject([]) do |results, (shard, objects)|
-          results.concat shard.activate { Array(yield objects) }
+          results.concat shard.activate { Array.wrap(yield objects) }
         end
       end
 

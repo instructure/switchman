@@ -90,7 +90,7 @@ module Switchman
           if shards.first == DefaultShard || shards.first == Shard.current(klass.shard_category)
             yield(self, shards.first)
           else
-            shards.first.activate(klass.shard_category) { yield(self, shard_value) }
+            shards.first.activate(klass.shard_category) { yield(self, shards.first) }
           end
         else
           # TODO: implement local limit to avoid querying extra shards

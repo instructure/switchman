@@ -52,6 +52,10 @@ module Switchman
           expect(User.where(id: [@user1.id, @user2.id, user3.id]).uniq.pluck(:name).sort).to match_array ["user1", "user2"]
         end
 
+        it "should work when setting an AR shard value" do
+          expect(Appendage.shard(@user1).pluck(:user_id)).to eq [@user1.global_id]
+        end
+
         it "should work with multi-column plucking" do
           skip "Rails 4 specific" if ::Rails.version < '4'
 

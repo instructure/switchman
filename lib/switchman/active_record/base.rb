@@ -51,6 +51,11 @@ module Switchman
             end
           end
         end
+
+        def reset_column_information
+          @sharded_column_values = {}
+          super
+        end
       end
 
       def self.included(klass)

@@ -274,8 +274,8 @@ module Switchman
 
     private
     def reset_column_information
-      ::ActiveRecord::Base.connection_handler.switchman_connection_pool_proxies.each { |pool| pool.schema_cache.clear! }
       ::ActiveRecord::Base.descendants.reject { |m| m == Shard }.each(&:reset_column_information)
+      ::ActiveRecord::Base.connection_handler.switchman_connection_pool_proxies.each { |pool| pool.schema_cache.clear! }
     end
   end
 end

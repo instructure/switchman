@@ -85,18 +85,28 @@ module Switchman
         end
       end
 
+      if ::Rails.version < '4'
+        def scope_class
+          self.class
+        end
+      else
+        def scope_class
+          self.class.base_class
+        end
+      end
+
       def save(*args)
         @shard_set_in_stone = true
-        self.class.shard(shard, :implicit).scoping { super }
+        scope_class.shard(shard, :implicit).scoping { super }
       end
 
       def save!(*args)
         @shard_set_in_stone = true
-        self.class.shard(shard, :implicit).scoping { super }
+        scope_class.shard(shard, :implicit).scoping { super }
       end
 
       def destroy
-        self.class.shard(shard, :implicit).scoping { super }
+        scope_class.shard(shard, :implicit).scoping { super }
       end
 
       def clone

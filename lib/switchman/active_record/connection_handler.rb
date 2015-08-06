@@ -118,6 +118,8 @@ module Switchman
           # without closing them
           self.clear_all_connections!
         end
+
+        proxy
       end
 
       def remove_connection_with_sharding(model)

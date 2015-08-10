@@ -226,7 +226,7 @@ module Switchman
         rescue
           shard.destroy
           shard.drop_database if shard.name == name rescue nil
-          reset_column_information
+          reset_column_information rescue nil
           raise
         end
       end

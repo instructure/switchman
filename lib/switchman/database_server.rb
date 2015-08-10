@@ -205,8 +205,8 @@ module Switchman
                 old_verbose = ::ActiveRecord::Migration.verbose
                 ::ActiveRecord::Migration.verbose = false
 
-                reset_column_information
                 unless create_schema == false
+                  reset_column_information
                   migrate = -> { ::ActiveRecord::Migrator.migrate(::ActiveRecord::Migrator.migrations_paths) }
                   if ::ActiveRecord::Base.connection.supports_ddl_transactions?
                     ::ActiveRecord::Base.connection.transaction(requires_new: true, &migrate)
@@ -226,7 +226,7 @@ module Switchman
         rescue
           shard.destroy
           shard.drop_database if shard.name == name rescue nil
-          reset_column_information rescue nil
+          reset_column_information unless create_schema == false rescue nil
           raise
         end
       end

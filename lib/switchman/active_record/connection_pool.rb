@@ -68,7 +68,9 @@ module Switchman
           when 'MySQL', 'Mysql2'
             conn.execute("USE #{spec.config[:database]}")
           when 'PostgreSQL'
-            conn.schema_search_path = spec.config[:schema_search_path]
+            if conn.schema_search_path != spec.config[:schema_search_path]
+              conn.schema_search_path = spec.config[:schema_search_path]
+            end
           when 'SQLite'
             # This is an artifact of the adapter modifying the path to be an absolute path when it is instantiated; just let it slide
           else

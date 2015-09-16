@@ -36,7 +36,7 @@ module Switchman
         # need this addition ASAP since it will be called when loading the default shard below
         if defined?(::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter)
           require "switchman/active_record/postgresql_adapter"
-          ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.send(:include, ActiveRecord::PostgreSQLAdapter)
+          ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(ActiveRecord::PostgreSQLAdapter)
         end
 
         # AR3 uses the name, AR4 uses the model

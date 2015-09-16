@@ -142,7 +142,7 @@ module Switchman
 
         if defined?(::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter)
           require "switchman/active_record/postgresql_adapter"
-          ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.send(:include, ActiveRecord::PostgreSQLAdapter)
+          ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(ActiveRecord::PostgreSQLAdapter)
         end
       end
     end

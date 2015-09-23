@@ -424,7 +424,7 @@ module Switchman
       private
       # in-process caching
       def cached_shards
-        @cached_shards ||= []
+        @cached_shards ||= {}
       end
 
       def add_to_cache(shard)

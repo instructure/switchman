@@ -179,6 +179,15 @@ module Switchman
       end
     end
 
+    describe ".cached_shards" do
+      it "is a hash rather than array" do
+        Shard.instance_variable_set(:@cached_shards, nil)
+        expect(Shard.send(:cached_shards)).to be_a(Hash)
+        Shard.clear_cache
+        expect(Shard.send(:cached_shards)).to be_a(Hash)
+      end
+    end
+
     describe ".partition_by_shard" do
       it "should work" do
         ids = [2, 48, Shard::IDS_PER_SHARD * @shard1.id + 6, Shard::IDS_PER_SHARD * @shard1.id + 8, 10, 12]

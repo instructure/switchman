@@ -80,38 +80,41 @@ module Switchman
         id = id_i
         raise ArgumentError if id == 0
 
-        cached_shards[id] ||= Shard.default.activate do
-          # can't simply cache the AR object since Shard has a custom serializer
-          # that calls this method
-          attributes = Switchman.cache.fetch(['shard', id].join('/')) do
-            shard = find_by_id(id)
-            if shard
-              attributes = shard.attributes
-              attributes.each_key do |key|
-                attributes[key] = attributes[key].unserialize if attributes[key].is_a?(::ActiveRecord::AttributeMethods::Serialization::Attribute)
-              end
-            else
-              :nil
-            end
-          end
-          if attributes == :nil
-            nil
-          else
-            shard = Shard.new
-            if ::Rails.version < '4'
-              shard.assign_attributes(attributes, :without_protection => true)
-            else
-              attributes.each do |attr, value|
-                shard.send(:"#{attr}=", value)
+        unless cached_shards.has_key?(id)
+          cached_shards[id] = Shard.default.activate do
+            # can't simply cache the AR object since Shard has a custom serializer
+            # that calls this method
+            attributes = Switchman.cache.fetch(['shard', id].join('/')) do
+              shard = find_by_id(id)
+              if shard
+                attributes = shard.attributes
+                attributes.each_key do |key|
+                  attributes[key] = attributes[key].unserialize if attributes[key].is_a?(::ActiveRecord::AttributeMethods::Serialization::Attribute)
+                end
+              else
+                :nil
               end
             end
-            shard.instance_variable_set(:@new_record, false)
-            # connection info doesn't exist in database.yml;
-            # pretend the shard doesn't exist either
-            shard = nil unless shard.database_server
-            shard
+            if attributes == :nil
+              nil
+            else
+              shard = Shard.new
+              if ::Rails.version < '4'
+                shard.assign_attributes(attributes, :without_protection => true)
+              else
+                attributes.each do |attr, value|
+                  shard.send(:"#{attr}=", value)
+                end
+              end
+              shard.instance_variable_set(:@new_record, false)
+              # connection info doesn't exist in database.yml;
+              # pretend the shard doesn't exist either
+              shard = nil unless shard.database_server
+              shard
+            end
           end
         end
+        cached_shards[id]
       end
 
       def clear_cache

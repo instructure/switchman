@@ -60,15 +60,18 @@ module Switchman
         old_shards = activate!(shards)
         yield
       ensure
-        active_shards.merge!(old_shards)
+        active_shards.merge!(old_shards) if old_shards
       end
 
       def activate!(shards)
-        old_shards = {}
+        old_shards = nil
         shards.each do |category, shard|
           next if category == :unsharded
-          old_shards[category] = active_shards[category]
-          active_shards[category] = shard
+          unless shard == active_shards[category]
+            old_shards ||= {}
+            old_shards[category] = active_shards[category]
+            active_shards[category] = shard
+          end
         end
         old_shards
       end
@@ -508,9 +511,11 @@ module Switchman
       Shard.default
     end
 
-    def activate(*categories, &block)
+    def activate(*categories)
       shards = hashify_categories(categories)
-      Shard.activate(shards, &block)
+      Shard.activate(shards) do
+        yield
+      end
     end
 
     # for use from console ONLY

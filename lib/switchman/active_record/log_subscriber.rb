@@ -12,10 +12,10 @@ module Switchman
 
         payload = event.payload
 
-        return if 'SCHEMA' == payload[:name]
+        return if 'SCHEMA'.freeze == payload[:name]
 
-        name  = '%s (%.1fms)' % [payload[:name], event.duration]
-        sql   = payload[:sql].squeeze(' ')
+        name  = '%s (%.1fms)'.freeze % [payload[:name], event.duration]
+        sql   = payload[:sql].squeeze(' '.freeze)
         binds = nil
         shard = payload[:shard]
         shard = "  [#{shard[:database_server_id]}:#{shard[:id]} #{shard[:env]}]" if shard

@@ -249,8 +249,8 @@ module Switchman
               fd_to_name_map[details[3]] = name
 
               is_last_subscope = (idx + 1 == subscopes.length)
-              while (is_last_subscope && pids.any?) || (pids.count >= max_procs)
-                while (is_last_subscopes && out_fds.any?) || (out_fds.count >= max_procs)
+              while (is_last_subscope && pids.any?) || (max_procs && pids.count >= max_procs)
+                while (is_last_subscopes && out_fds.any?) || (max_procs && out_fds.count >= max_procs)
                   # wait for output if we've reached the end or if we've hit the max_procs limit
                   ready, _ = IO.select(out_fds + err_fds)
                   ready.each do |fd|

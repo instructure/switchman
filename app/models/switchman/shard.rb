@@ -200,7 +200,8 @@ module Switchman
           end
 
           fd_to_name_map = {}
-          fds = []
+          out_fds = []
+          err_fds = []
           pids = []
           exception_pipe = IO.pipe
           scopes.each do |server, subscopes|
@@ -213,6 +214,13 @@ module Switchman
               exception_pipe.last.close
               return with_each_shard(subscopes.first, categories, options) { yield }
             end
+
+            max_procs = options.delete(:max_procs)
+            if max_procs
+              max_procs = max_procs.to_i
+              max_procs = nil if max_procs == 0
+            end
+
             subscopes.each_with_index do |subscope, idx|
               if subscopes.length > 1
                 name = "#{server.id} #{idx + 1}"
@@ -234,27 +242,34 @@ module Switchman
               end)
               # don't care about writing to stdin
               details[1].close
-              fds.concat details[2..3]
+              out_fds << details[2]
+              err_fds << details[3]
               pids << details[0]
               fd_to_name_map[details[2]] = name
               fd_to_name_map[details[3]] = name
+
+              is_last_subscope = (idx + 1 == subscopes.length)
+              while (is_last_subscope && pids.any?) || (pids.count >= max_procs)
+                while (is_last_subscopes && out_fds.any?) || (out_fds.count >= max_procs)
+                  # wait for output if we've reached the end or if we've hit the max_procs limit
+                  ready, _ = IO.select(out_fds + err_fds)
+                  ready.each do |fd|
+                    if fd.eof?
+                      fd.close
+                      out_fds.delete(fd)
+                      err_fds.delete(fd)
+                      next
+                    end
+                    line = fd.readline
+                    puts "#{fd_to_name_map[fd]}: #{line}"
+                  end
+                end
+                pids.delete(Process.wait) # we've gotten all the output from one fd so wait for its child process to exit
+              end
             end
           end
           exception_pipe.last.close
 
-          while !fds.empty?
-            ready, _ = IO.select(fds)
-            ready.each do |fd|
-              if fd.eof?
-                fd.close
-                fds.delete(fd)
-                next
-              end
-              line = fd.readline
-              puts "#{fd_to_name_map[fd]}: #{line}"
-            end
-          end
-          pids.each { |pid| Process.waitpid2(pid) }
           # I'm not sure why, but we have to do this
           ::ActiveRecord::Base.clear_all_connections!
           # check for an exception; we only re-raise the first one

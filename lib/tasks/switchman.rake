@@ -42,7 +42,7 @@ module Switchman
             scope = shard_scope(scope, ENV['SHARD'])
           end
 
-          Shard.with_each_shard(scope, Shard.categories, :parallel => ENV['PARALLEL'].to_i) do
+          Shard.with_each_shard(scope, Shard.categories, :parallel => ENV['PARALLEL'].to_i, :max_procs => ENV['MAX_PARALLEL_PROCS']) do
             shard = Shard.current
             puts "#{shard.id}: #{shard.description}"
             ::ActiveRecord::Base.connection_pool.spec.config[:shard_name] = Shard.current.name

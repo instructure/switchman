@@ -68,6 +68,25 @@ module Switchman
         scope = shard_scope("#{@s1.id},#{@s2.id}..#{@s2.id},-#{@s1.id}").to_a
         expect(scope).to eq [@s2]
       end
+
+      it "supports fractions" do
+        s4 = Shard.default.database_server.shards.create!
+        hole = Shard.default.database_server.shards.create!
+        s5 = Shard.default.database_server.shards.create!
+        hole.destroy
+
+        expect(shard_scope("1/3").to_a).to eq [@s1, @s2]
+        expect(shard_scope("2/3").to_a).to eq [@s3, s4]
+        expect(shard_scope("3/3").to_a).to eq [s5]
+
+        expect(shard_scope("1/7").to_a).to eq [@s1]
+        expect(shard_scope("2/7").to_a).to eq [@s2]
+        expect(shard_scope("3/7").to_a).to eq [@s3]
+        expect(shard_scope("4/7").to_a).to eq [s4]
+        expect(shard_scope("5/7").to_a).to eq [s5]
+        expect(shard_scope("6/7").to_a).to eq []
+        expect(shard_scope("7/7").to_a).to eq []
+      end
     end
   end
 end

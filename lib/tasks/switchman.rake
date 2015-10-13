@@ -60,6 +60,14 @@ module Switchman
 
     private
 
+    def self.none(scope)
+      if ::Rails.version < '4'
+        scope.where("?", false)
+      else
+        scope.none
+      end
+    end
+
     def self.shard_scope(scope, raw_shard_ids)
       raw_shard_ids = raw_shard_ids.split(',')
 
@@ -67,27 +75,75 @@ module Switchman
       negative_shard_ids = []
       ranges = []
       negative_ranges = []
+      total_shard_count = nil
+
       raw_shard_ids.each do |id|
-        if id == 'default'
+        case id
+        when 'default'
           shard_ids << Shard.default.id
-        elsif id == '-default'
+        when '-default'
           negative_shard_ids << Shard.default.id
-        elsif id == 'primary'
+        when 'primary'
           shard_ids.concat(Shard.primary.pluck(:id))
-        elsif id == '-primary'
+        when '-primary'
           negative_shard_ids.concat(Shard.primary.pluck(:id))
-        elsif id =~ /(-?)(\d+)?\.\.(\.)?(\d+)?/
+        when /^(-?)(\d+)?\.\.(\.)?(\d+)?$/
           negative, start, open, finish = $1.present?, $2, $3.present?, $4
           raise "Invalid shard id or range: #{id}" unless start || finish
           range = []
           range << "id>=#{start}" if start
           range << "id<#{'=' unless open}#{finish}" if finish
           (negative ? negative_ranges : ranges) << "(#{range.join(' AND ')})"
-        elsif id =~ /-(\d+)/
+        when /^-(\d+)$/
           negative_shard_ids << $1.to_i
-        elsif id =~ /\d+/
+        when /^\d+$/
           shard_ids << id.to_i
-        else
+        when %r{^(-?\d+)/(\d+)$}
+          numerator = $1.to_i
+          denominator = $2.to_i
+          if numerator == 0 || numerator.abs > denominator
+            raise "Invalid fractional chunk: #{id}"
+          end
+          # one chunk means everything
+          if denominator == 1
+            next if numerator == 1
+            return none(scope)
+          end
+
+          total_shard_count ||= Shard.count
+          per_chunk = (total_shard_count / denominator.to_f).ceil
+          index = numerator.abs
+
+          # more chunks than shards; the trailing chunks are all empty
+          return none(scope) if index > total_shard_count
+
+          subscope = Shard.select(:id).order(:id)
+          select = []
+          if index != 1
+            subscope = subscope.offset(per_chunk * (index - 1))
+            select << "MIN(id) AS min_id"
+          end
+          if index != denominator
+            subscope = subscope.limit(per_chunk)
+            select << "MAX(id) AS max_id"
+          end
+
+          outerscope = if ::Rails.version < '4'
+                         Shard.from("(#{subscope.to_sql}) subquery")
+                       else
+                         Shard.from(subscope)
+                       end
+          result = outerscope.select(select.join(", ")).to_a.first
+          if index == 1
+            range = "id<=#{result['max_id']}"
+          elsif index == denominator
+            range = "id>=#{result['min_id']}"
+          else
+            range = "(id>=#{result['min_id']} AND id<=#{result['max_id']})"
+          end
+
+          (numerator < 0 ? negative_ranges : ranges) <<  range
+          else
           raise "Invalid shard id or range: #{id}"
         end
       end
@@ -97,11 +153,7 @@ module Switchman
       unless shard_ids.empty?
         shard_ids -= negative_shard_ids
         if shard_ids.empty? && ranges.empty?
-          if ::Rails.version < '4'
-            return scope.where("?", false)
-          else
-            return scope.none
-          end
+          return none(scope)
         end
         # we already trimmed them all out; no need to make the server do it as well
         negative_shard_ids = [] if ranges.empty?

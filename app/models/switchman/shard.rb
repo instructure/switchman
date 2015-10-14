@@ -159,6 +159,13 @@ module Switchman
                        options[:parallel]
                    end
         options.delete(:parallel)
+
+        max_procs = options.delete(:max_procs)
+        if max_procs
+          max_procs = max_procs.to_i
+          max_procs = nil if max_procs == 0
+        end
+
         scope ||= ::Rails.version < '4' ? Shard.scoped : Shard.all
         if ::ActiveRecord::Relation === scope && scope.order_values.empty?
           scope = scope.order("database_server_id IS NOT NULL, database_server_id, id")
@@ -169,6 +176,8 @@ module Switchman
             # still need a post-uniq, cause the default database server could be NULL or Rails.env in the db
             database_servers = scope.reorder('database_server_id').select(:database_server_id).uniq.
                 map(&:database_server).compact.uniq
+            parallel = [(max_procs.to_f / database_servers.count).ceil, parallel].min
+
             scopes = Hash[database_servers.map do |server|
               server_scope = server.shards.merge(scope)
               if parallel == 1
@@ -193,6 +202,7 @@ module Switchman
           else
             scopes = scope.group_by(&:database_server)
             if parallel > 1
+              parallel = [(max_procs.to_f / scopes.count).ceil, parallel].min
               scopes = Hash[scopes.map do |(server, shards)|
                 [server, shards.in_groups(parallel, false).compact]
               end]
@@ -203,6 +213,21 @@ module Switchman
           out_fds = []
           err_fds = []
           pids = []
+
+          wait_for_output = lambda do |out_fds, err_fds, fd_to_name_map|
+            ready, _ = IO.select(out_fds + err_fds)
+            ready.each do |fd|
+              if fd.eof?
+                fd.close
+                out_fds.delete(fd)
+                err_fds.delete(fd)
+                next
+              end
+              line = fd.readline
+              puts "#{fd_to_name_map[fd]}: #{line}"
+            end
+          end
+
           exception_pipe = IO.pipe
           scopes.each do |server, subscopes|
             if !(::ActiveRecord::Relation === subscopes.first) && subscopes.first.class != Array
@@ -213,12 +238,6 @@ module Switchman
               exception_pipe.first.close
               exception_pipe.last.close
               return with_each_shard(subscopes.first, categories, options) { yield }
-            end
-
-            max_procs = options.delete(:max_procs)
-            if max_procs
-              max_procs = max_procs.to_i
-              max_procs = nil if max_procs == 0
             end
 
             subscopes.each_with_index do |subscope, idx|
@@ -248,27 +267,22 @@ module Switchman
               fd_to_name_map[details[2]] = name
               fd_to_name_map[details[3]] = name
 
-              is_last_subscope = (idx + 1 == subscopes.length)
-              while (is_last_subscope && pids.any?) || (max_procs && pids.count >= max_procs)
-                while (is_last_subscope && out_fds.any?) || (max_procs && out_fds.count >= max_procs)
-                  # wait for output if we've reached the end or if we've hit the max_procs limit
-                  ready, _ = IO.select(out_fds + err_fds)
-                  ready.each do |fd|
-                    if fd.eof?
-                      fd.close
-                      out_fds.delete(fd)
-                      err_fds.delete(fd)
-                      next
-                    end
-                    line = fd.readline
-                    puts "#{fd_to_name_map[fd]}: #{line}"
-                  end
+              while max_procs && pids.count >= max_procs
+                while max_procs && out_fds.count >= max_procs
+                  # wait for output if we've hit the max_procs limit
+                  wait_for_output.call(out_fds, err_fds, fd_to_name_map)
                 end
                 pids.delete(Process.wait) # we've gotten all the output from one fd so wait for its child process to exit
               end
             end
           end
+
           exception_pipe.last.close
+
+          while out_fds.any? || err_fds.any?
+            wait_for_output.call(out_fds, err_fds, fd_to_name_map)
+          end
+          pids.each { |pid| Process.waitpid2(pid) }
 
           # I'm not sure why, but we have to do this
           ::ActiveRecord::Base.clear_all_connections!

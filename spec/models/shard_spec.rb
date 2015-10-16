@@ -25,6 +25,20 @@ module Switchman
       end
     end
 
+    describe ".destroy" do
+      it "works on created shards" do
+        server = DatabaseServer.create(:config => Shard.default.database_server.config)
+        shard = server.create_new_shard
+        expect{ shard.destroy }.to_not raise_error
+        expect(Shard.where(id: shard.id)).to be_empty
+      end
+
+      it "fails on the default shard" do
+        shard = Shard.default
+        expect{ shard.destroy }.to raise_error
+      end
+    end
+
     describe "#activate" do
       it "should activate the default category when no args are used" do
         expect(Shard.current).to eq Shard.default
@@ -79,6 +93,10 @@ module Switchman
         shard.activate do
           expect { User.count }.to raise_error
         end
+      end
+
+      it "raises an exception if the shard is the default shard" do
+        expect{ Shard.default.drop_database }.to raise_error
       end
     end
 

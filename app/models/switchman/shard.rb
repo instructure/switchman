@@ -530,7 +530,9 @@ module Switchman
     end
 
     def drop_database
+      raise("Cannot drop the database of the default shard") if self.default?
       return unless read_attribute(:name)
+
       begin
         adapter = self.database_server.config[:adapter]
         sharding_config = Switchman.config || {}
@@ -589,6 +591,11 @@ module Switchman
     # skip global_id.hash
     def hash
       id.hash
+    end
+
+    def destroy
+      raise("Cannot destroy the default shard") if self.default?
+      super
     end
 
     private

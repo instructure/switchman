@@ -5,6 +5,39 @@ module Switchman
       @filter_database_servers_chain = lambda { |servers| block.call(servers, chain) }
     end
 
+    def self.scope(base_scope = Shard)
+      servers = DatabaseServer.all
+
+      if ENV['DATABASE_SERVER']
+        servers = ENV['DATABASE_SERVER']
+        if servers.first == '-'
+          negative = true
+          servers = servers[1..-1]
+        end
+        servers = servers.split(',').map { |server| DatabaseServer.find(server) }.compact
+        servers = DatabaseServer.all - servers if negative
+      end
+
+      servers = filter_database_servers_chain.call(servers)
+
+      scope = base_scope.order("database_server_id IS NOT NULL, database_server_id, id")
+      if servers != DatabaseServer.all
+        conditions = ["database_server_id IN (?)", servers.map(&:id)]
+        conditions.first << " OR database_server_id IS NULL" if servers.include?(Shard.default.database_server)
+        scope = scope.where(conditions)
+      end
+
+      if ENV['SHARD']
+        scope = shard_scope(scope, ENV['SHARD'])
+      end
+
+      scope
+    end
+
+    def self.options
+      { parallel: ENV['PARALLEL'].to_i, max_procs: ENV['MAX_PARALLEL_PROCS'] }
+    end
+
     def self.shardify_task(task_name)
       old_task = ::Rake::Task[task_name]
       old_actions = old_task.actions.dup
@@ -17,32 +50,7 @@ module Switchman
         end
 
         ::Shackles.activate(:deploy) do
-          servers = DatabaseServer.all
-
-          if ENV['DATABASE_SERVER']
-            servers = ENV['DATABASE_SERVER']
-            if servers.first == '-'
-              negative = true
-              servers = servers[1..-1]
-            end
-            servers = servers.split(',').map { |server| DatabaseServer.find(server) }.compact
-            servers = DatabaseServer.all - servers if negative
-          end
-
-          servers = filter_database_servers_chain.call(servers)
-
-          scope = Shard.order("database_server_id IS NOT NULL, database_server_id, id")
-          if servers != DatabaseServer.all
-            conditions = ["database_server_id IN (?)", servers.map(&:id)]
-            conditions.first << " OR database_server_id IS NULL" if servers.include?(Shard.default.database_server)
-            scope = scope.where(conditions)
-          end
-
-          if ENV['SHARD']
-            scope = shard_scope(scope, ENV['SHARD'])
-          end
-
-          Shard.with_each_shard(scope, Shard.categories, :parallel => ENV['PARALLEL'].to_i, :max_procs => ENV['MAX_PARALLEL_PROCS']) do
+          Shard.with_each_shard(scope, Shard.categories, options) do
             shard = Shard.current
             puts "#{shard.id}: #{shard.description}"
             ::ActiveRecord::Base.connection_pool.spec.config[:shard_name] = Shard.current.name

@@ -176,7 +176,7 @@ module Switchman
             # still need a post-uniq, cause the default database server could be NULL or Rails.env in the db
             database_servers = scope.reorder('database_server_id').select(:database_server_id).uniq.
                 map(&:database_server).compact.uniq
-            parallel = [(max_procs.to_f / database_servers.count).ceil, parallel].min
+            parallel = [(max_procs.to_f / database_servers.count).ceil, parallel].min if max_procs
 
             scopes = Hash[database_servers.map do |server|
               server_scope = server.shards.merge(scope)
@@ -202,7 +202,7 @@ module Switchman
           else
             scopes = scope.group_by(&:database_server)
             if parallel > 1
-              parallel = [(max_procs.to_f / scopes.count).ceil, parallel].min
+              parallel = [(max_procs.to_f / scopes.count).ceil, parallel].min if max_procs
               scopes = Hash[scopes.map do |(server, shards)|
                 [server, shards.in_groups(parallel, false).compact]
               end]

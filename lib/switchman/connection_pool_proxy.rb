@@ -41,6 +41,10 @@ module Switchman
       pool
     end
 
+    def connections
+      @connection_pools.values.map(&:connections).inject([], &:+)
+    end
+
     def connection
       pool = current_pool
       begin

@@ -10,7 +10,7 @@ module Switchman
   end
 
   class ConnectionPoolProxy
-    delegate :spec, :connected?, :default_schema, :with_connection,
+    delegate :spec, :connected?, :default_schema, :with_connection, :connections,
              :to => :current_pool
 
     attr_reader :category, :schema_cache

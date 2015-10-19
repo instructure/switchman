@@ -110,7 +110,7 @@ module Switchman
             return none(scope)
           end
 
-          total_shard_count ||= Shard.count
+          total_shard_count ||= scope.count
           per_chunk = (total_shard_count / denominator.to_f).ceil
           index = numerator.abs
 

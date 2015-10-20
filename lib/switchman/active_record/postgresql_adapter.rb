@@ -94,14 +94,14 @@ module Switchman
               where = inddef.scan(/WHERE (.+)$/).flatten[0]
               using = inddef.scan(/USING (.+?) /).flatten[0].to_sym
 
-              IndexDefinition.new(table_name, index_name, unique, column_names, [], orders, where, nil, using)
+              ::ActiveRecord::ConnectionAdapters::IndexDefinition.new(table_name, index_name, unique, column_names, [], orders, where, nil, using)
             end
           else
             # add info on sort order for columns (only desc order is explicitly specified, asc is the default)
             desc_order_columns = inddef.scan(/(\w+) DESC/).flatten
             orders = desc_order_columns.any? ? Hash[desc_order_columns.map {|order_column| [order_column, :desc]}] : {}
 
-            column_names.empty? ? nil : IndexDefinition.new(table_name, index_name, unique, column_names, [], orders)
+            column_names.empty? ? nil : ::ActiveRecord::ConnectionAdapters::IndexDefinition.new(table_name, index_name, unique, column_names, [], orders)
           end
         end.compact
       end

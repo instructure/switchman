@@ -1,11 +1,12 @@
-.bundle/
-log/*.log
-pkg/
+/.bundle/
+/gemfiles/*.gemfile.lock
+/log/*.log
+/pkg/
 /spec/dummy/config/database.yml
 /spec/dummy/db/schema.rb
 /spec/dummy/db/*.sqlite3
 /spec/dummy/log/*.log
 /spec/dummy/tmp/
 /spec/dummy/.sass-cache
-/Gemfile.lock
 /switchman-*.gem
+/Gemfile.lock

@@ -92,7 +92,7 @@ module Switchman
         ::ActiveRecord::Associations::Builder::CollectionAssociation.send(:include, ActiveRecord::Builder::CollectionAssociation)
 
         ::ActiveRecord::Associations::Preloader::Association.send(:include, ActiveRecord::Preloader::Association)
-        ::ActiveRecord::ConnectionAdapters::AbstractAdapter.send(:include, ActiveRecord::AbstractAdapter)
+        ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::AbstractAdapter)
         ::ActiveRecord::ConnectionAdapters::ConnectionHandler.send(:include, ActiveRecord::ConnectionHandler)
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.send(:include, ActiveRecord::ConnectionPool)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.send(:include, ActiveRecord::QueryCache)

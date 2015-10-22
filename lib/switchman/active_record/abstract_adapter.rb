@@ -10,21 +10,24 @@ module Switchman
         @shard || Shard.default
       end
 
-      def initialize_with_shard(*args)
-        initialize_without_shard(*args)
+      def initialize(*args)
+        super
         @instrumenter = Switchman::ShardedInstrumenter.new(@instrumenter, self)
         @last_query_at = Time.now
       end
 
-      def log_with_timestamp(*args, &block)
-        log_without_timestamp(*args, &block)
+      def log(*args, &block)
+        super
       ensure
         @last_query_at = Time.now
       end
 
-      def self.included(klass)
-        klass.alias_method_chain :initialize, :shard
-        klass.alias_method_chain :log, :timestamp
+      if ::Rails.version < '4'
+        def dump_schema_information #:nodoc:
+          sm_table = ::ActiveRecord::Migrator.schema_migrations_table_name
+          migrated = select_values("SELECT version FROM #{quote_table_name(sm_table)} ORDER BY version")
+          migrated.map { |v| "INSERT INTO #{quote_table_name(sm_table)} (version) VALUES ('#{v}');" }.join("\n\n")
+        end
       end
     end
   end

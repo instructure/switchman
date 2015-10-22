@@ -189,3 +189,78 @@ module Switchman
     end
   end
 end
+
+if ::Rails.version < '4'
+  old_task = Rake::Task['db:structure:dump']
+  old_actions = old_task.actions.dup
+  old_task.actions.clear
+
+  old_task.enhance do
+    config = current_config
+    if config['use_qualified_names'] && config['adapter'] =~ /postgresql/
+      filename = ENV['DB_STRUCTURE'] || File.join(Rails.root, "db", "structure.sql")
+      set_psql_env(config)
+      shard = Shard.current.name
+      search_path = "--schema=#{Shellwords.escape(shard)}"
+      `pg_dump -i -s -x -O -f #{Shellwords.escape(filename)} #{search_path} #{Shellwords.escape(config['database'])}`
+      raise 'Error dumping database' if $?.exitstatus == 1
+      File.open(filename, "a") { |f| f << "SET search_path TO #{shard};\n\n" }
+
+      if ActiveRecord::Base.connection.supports_migrations?
+        File.open(filename, "a") { |f| f << ActiveRecord::Base.connection.dump_schema_information }
+      end
+      old_task.reenable
+    else
+      old_actions.each(&:call)
+    end
+  end
+else
+  module Switchman
+    module ActiveRecord
+      module PostgreSQLDatabaseTasks
+        if ::Rails.version < '4.2'
+          def structure_dump(filename)
+            set_psql_env
+            search_path = configuration['schema_search_path']
+            unless search_path.blank?
+              search_path = search_path.split(",").map{|search_path_part| "--schema=#{Shellwords.escape(search_path_part.strip)}" }.join(" ")
+              serialized_search_path = ::ActiveRecord::Base.connection.schema_search_path
+            end
+            if configuration['use_qualified_names']
+              shard = Shard.current.name
+              serialized_search_path = shard
+              search_path = "--schema=#{Shellwords.escape(shard)}"
+            end
+
+            command = "pg_dump -i -s -x -O -f #{Shellwords.escape(filename)} #{search_path} #{Shellwords.escape(configuration['database'])}"
+            raise 'Error dumping database' unless Kernel.system(command)
+
+            File.open(filename, "a") { |f| f << "SET search_path TO #{serialized_search_path};\n\n" }
+          end
+        else
+          def structure_dump(filename)
+            set_psql_env
+            args = ['-i', '-s', '-x', '-O', '-f', filename]
+            search_path = configuration['schema_search_path']
+            if configuration['use_qualified_names']
+              shard = Shard.current.name
+              serialized_search_path = shard
+              args << "--schema=#{Shellwords.escape(shard)}"
+            elsif !search_path.blank?
+              args << search_path.split(',').map do |part|
+                "--schema=#{part.strip}"
+              end.join(' ')
+              serialized_search_path = connection.schema_search_path
+            end
+
+            args << configuration['database']
+            run_cmd('pg_dump', args, 'dumping')
+            File.open(filename, "a") { |f| f << "SET search_path TO #{serialized_search_path};\n\n" }
+          end
+        end
+      end
+    end
+  end
+
+  ActiveRecord::Tasks::PostgreSQLDatabaseTasks.prepend(Switchman::ActiveRecord::PostgreSQLDatabaseTasks)
+end

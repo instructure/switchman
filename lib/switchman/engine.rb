@@ -80,6 +80,7 @@ module Switchman
         require "switchman/active_record/persistence"
         require "switchman/active_record/query_cache"
         require "switchman/active_record/query_methods"
+        require "switchman/active_record/reflection"
         require "switchman/active_record/relation"
         require "switchman/active_record/spawn_methods"
         require "switchman/arel"
@@ -105,6 +106,7 @@ module Switchman
         ::ActiveRecord::ConnectionAdapters::QueryCache.send(:remove_method, :select_all)
 
         ::ActiveRecord::LogSubscriber.send(:include, ActiveRecord::LogSubscriber)
+        ::ActiveRecord::Reflection::AssociationReflection.prepend(ActiveRecord::Reflection::AssociationReflection)
         ::ActiveRecord::Relation.send(:include, ActiveRecord::Calculations)
         ::ActiveRecord::Relation.send(:include, ActiveRecord::FinderMethods)
         ::ActiveRecord::Relation.send(:include, ActiveRecord::QueryMethods)

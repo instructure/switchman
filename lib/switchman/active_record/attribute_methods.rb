@@ -30,7 +30,7 @@ module Switchman
               reflections.find { |_, r| r.belongs_to? && r.foreign_key.to_s == attr_name }.try(:last)
         rescue ::ActiveRecord::StatementInvalid
           # this is for when models are referenced in initializers before migrations have been run
-          nil
+          raise if connection.open_transactions > 0
         end
 
         def define_method_global_attribute(attr_name)

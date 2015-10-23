@@ -113,6 +113,7 @@ module Switchman
         ::ActiveRecord::Relation.send(:include, ActiveRecord::Relation)
         ::ActiveRecord::Relation.send(:include, ActiveRecord::SpawnMethods)
 
+        ::Arel::Visitors::ToSql.prepend(Arel::Visitors::ToSql)
         ::Arel::Visitors::PostgreSQL.send(:include, Arel::Visitors::PostgreSQL) if ::Rails.version < '4.2'
       end
     end

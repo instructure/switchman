@@ -9,8 +9,12 @@ module Switchman
         select_values("SELECT * FROM unnest(current_schemas(false))")
       end
 
+      def use_qualified_names?
+        @config[:use_qualified_names]
+      end
+
       def tables(name = nil)
-        schema = shard.name if @config[:use_qualified_names]
+        schema = shard.name if use_qualified_names?
 
         query(<<-SQL, 'SCHEMA').map { |row| row[0] }
           SELECT tablename
@@ -23,7 +27,7 @@ module Switchman
         if ::Rails.version < '4.2'
           schema, table = ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter::Utils.extract_schema_and_table(name.to_s)
           return false unless table
-          schema ||= shard.name if @config[:use_qualified_names]
+          schema ||= shard.name if use_qualified_names?
 
           binds = [[nil, table]]
           binds << [nil, schema] if schema
@@ -39,7 +43,7 @@ module Switchman
         else
           name = Utils.extract_schema_qualified_name(name.to_s)
           return false unless name.identifier
-          if !name.schema && @config[:use_qualified_names]
+          if !name.schema && use_qualified_names?
             name.instance_variable_set(:@schema, shard.name)
           end
 
@@ -55,7 +59,7 @@ module Switchman
       end
 
       def indexes(table_name)
-        schema = shard.name if @config[:use_qualified_names]
+        schema = shard.name if use_qualified_names?
 
         result = query(<<-SQL, 'SCHEMA')
            SELECT distinct i.relname, d.indisunique, d.indkey, pg_get_indexdef(d.indexrelid), t.oid
@@ -107,7 +111,7 @@ module Switchman
       end
 
       def index_name_exists?(table_name, index_name, default)
-        schema = shard.name if @config[:use_qualified_names]
+        schema = shard.name if use_qualified_names?
 
         exec_query(<<-SQL, 'SCHEMA').rows.first[0].to_i > 0
             SELECT COUNT(*)
@@ -121,11 +125,18 @@ module Switchman
         SQL
       end
 
+      def quote_local_table_name(name)
+        # postgres quotes tables and columns the same; just pass through
+        # (differs from quote_table_name below by no logic to explicitly
+        # qualify the table)
+        quote_column_name(name)
+      end
+
       def quote_table_name name
         if ::Rails.version < '4.2'
           schema, name_part = extract_pg_identifier_from_name(name.to_s)
 
-          if !name_part && @config[:use_qualified_names] && shard.name
+          if !name_part && use_qualified_names? && shard.name
             schema, name_part = shard.name, schema
           end
 
@@ -137,7 +148,7 @@ module Switchman
           end
         else
           name = Utils.extract_schema_qualified_name(name.to_s)
-          if !name.schema && @config[:use_qualified_names]
+          if !name.schema && use_qualified_names?
             name.instance_variable_set(:@schema, shard.name)
           end
           name.quoted

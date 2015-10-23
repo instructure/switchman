@@ -22,6 +22,10 @@ module Switchman
         @last_query_at = Time.now
       end
 
+      def quote_local_table_name(name)
+        quote_table_name(name)
+      end
+
       if ::Rails.version < '4'
         def dump_schema_information #:nodoc:
           sm_table = ::ActiveRecord::Migrator.schema_migrations_table_name

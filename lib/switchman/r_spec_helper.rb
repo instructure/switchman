@@ -12,6 +12,7 @@ module Switchman
   module RSpecHelper
     @@keep_the_shards = false
     @@shard1 = nil
+    @@sharding_failed = false
 
     def self.included_in?(klass)
       klass.parent_groups.any? { |group| group.included_modules.include?(self) }
@@ -27,6 +28,7 @@ module Switchman
       root_group = klass.parent_groups.last
       root_group.prepend_before(:all) do |group|
         next if @@shard1
+        next if @@sharding_failed
         # if we aren't actually going to run a sharding group/example,
         # don't set it up after all
         groups = group.class.descendant_filtered_examples.map(&:example_group).uniq
@@ -49,9 +51,21 @@ module Switchman
             else
               @@shard3 = @@shard1.database_server.create_new_shard
             end
-          rescue
+          rescue => e
+            $stderr.puts "Sharding setup FAILED!:"
+            while e
+              $stderr.puts "\n#{e}\n"
+              $stderr.puts e.backtrace
+              e = e.respond_to?(:cause) ? e.cause : nil
+            end
+            @@sharding_failed = true
+            (@@shard1.drop_database if @@shard1) rescue nil
+            (@@shard2.drop_database if @@shard3) rescue nil
+            (@@shard3.drop_database if @@shard3) rescue nil
             @@shard1 = @@shard2 = @@shard3 = nil
-            raise
+            Shard.delete_all
+            Shard.default(true)
+            next
           end
         end
         # we'll re-persist in the group's `before :all`; we don't want them to exist
@@ -81,6 +95,7 @@ module Switchman
       end
 
       klass.before(:all) do
+        next if @@sharding_failed
         dup = @@default_shard.dup
         dup.id = @@default_shard.id
         dup.save!
@@ -101,6 +116,7 @@ module Switchman
       end
 
       klass.before do
+        raise "Sharding did not set up correctly" if @@sharding_failed
         Shard.clear_cache
         if use_transactional_fixtures
           Shard.default(true)
@@ -130,6 +146,7 @@ module Switchman
       end
 
       klass.after do
+        next if @@sharding_failed
         if use_transactional_fixtures
           shards = [@shard2]
           shards << @shard1 unless @shard1.database_server == Shard.default.database_server

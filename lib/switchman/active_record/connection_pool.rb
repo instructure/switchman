@@ -39,21 +39,26 @@ module Switchman
       def release_connection_with_idle_timeout(with_id = current_connection_id)
         release_connection_without_idle_timeout(with_id)
 
-        # TODO may need a synchronize (or to be included in a synchronize
-        # inside release_connection_without_idle_timeout) when we make
-        # switchman thread-safe
         if spec.config[:idle_timeout]
           clear_idle_connections!(Time.now - spec.config[:idle_timeout].to_i)
         end
       end
 
       def clear_idle_connections!(since_when)
-        @connections.reject! do |conn|
-          if conn.last_query_at < since_when && !conn.in_use?
-            conn.disconnect!
-            true
-          else
-            false
+        synchronize do
+          @connections.reject! do |conn|
+            if conn.last_query_at < since_when && !conn.in_use?
+              conn.disconnect!
+              true
+            else
+              false
+            end
+          end
+          if ::Rails.version >= '4'
+            @available.clear
+            @connections.each do |conn|
+              @available.add conn
+            end
           end
         end
       end

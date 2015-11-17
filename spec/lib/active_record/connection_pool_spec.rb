@@ -37,6 +37,8 @@ module Switchman
           @pool.checkin(@conn)
           @pool.clear_idle_connections!(@conn.last_query_at + 1)
           expect(@pool.connections).to be_empty
+          # fresh connection
+          expect(@pool.connection).to_not eq @conn
         end
 
         it "should not affect idle but checked out connections" do

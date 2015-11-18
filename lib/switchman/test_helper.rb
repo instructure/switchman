@@ -1,12 +1,13 @@
 module Switchman
   module TestHelper
     class << self
-      def recreate_persistent_test_shards(options = {})
+      def recreate_persistent_test_shards(dont_create: false)
         # recreate the default shard (it got buhleted)
         if Shard.default(true).is_a?(DefaultShard)
           begin
             Shard.create!(default: true)
           rescue
+            raise unless dont_create
             # database doesn't exist yet, presumably cause we're creating it right now
             return [nil, nil]
           end
@@ -37,7 +38,7 @@ module Switchman
 
           recreate_shards = shard1.activate { ::ActiveRecord::Base.connection.tables == [] }
           if recreate_shards
-            if options[:dont_create]
+            if dont_create
               shard1.destroy
               shard2.destroy
               return [nil, nil]

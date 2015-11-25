@@ -26,7 +26,10 @@ module Switchman
       def self.included(klass)
         klass.alias_method_chain(:establish_connection, :sharding)
         klass.alias_method_chain(:remove_connection, :sharding)
-        klass.send(:remove_method, :retrieve_connection_pool) if ::Rails.version >= '4'
+        if ::Rails.version >= '4'
+          klass.send(:remove_method, :retrieve_connection_pool)
+          klass.send(:remove_method, :pool_for)
+        end
       end
 
       def establish_connection_with_sharding(owner, spec)
@@ -130,6 +133,25 @@ module Switchman
       end
 
       if ::Rails.version >= '4'
+        def pool_for(owner)
+          # copypasted from AR#ConnectionHandler other than proxy handling
+
+          owner_to_pool.fetch(owner.name) {
+            if ancestor_pool = pool_from_any_process_for(owner)
+              # A connection was established in an ancestor process that must have
+              # subsequently forked. We can't reuse the connection, but we can copy
+              # the specification and establish a new connection with it.
+              if ancestor_pool.is_a?(ConnectionPoolProxy)
+                establish_connection owner, ancestor_pool.default_pool.spec
+              else
+                establish_connection owner, ancestor_pool.spec
+              end
+            else
+              owner_to_pool[owner.name] = nil
+            end
+          }
+        end
+
         def retrieve_connection_pool(klass)
           class_to_pool[klass.name] ||= begin
             original_klass = klass

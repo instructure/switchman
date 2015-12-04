@@ -48,6 +48,7 @@ module Switchman
 
           # Now find the actual record, if it exists; rescue the fake default if the table doesn't exist
           @default = Shard.where(default:true).first || default rescue default
+          activate!(:default => @default)
         end
         @default
       end

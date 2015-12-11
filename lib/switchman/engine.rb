@@ -2,6 +2,8 @@ module Switchman
   class Engine < ::Rails::Engine
     isolate_namespace Switchman
 
+    config.autoload_once_paths << File.expand_path(File.join(__FILE__, "../../../app/models"))
+
     def self.lookup_stores(cache_store_config)
       result = {}
       cache_store_config.each do |key, value|

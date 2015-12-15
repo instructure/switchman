@@ -9,7 +9,7 @@ module Switchman
         end
 
         def shard_category
-          @shard_category || :default
+          @shard_category || (self.superclass < ::ActiveRecord::Base && self.superclass.shard_category) || :default
         end
 
         def shard_category=(category)

@@ -51,6 +51,15 @@ module Switchman
       end
     end
 
+    module CollectionAssociation
+      def get_records
+        shards = reflection.options[:multishard] && owner.respond_to?(:associated_shards) ? owner.associated_shards : [owner.shard]
+        Shard.with_each_shard(shards, [klass.shard_category]) do
+          super
+        end
+      end
+    end
+
     module BelongsToAssociation
       def self.included(klass)
         klass.send(:alias_method_chain, :replace_keys, :sharding)

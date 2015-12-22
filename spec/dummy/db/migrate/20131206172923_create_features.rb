@@ -6,7 +6,7 @@ class CreateFeatures < ActiveRecord::Migration
 
       t.integer :value
 
-      t.timestamps
+      t.timestamps :null => true
     end
   end
 end

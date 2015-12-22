@@ -3,7 +3,7 @@ class CreateRoots < ActiveRecord::Migration
     create_table :roots do |t|
       t.integer :user_id, :limit => 8
 
-      t.timestamps
+      t.timestamps :null => true
     end
   end
 end

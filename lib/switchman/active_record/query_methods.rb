@@ -142,6 +142,15 @@ module Switchman
               self.shard_value = id_shards
               return
             end
+          when ::Arel::Nodes::BindParam
+            # look for a bind param with a matching column name
+            if bind_values && idx = bind_values.find_index{|b| b.is_a?(Array) && b.first.try(:name).to_s == klass.primary_key.to_s}
+              column, value = bind_values[idx]
+              unless ::Rails.version >= '4.2' && value.is_a?(::ActiveRecord::StatementCache::Substitute)
+                local_id, id_shard = Shard.local_id_for(value)
+                id_shard ||= Shard.current(klass.shard_category) if local_id
+              end
+            end
           else
             local_id, id_shard = Shard.local_id_for(primary_key.right)
             id_shard ||= Shard.current(klass.shard_category) if local_id
@@ -223,9 +232,14 @@ module Switchman
             # look for a bind param with a matching column name
             if bind_values && idx = bind_values.find_index{|b| b.is_a?(Array) && b.first.try(:name).to_s == predicate.left.name.to_s}
               column, value = bind_values[idx]
-              local_id = Shard.relative_id_for(value, current_source_shard, target_shard)
-              local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
-              bind_values[idx] = [column, local_id]
+              if ::Rails.version >= '4.2' && value.is_a?(::ActiveRecord::StatementCache::Substitute)
+                value.sharded = true # mark for transposition later
+                value.primary = true if type == :primary
+              else
+                local_id = Shard.relative_id_for(value, current_source_shard, target_shard)
+                local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
+                bind_values[idx] = [column, local_id]
+              end
             end
             predicate.right
           else

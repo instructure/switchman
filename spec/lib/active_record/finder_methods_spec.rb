@@ -13,6 +13,13 @@ module Switchman
         it "should find with a global id" do
           expect(User.find(@user.global_id)).to eq @user
         end
+
+        it "should find with a global id and a current scope" do
+          User.where("id > 0").scoping do
+            # having a current scope skips the statement cache in rails 4.2
+            expect(User.find(@user.global_id)).to eq @user
+          end
+        end
       end
 
       describe "#find_by_attributes" do

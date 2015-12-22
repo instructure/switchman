@@ -79,7 +79,7 @@ module Switchman
           relation = User.where(:id => [@user2])
           # execute on @shard1, with id local to that shard
           expect(relation.shard_value).to eq @shard1
-          expect(relation.where_values.first.right).to eq [@user2.local_id]
+          expect(Array(relation.where_values.first.right)).to eq [@user2.local_id]
         end
 
         it "should do nothing when it's an array of 0" do

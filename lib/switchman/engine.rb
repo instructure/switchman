@@ -91,6 +91,16 @@ module Switchman
         include ActiveRecord::AttributeMethods
         include ActiveRecord::Persistence
         singleton_class.prepend ActiveRecord::ModelSchema::ClassMethods
+
+        if ::Rails.version > '4.2'
+          require "switchman/active_record/statement_cache"
+          ::ActiveRecord::StatementCache.prepend(ActiveRecord::StatementCache)
+          ::ActiveRecord::StatementCache::BindMap.prepend(ActiveRecord::StatementCache::BindMap)
+          ::ActiveRecord::StatementCache::Substitute.send(:attr_accessor, :primary, :sharded)
+
+          ::ActiveRecord::Associations::CollectionAssociation.prepend(ActiveRecord::CollectionAssociation)
+        end
+
         ::ActiveRecord::Associations::Association.send(:include, ActiveRecord::Association)
         ::ActiveRecord::Associations::BelongsToAssociation.send(:include, ActiveRecord::BelongsToAssociation)
         ::ActiveRecord::Associations::CollectionProxy.send(:include, ActiveRecord::CollectionProxy)

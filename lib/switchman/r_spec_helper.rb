@@ -120,8 +120,8 @@ module Switchman
         Shard.clear_cache
         if use_transactional_fixtures
           Shard.default(true)
-          @shard1 = Shard.find(@shard1)
-          @shard2 = Shard.find(@shard2)
+          @shard1 = Shard.find(@shard1.id)
+          @shard2 = Shard.find(@shard2.id)
           shards = [@shard2]
           shards << @shard1 unless @shard1.database_server == Shard.default.database_server
           shards.each do |shard|
@@ -129,7 +129,7 @@ module Switchman
               # this is how AR does it in database_statements.rb
               if ::Rails.version < '4'
                 conn = ::ActiveRecord::Base.connection
-                # support nested transactions around (groups of) specs (e.g. for once-ler) 
+                # support nested transactions around (groups of) specs (e.g. for once-ler)
                 if conn.open_transactions == 0
                   conn.transaction_joinable = false
                   conn.begin_db_transaction

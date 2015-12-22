@@ -4,7 +4,7 @@ class CreateDigits < ActiveRecord::Migration
       t.integer :appendage_id, :limit => 8
       t.integer :value
 
-      t.timestamps
+      t.timestamps :null => true
     end
   end
 end

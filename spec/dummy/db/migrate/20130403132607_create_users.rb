@@ -4,7 +4,7 @@ class CreateUsers < ActiveRecord::Migration
       t.string :name
       t.integer :mirror_user_id, :limit => 8
 
-      t.timestamps
+      t.timestamps :null => true
     end
   end
 end

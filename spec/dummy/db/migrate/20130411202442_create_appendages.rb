@@ -4,7 +4,7 @@ class CreateAppendages < ActiveRecord::Migration
       t.integer :user_id, :limit => 8
       t.integer :value
 
-      t.timestamps
+      t.timestamps :null => true
     end
   end
 end

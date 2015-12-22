@@ -41,7 +41,7 @@ module Switchman
               AND n.nspname = #{schema ? "'#{schema}'" : 'ANY (current_schemas(false))'}
           SQL
         else
-          name = Utils.extract_schema_qualified_name(name.to_s)
+          name =  ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)
           return false unless name.identifier
           if !name.schema && use_qualified_names?
             name.instance_variable_set(:@schema, shard.name)
@@ -147,7 +147,8 @@ module Switchman
             "#{quote_column_name(schema)}.#{quote_column_name(table_name)}"
           end
         else
-          name = Utils.extract_schema_qualified_name(name.to_s)
+
+          name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)
           if !name.schema && use_qualified_names?
             name.instance_variable_set(:@schema, shard.name)
           end

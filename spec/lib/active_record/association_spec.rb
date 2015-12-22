@@ -155,6 +155,27 @@ module Switchman
         end
       end
 
+      it "should load singular associations from the correct shard" do
+        @shard1.activate do
+          @a = Appendage.create!(:user_id => @user1, :value => 1)
+        end
+
+        @shard2.activate do
+          @d = Digit.create!(:appendage_id => @a.global_id)
+        end
+
+        expect(@d.appendage).to eq @a
+      end
+
+      it "should load collection associations from the correct shard" do
+        @shard1.activate do
+          @a = Appendage.create!(:user_id => @user1, :value => 1)
+          @d = Digit.create!(:appendage_id => @a.id)
+        end
+
+        expect(@a.digits.to_a.map(&:id)).to eq [@d.id]
+      end
+
       describe "multishard associations" do
         it "should group has_many associations over associated_shards" do
           @shard1.activate{ Appendage.create!(:user_id => @user1, :value => 1) }

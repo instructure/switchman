@@ -407,15 +407,16 @@ module Switchman
       # takes an id-ish, and returns a local id and the shard it's
       # local to. [nil, nil] if it can't be interpreted. [id, nil]
       # if it's already a local ID
+      NIL_NIL_ID = [nil, nil].freeze
       def local_id_for(any_id)
         id = integral_id_for(any_id)
-        return [nil, nil] unless id
+        return NIL_NIL_ID unless id
         if id < IDS_PER_SHARD
           [id, nil]
         elsif shard = lookup(id / IDS_PER_SHARD)
           [id % IDS_PER_SHARD, shard]
         else
-          [nil, nil]
+          NIL_NIL_ID
         end
       end
 

@@ -68,7 +68,7 @@ module Switchman
         old_shards = nil
         shards.each do |category, shard|
           next if category == :unsharded
-          unless shard == active_shards[category]
+          unless active_shards[category] == shard
             old_shards ||= {}
             old_shards[category] = active_shards[category]
             active_shards[category] = shard
@@ -587,11 +587,6 @@ module Switchman
     def global_id_for(local_id)
       return nil unless local_id
       local_id + self.id * IDS_PER_SHARD
-    end
-
-    def ==(rhs)
-      return true if rhs.is_a?(DefaultShard) && default?
-      super
     end
 
     # skip global_id.hash

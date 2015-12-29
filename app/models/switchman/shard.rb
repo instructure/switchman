@@ -66,12 +66,13 @@ module Switchman
 
       def activate!(shards)
         old_shards = nil
+        currently_active_shards = active_shards
         shards.each do |category, shard|
           next if category == :unsharded
-          unless active_shards[category] == shard
+          unless currently_active_shards[category] == shard
             old_shards ||= {}
-            old_shards[category] = active_shards[category]
-            active_shards[category] = shard
+            old_shards[category] = currently_active_shards[category]
+            currently_active_shards[category] = shard
           end
         end
         old_shards

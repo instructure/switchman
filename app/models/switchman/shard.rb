@@ -122,7 +122,7 @@ module Switchman
       end
 
       def clear_cache
-        @cached_shards = {}
+        cached_shards.clear
       end
 
       # ==== Parameters
@@ -460,7 +460,7 @@ module Switchman
       private
       # in-process caching
       def cached_shards
-        @cached_shards ||= {}
+        @cached_shards ||= {}.compare_by_identity
       end
 
       def add_to_cache(shard)
@@ -472,7 +472,7 @@ module Switchman
       end
 
       def active_shards
-        Thread.current[:active_shards] ||= {}
+        Thread.current[:active_shards] ||= {}.compare_by_identity
       end
     end
 

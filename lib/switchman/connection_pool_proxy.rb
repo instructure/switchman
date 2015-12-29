@@ -35,9 +35,10 @@ module Switchman
     end
 
     def current_pool
-      pool = self.default_pool if active_shard.database_server == Shard.default.database_server && active_shackles_environment == :master && (active_shard == Shard.default || active_shard.database_server.shareable?)
+      current_active_shard = active_shard
+      pool = self.default_pool if current_active_shard.database_server == Shard.default.database_server && active_shackles_environment == :master && (current_active_shard.default? || current_active_shard.database_server.shareable?)
       pool = @connection_pools[pool_key] ||= create_pool unless pool
-      pool.shard = active_shard
+      pool.shard = current_active_shard
       pool
     end
 

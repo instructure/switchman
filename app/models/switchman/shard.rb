@@ -613,12 +613,11 @@ module Switchman
       database_server.shard_name(self)
     end
 
-    DEFAULT_CATEGORY_ONLY = [:default]
     def hashify_categories(categories)
-      if categories.empty? || categories == DEFAULT_CATEGORY_ONLY
+      if categories.empty?
         { :default => self }
       else
-        Hash[categories.flatten.map!{ |category| [category, self] }]
+        categories.inject({}) { |h, category| h[category] = self; h }
       end
     end
 

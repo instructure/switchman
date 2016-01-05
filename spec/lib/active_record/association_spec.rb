@@ -119,12 +119,12 @@ module Switchman
         relation = @user1.appendages.where(:id => a1).shard(@shard1)
         expect(relation.shard_value).to eq @shard1
         expect(relation.shard_source_value).to eq :explicit
-        expect(relation.where_values.detect{|v| v.left.name == "id"}.right).to eq a1.local_id
+        expect(where_value(relation.where_values.detect{|v| v.left.name == "id"}.right)).to eq a1.local_id
 
         relation = @user1.appendages.where(:id => a1).shard(@shard2)
         expect(relation.shard_value).to eq @shard2
         expect(relation.shard_source_value).to eq :explicit
-        expect(relation.where_values.detect{|v| v.left.name == "id"}.right).to eq a1.global_id
+        expect(where_value(relation.where_values.detect{|v| v.left.name == "id"}.right)).to eq a1.global_id
       end
 
       it "should transpose predicates correctly" do
@@ -133,11 +133,11 @@ module Switchman
 
         relation = @user1.appendages.where(:id => a2)
         expect(relation.shard_value).to eq @user1
-        expect(relation.where_values.detect{|v| v.left.name == "id"}.right).to eq a2.global_id
+        expect(where_value(relation.where_values.detect{|v| v.left.name == "id"}.right)).to eq a2.global_id
 
         relation = @user1.appendages.where(:id => [a1, a2])
         expect(relation.shard_value).to eq @user1
-        expect(relation.where_values.detect{|v| v.left.name == "id"}.right).to eq [a1.local_id, a2.global_id]
+        expect(where_value(relation.where_values.detect{|v| v.left.name == "id"}.right)).to eq [a1.local_id, a2.global_id]
       end
 
       it "should properly set up a cross-shard-category query" do

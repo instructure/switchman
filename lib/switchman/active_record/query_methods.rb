@@ -225,7 +225,16 @@ module Switchman
             local_ids = []
             predicate.right.each do |value|
               local_id = Shard.relative_id_for(value, current_source_shard, target_shard)
-              local_ids << local_id unless remove && local_id > Shard::IDS_PER_SHARD
+              unless remove && local_id > Shard::IDS_PER_SHARD
+                if ::Rails.version > "4.2" && value.is_a?(::Arel::Nodes::Casted)
+                  if local_id == value.val
+                    local_id = value
+                  else
+                    local_id = value.class.new(local_id, value.attribute)
+                  end
+                end
+                local_ids << local_id
+              end
             end
             local_ids
           when ::Arel::Nodes::BindParam
@@ -250,6 +259,12 @@ module Switchman
 
           if new_right_value == predicate.right
             predicate
+          elsif ::Rails.version >= "4.2" && predicate.right.is_a?(::Arel::Nodes::Casted)
+            if new_right_value == predicate.right.val
+              predicate
+            else
+              predicate.class.new(predicate.left, predicate.right.class.new(new_right_value, predicate.right.attribute))
+            end
           else
             predicate.class.new(predicate.left, new_right_value)
           end

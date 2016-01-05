@@ -32,3 +32,18 @@ RSpec.configure do |config|
   #     --seed 1234
   config.order = "random"
 end
+
+def where_value(value)
+  if ::Rails.version >= "4.2"
+    case value
+    when ::Arel::Nodes::Casted
+      value.val
+    when Array
+      value.map{|v| where_value(v)}
+    else
+      value
+    end
+  else
+    value
+  end
+end

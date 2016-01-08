@@ -229,7 +229,7 @@ module Switchman
                 if ::Rails.version > "4.2" && value.is_a?(::Arel::Nodes::Casted)
                   if local_id == value.val
                     local_id = value
-                  else
+                  elsif local_id != value
                     local_id = value.class.new(local_id, value.attribute)
                   end
                 end

@@ -1,5 +1,6 @@
 require_dependency 'switchman/database_server'
 require_dependency 'switchman/default_shard'
+require_dependency 'switchman/environment'
 
 module Switchman
   class Shard < ::ActiveRecord::Base
@@ -163,18 +164,13 @@ module Switchman
                    end
         options.delete(:parallel)
 
-        max_procs = options.delete(:max_procs)
-        if max_procs
-          max_procs = max_procs.to_i
-          max_procs = nil if max_procs == 0
-        end
-
         scope ||= ::Rails.version < '4' ? Shard.scoped : Shard.all
         if ::ActiveRecord::Relation === scope && scope.order_values.empty?
           scope = scope.order("database_server_id IS NOT NULL, database_server_id, id")
         end
 
         if parallel > 0
+          max_procs = determine_max_procs(options.delete(:max_procs), parallel)
           if ::ActiveRecord::Relation === scope
             # still need a post-uniq, cause the default database server could be NULL or Rails.env in the db
             database_servers = scope.reorder('database_server_id').select(:database_server_id).uniq.
@@ -458,6 +454,24 @@ module Switchman
       def shard_for(any_id, source_shard = nil)
         _, shard = local_id_for(any_id)
         shard || source_shard || Shard.current
+      end
+
+      # given the provided option, determines whether we need to (and whether
+      # it's possible) to determine a reasonable default.
+      def determine_max_procs(max_procs_input, parallel_input=2)
+        max_procs = nil
+        if max_procs_input
+          max_procs = max_procs_input.to_i
+          max_procs = nil if max_procs == 0
+        else
+          return 1 if parallel_input.nil? || parallel_input < 1
+          cpus = Environment.cpu_count
+          if cpus && cpus > 0
+            max_procs = cpus * parallel_input
+          end
+        end
+
+        return max_procs
       end
 
       private

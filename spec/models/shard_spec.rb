@@ -453,5 +453,73 @@ module Switchman
         end
       end
     end
+
+    describe ".determine_max_procs" do
+      context "with no info on cpu_count" do
+        before(:each) do
+          ::Switchman::Environment.stubs(:cpu_count).returns(nil)
+        end
+
+        it "returns the option if valid" do
+          expect(Shard.determine_max_procs(5)).to eq(5)
+        end
+
+        it "makes the option an integer" do
+          expect(Shard.determine_max_procs("8")).to eq(8)
+        end
+
+        it "returns nil if the option is nil" do
+          expect(Shard.determine_max_procs(nil)).to be_nil
+        end
+
+        it "is nil if the option is 0" do
+          expect(Shard.determine_max_procs("0")).to be_nil
+        end
+
+        it "is nil if the option is nonsense" do
+          expect(Shard.determine_max_procs("asdf")).to be_nil
+        end
+
+        it "ignores parallel input if max procs specified" do
+          expect(Shard.determine_max_procs("4", 3)).to eq(4)
+        end
+      end
+
+      context "with a cpu_count" do
+        before(:each) do
+          ::Switchman::Environment.stubs(:cpu_count).returns(8)
+        end
+
+        it "returns the option if valid" do
+          expect(Shard.determine_max_procs("4")).to eq(4)
+        end
+
+        it "returns 2x cores if the option is nil and no parallel input" do
+          expect(Shard.determine_max_procs(nil)).to eq(16)
+        end
+
+        it "uses the parallel input as a multiplier if provided" do
+          expect(Shard.determine_max_procs(nil, 3)).to eq(24)
+        end
+
+        it "maxes at 1 if parallel is 0" do
+          expect(Shard.determine_max_procs(nil, 0)).to eq(1)
+        end
+
+        it "maxes at 1 if parallel is nil" do
+          expect(Shard.determine_max_procs(nil, nil)).to eq(1)
+        end
+
+        it "is nil if the option is 0" do
+          expect(Shard.determine_max_procs("0")).to eq(nil)
+        end
+
+        it "is nil if the cpu count is 0" do
+          ::Switchman::Environment.stubs(:cpu_count).returns(0)
+          expect(Shard.determine_max_procs(nil)).to eq(nil)
+        end
+      end
+
+    end
   end
 end

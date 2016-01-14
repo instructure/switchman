@@ -15,7 +15,7 @@ module Switchman
 
       def initialize_with_sharding(*args)
         initialize_without_sharding(*args)
-        self.shard_value = Shard.current(klass.try(:shard_category) || :default) unless shard_value
+        self.shard_value = Shard.current(klass.respond_to?(:shard_category) ? klass.shard_category : :default) unless shard_value
         self.shard_source_value = :implicit unless shard_source_value
       end
 

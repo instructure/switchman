@@ -133,7 +133,7 @@ module Switchman
       end
 
       def quote_table_name name
-        if ::Rails.version < '4.2'
+        if ::Rails.version < '4.2'.freeze
           schema, name_part = extract_pg_identifier_from_name(name.to_s)
 
           if !name_part && use_qualified_names? && shard.name

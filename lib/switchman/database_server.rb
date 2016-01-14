@@ -184,7 +184,7 @@ module Switchman
               shard.name = name
             end
           end
-          shard.activate(Shard.categories) do
+          shard.activate(*Shard.categories) do
             ::Shackles.activate(:deploy) do
               begin
                 if create_statement

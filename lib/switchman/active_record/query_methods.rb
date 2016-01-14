@@ -12,7 +12,7 @@ module Switchman
       #                  for foreign key transposition
       #   :to_a        - a special value that Relation#to_a uses when querying multiple shards to
       #                  remove primary keys from conditions that aren't applicable to the current shard
-      if ::Rails.version < '4'
+      if ::Rails.version < '4'.freeze
         attr_accessor :shard_value, :shard_source_value
       else
         def shard_value
@@ -32,7 +32,7 @@ module Switchman
       end
 
       def shard(value, source = :explicit)
-        (::Rails.version < '4' ? clone : spawn).shard!(value, source)
+        (::Rails.version < '4'.freeze ? clone : spawn).shard!(value, source)
       end
 
       def shard!(value, source = :explicit)

@@ -49,6 +49,7 @@ module Switchman
 
           # Now find the actual record, if it exists; rescue the fake default if the table doesn't exist
           @default = Shard.where(default:true).first || default rescue default
+          activate!(:default => @default)
         end
         @default
       end
@@ -61,15 +62,19 @@ module Switchman
         old_shards = activate!(shards)
         yield
       ensure
-        active_shards.merge!(old_shards)
+        active_shards.merge!(old_shards) if old_shards
       end
 
       def activate!(shards)
-        old_shards = {}
+        old_shards = nil
+        currently_active_shards = active_shards
         shards.each do |category, shard|
           next if category == :unsharded
-          old_shards[category] = active_shards[category]
-          active_shards[category] = shard
+          unless currently_active_shards[category] == shard
+            old_shards ||= {}
+            old_shards[category] = currently_active_shards[category]
+            currently_active_shards[category] = shard
+          end
         end
         old_shards
       end
@@ -122,7 +127,7 @@ module Switchman
       end
 
       def clear_cache
-        @cached_shards = {}
+        cached_shards.clear
       end
 
       # ==== Parameters
@@ -406,15 +411,16 @@ module Switchman
       # takes an id-ish, and returns a local id and the shard it's
       # local to. [nil, nil] if it can't be interpreted. [id, nil]
       # if it's already a local ID
+      NIL_NIL_ID = [nil, nil].freeze
       def local_id_for(any_id)
         id = integral_id_for(any_id)
-        return [nil, nil] unless id
+        return NIL_NIL_ID unless id
         if id < IDS_PER_SHARD
           [id, nil]
         elsif shard = lookup(id / IDS_PER_SHARD)
           [id % IDS_PER_SHARD, shard]
         else
-          [nil, nil]
+          NIL_NIL_ID
         end
       end
 
@@ -477,7 +483,7 @@ module Switchman
       private
       # in-process caching
       def cached_shards
-        @cached_shards ||= {}
+        @cached_shards ||= {}.compare_by_identity
       end
 
       def add_to_cache(shard)
@@ -489,7 +495,7 @@ module Switchman
       end
 
       def active_shards
-        Thread.current[:active_shards] ||= {}
+        Thread.current[:active_shards] ||= {}.compare_by_identity
       end
     end
 
@@ -529,9 +535,11 @@ module Switchman
       Shard.default
     end
 
-    def activate(*categories, &block)
+    def activate(*categories)
       shards = hashify_categories(categories)
-      Shard.activate(shards, &block)
+      Shard.activate(shards) do
+        yield
+      end
     end
 
     # for use from console ONLY
@@ -604,11 +612,6 @@ module Switchman
       local_id + self.id * IDS_PER_SHARD
     end
 
-    def ==(rhs)
-      return true if rhs.is_a?(DefaultShard) && default?
-      super
-    end
-
     # skip global_id.hash
     def hash
       id.hash
@@ -632,9 +635,11 @@ module Switchman
     end
 
     def hashify_categories(categories)
-      categories = categories.flatten
-      categories << :default if categories.empty?
-      Hash[*categories.map{ |category| [category, self] }.flatten]
+      if categories.empty?
+        { :default => self }
+      else
+        categories.inject({}) { |h, category| h[category] = self; h }
+      end
     end
 
   end

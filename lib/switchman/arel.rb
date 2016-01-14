@@ -16,10 +16,10 @@ module Switchman
 
         def visit_Arel_Attributes_Attribute *args
           o = args.first
-          self.last_column = column_for(o) if ::Rails.version < '4.0'
+          self.last_column = column_for(o) if ::Rails.version < '4.0'.freeze
           join_name = o.relation.table_alias || o.relation.name
           result = "#{quote_local_table_name join_name}.#{quote_column_name o.name}"
-          unless ::Rails.version < '4.2'
+          unless ::Rails.version < '4.2'.freeze
             result = args.last << result
           end
           result

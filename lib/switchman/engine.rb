@@ -80,6 +80,7 @@ module Switchman
         require "switchman/active_record/log_subscriber"
         require "switchman/active_record/model_schema"
         require "switchman/active_record/persistence"
+        require "switchman/active_record/predicate_builder"
         require "switchman/active_record/query_cache"
         require "switchman/active_record/query_methods"
         require "switchman/active_record/reflection"
@@ -99,6 +100,7 @@ module Switchman
           ::ActiveRecord::StatementCache::Substitute.send(:attr_accessor, :primary, :sharded)
 
           ::ActiveRecord::Associations::CollectionAssociation.prepend(ActiveRecord::CollectionAssociation)
+          ::ActiveRecord::PredicateBuilder.singleton_class.prepend(ActiveRecord::PredicateBuilder)
         end
 
         ::ActiveRecord::Associations::Association.send(:include, ActiveRecord::Association)

@@ -38,6 +38,15 @@ module Switchman
         expect { @user2.appendages.find(a1.id) }.to raise_exception(::ActiveRecord::RecordNotFound)
       end
 
+      it "should transpose ids correctly when using AR objects as query params" do
+        a1 = @user1.appendages.create!
+
+        expect(Appendage.where(:id => a1.id, :user_id => @user1).first).to eq a1
+        if ::Rails.version >= '4'
+          expect(Appendage.where(:id => a1.id, :user => @user1).first).to eq a1
+        end
+      end
+
       describe "transaction" do
         it "should activate the owner's shard and start the transaction on that shard" do
           base_value = @user1.shard.activate { User.connection.open_transactions }

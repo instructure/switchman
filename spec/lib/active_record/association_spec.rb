@@ -315,6 +315,16 @@ module Switchman
             expect(appendages.map(&:user).sort).to eq [@user1, @user2, user3].sort
           end
 
+          it "should preload nested associations" do
+            u = User.create!
+            a = Appendage.create!(:user => u)
+            d = Digit.create!(:appendage => a)
+
+            u2 = User.where(:id => u).preload(:appendages => :digits).first
+            expect(u2.association(:appendages)).to be_loaded
+            expect(u2.appendages.first.association(:digits)).to be_loaded
+          end
+
           it "should preload belongs_to :through associations across shards" do
             a1 = Appendage.create!(:user => @user1)
             d1 = a1.digits.create!

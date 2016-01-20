@@ -214,6 +214,7 @@ module Switchman
                     migrate.call
                   end
                   reset_column_information
+                  ::ActiveRecord::Base.descendants.reject { |m| m == Shard }.each(&:define_attribute_methods)
                 end
               ensure
                 ::ActiveRecord::Migration.verbose = old_verbose

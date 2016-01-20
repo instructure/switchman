@@ -33,7 +33,8 @@ module Switchman
         CATEGORIES.keys
       end
 
-      def default(reload = false)
+      def default(reload_deprecated = false, reload: false, with_fallback: false)
+        reload = reload_deprecated if reload_deprecated
         if !@default || reload
           # Have to create a dummy object so that several key methods still work
           # (it's easier to do this in one place here, and just assume that sharding
@@ -41,6 +42,12 @@ module Switchman
           # default shard itself. This also needs to be a local so that this method
           # can be re-entrant
           default = DefaultShard.instance
+
+          # if we already have a default shard in place, and the caller wants
+          # to use it as a fallback, use that instead of the dummy instance
+          if with_fallback && @default
+            default = @default
+          end
 
           # the first time we need a dummy dummy for re-entrancy to avoid looping on ourselves
           @default ||= default

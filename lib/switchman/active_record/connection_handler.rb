@@ -99,7 +99,7 @@ module Switchman
         # we're in the middle of switching environments, and we don't want to
         # establish a connection with incorrect settings
         if (model == ::ActiveRecord::Base || model == Shard) && self == ::ActiveRecord::Base.connection_handler && !first_time
-          Shard.default(true) unless first_time
+          Shard.default(reload: true, with_fallback: true)
           proxy.disconnect!
         end
 

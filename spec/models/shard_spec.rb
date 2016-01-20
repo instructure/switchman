@@ -453,5 +453,75 @@ module Switchman
         end
       end
     end
+
+    describe ".default" do
+
+      after(:each) do
+        Shard.unstub(:where)
+        Shard.default(reload: true)
+      end
+
+      it "returns the cached value if default is already set" do
+        Shard.instance_variable_set(:@default, DefaultShard.instance)
+        expect(Shard.default).to eq(DefaultShard.instance)
+      end
+
+      it "loads a default value if cached value is nil" do
+        Shard.instance_variable_set(:@default, nil)
+        expect(Shard.default).to be_a(Switchman::Shard)
+      end
+
+      it "reloads the default shard even when it's set when the reload arg present" do
+        Shard.instance_variable_set(:@default, DefaultShard.instance)
+        expect(Shard.default(true)).to be_a(Switchman::Shard)
+      end
+
+      context "when using reload with_fallback" do
+        it "replaces DefaultShard instance if cached" do
+          Shard.instance_variable_set(:@default, DefaultShard.instance)
+          expect(Shard.default(reload: true, with_fallback: true)).to be_a(Switchman::Shard)
+        end
+
+        it "replaces a Shard instance if replacement query successful" do
+          non_default = Shard.where(default: false).first
+          actual_default = Shard.where(default:true).first
+          expect(non_default).to_not be(nil)
+          expect(actual_default).to_not be(nil)
+          Shard.instance_variable_set(:@default, non_default)
+          Shard.stubs(:where).with(default: true).returns([actual_default])
+          new_default = Shard.default(reload: true, with_fallback: true)
+          expect(new_default).to eq(actual_default)
+        end
+
+        it "uses the default shard instance when fallback is off" do
+          non_default = Shard.where(default: false).first
+          actual_default = Shard.where(default:true).first
+          Shard.instance_variable_set(:@default, non_default)
+          Shard.stubs(:where).with(default: true).raises(PG::UnableToSend)
+          new_default = Shard.default(reload: true, with_fallback: false)
+          expect(new_default).to eq(DefaultShard.instance)
+        end
+
+        it "falls back to existing default shard if replacement query fails" do
+          non_default = Shard.where(default: false).first
+          Shard.instance_variable_set(:@default, non_default)
+          Shard.stubs(:where).with(default: true).raises(PG::UnableToSend)
+          new_default = Shard.default(reload: true, with_fallback: true)
+          expect(new_default).to eq(non_default)
+        end
+
+        it "respects a false reload even with fallback" do
+          Shard.instance_variable_set(:@default, DefaultShard.instance)
+          expect(Shard.default(reload: false, with_fallback: true)).to eq(DefaultShard.instance)
+        end
+
+        it "uses the original positional parameter if provided (will go away ultimately, remove this spec then)" do
+          Shard.instance_variable_set(:@default, DefaultShard.instance)
+          expect(Shard.default(true, reload: false, with_fallback: false)).to be_a(Switchman::Shard)
+        end
+      end
+
+    end
+
   end
 end

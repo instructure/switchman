@@ -103,6 +103,10 @@ module Switchman
           ::ActiveRecord::PredicateBuilder.singleton_class.prepend(ActiveRecord::PredicateBuilder)
         end
 
+        if ::Rails.version > '4.1'
+          prepend(ActiveRecord::AutosaveAssociation)
+        end
+
         ::ActiveRecord::Associations::Association.send(:include, ActiveRecord::Association)
         ::ActiveRecord::Associations::BelongsToAssociation.send(:include, ActiveRecord::BelongsToAssociation)
         ::ActiveRecord::Associations::CollectionProxy.send(:include, ActiveRecord::CollectionProxy)

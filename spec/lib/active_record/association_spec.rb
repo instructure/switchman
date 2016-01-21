@@ -444,6 +444,17 @@ module Switchman
           end
         end
       end
+
+      it "shouldn't break cross-shard has_one associations when autosaving" do
+        face = Face.new
+        face.user = @user1
+        face.save!
+        expect(face.user_id).to eq @user1.id # global id
+
+        @user1.save!
+        face.reload
+        expect(face.user_id).to eq @user1.id # shouldn't change face's id to be @user1's local id in rails 4.2
+      end
     end
   end
 end

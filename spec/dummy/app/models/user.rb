@@ -12,6 +12,8 @@ class User < ActiveRecord::Base
 
   belongs_to :mirror_user
 
+  has_one :face
+
   attr_writer :associated_shards
   class << self
     attr_accessor :associated_shards_map

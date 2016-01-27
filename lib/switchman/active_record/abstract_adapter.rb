@@ -16,12 +16,6 @@ module Switchman
         @last_query_at = Time.now
       end
 
-      def log(*args, &block)
-        super
-      ensure
-        @last_query_at = Time.now
-      end
-
       def quote_local_table_name(name)
         quote_table_name(name)
       end
@@ -32,6 +26,14 @@ module Switchman
           migrated = select_values("SELECT version FROM #{quote_table_name(sm_table)} ORDER BY version")
           migrated.map { |v| "INSERT INTO #{quote_table_name(sm_table)} (version) VALUES ('#{v}');" }.join("\n\n")
         end
+      end
+
+      protected
+
+      def log(*args, &block)
+        super
+      ensure
+        @last_query_at = Time.now
       end
     end
   end

@@ -20,14 +20,6 @@ module Switchman
         quote_table_name(name)
       end
 
-      if ::Rails.version < '4'
-        def dump_schema_information #:nodoc:
-          sm_table = ::ActiveRecord::Migrator.schema_migrations_table_name
-          migrated = select_values("SELECT version FROM #{quote_table_name(sm_table)} ORDER BY version")
-          migrated.map { |v| "INSERT INTO #{quote_table_name(sm_table)} (version) VALUES ('#{v}');" }.join("\n\n")
-        end
-      end
-
       protected
 
       def log(*args, &block)

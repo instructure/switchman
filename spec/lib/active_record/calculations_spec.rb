@@ -57,8 +57,6 @@ module Switchman
         end
 
         it "should work with multi-column plucking" do
-          skip "Rails 4 specific" if ::Rails.version < '4'
-
           expect(Appendage.where(:id => @appendage1).pluck(:id, :user_id)).to eq [[@appendage1.global_id, @user1.global_id]]
           expect(Appendage.where(:id => @appendage2).pluck(:id, :user_id)).to eq [[@appendage2.global_id, @user2.global_id]]
           @shard1.activate do

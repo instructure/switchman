@@ -12,27 +12,23 @@ module Switchman
       #                  for foreign key transposition
       #   :to_a        - a special value that Relation#to_a uses when querying multiple shards to
       #                  remove primary keys from conditions that aren't applicable to the current shard
-      if ::Rails.version < '4'.freeze
-        attr_accessor :shard_value, :shard_source_value
-      else
-        def shard_value
-          @values[:shard]
-        end
-        def shard_source_value
-          @values[:shard_source]
-        end
-        def shard_value=(value)
-          raise ImmutableRelation if @loaded
-          @values[:shard] = value
-        end
-        def shard_source_value=(value)
-          raise ImmutableRelation if @loaded
-          @values[:shard_source] = value
-        end
+      def shard_value
+        @values[:shard]
+      end
+      def shard_source_value
+        @values[:shard_source]
+      end
+      def shard_value=(value)
+        raise ImmutableRelation if @loaded
+        @values[:shard] = value
+      end
+      def shard_source_value=(value)
+        raise ImmutableRelation if @loaded
+        @values[:shard_source] = value
       end
 
       def shard(value, source = :explicit)
-        (::Rails.version < '4'.freeze ? clone : spawn).shard!(value, source)
+        spawn.shard!(value, source)
       end
 
       def shard!(value, source = :explicit)
@@ -45,27 +41,6 @@ module Switchman
           self.having_values = transpose_predicates(having_values, primary_shard, self.primary_shard, source == :to_a) if !having_values.empty?
         end
         self
-      end
-
-      if ::Rails.version < '4'
-        # replace these with versions that call build_where on the
-        # result relation, not the source relation (so build_where
-        # is able to implicitly change the shard_value)
-        def where(opts, *rest)
-          return self if opts.blank?
-
-          relation = clone
-          relation.where_values += relation.build_where(opts, rest)
-          relation
-        end
-
-        def having(opts, *rest)
-          return self if opts.blank?
-
-          relation = clone
-          relation.having_values += relation.build_where(opts, rest)
-          relation
-        end
       end
 
       def build_where(opts, other = [])

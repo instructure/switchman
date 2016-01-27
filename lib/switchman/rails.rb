@@ -14,6 +14,6 @@ module Switchman::Rails
     # that that's done (the bootstrap happened before this module is included
     # into Rails), we want to make sure no one tries to assign to Rails.cache,
     # because it would be wrong w.r.t. sharding.
-    klass.singleton_class.send(:remove_method, :cache=) if ::Rails.version >= '4'
+    klass.singleton_class.send(:remove_method, :cache=)
   end
 end

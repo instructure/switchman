@@ -113,8 +113,7 @@ module Switchman
           end
         end
       end
-      klass = ::Rails.version < '4' ? ::ActiveRecord::Base : ::ActiveRecord::ConnectionAdapters
-      spec = klass::ConnectionSpecification.new(config, "#{config[:adapter]}_connection")
+      spec = ::ActiveRecord::ConnectionAdapters::ConnectionSpecification.new(config, "#{config[:adapter]}_connection")
       # unfortunately the AR code that does this require logic can't really be
       # called in isolation
       require "active_record/connection_adapters/#{config[:adapter]}_adapter"

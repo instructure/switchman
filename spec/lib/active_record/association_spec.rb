@@ -25,8 +25,7 @@ module Switchman
       end
 
       it "should set shard value to parent for association scope" do
-        scope = @user1.appendages
-        scope = ::Rails.version < '4' ? scope.scoped : scope.scope
+        scope = @user1.appendages.scope
         expect(scope.shard_value).to eq @user1
         expect(scope.shard_source_value).to eq :association
       end
@@ -42,9 +41,7 @@ module Switchman
         a1 = @user1.appendages.create!
 
         expect(Appendage.where(:id => a1.id, :user_id => @user1).first).to eq a1
-        if ::Rails.version >= '4'
-          expect(Appendage.where(:id => a1.id, :user => @user1).first).to eq a1
-        end
+        expect(Appendage.where(:id => a1.id, :user => @user1).first).to eq a1
       end
 
       describe "transaction" do
@@ -77,11 +74,7 @@ module Switchman
         d1 = a1.digits.create!
         expect(d1.shard).to eq @shard1
 
-        if ::Rails.version < '4'
-          expect(@user1.digits.scoped.shard_value).to eq @user1
-        else
-          expect(@user1.digits.scope.shard_value).to eq @user1
-        end
+        expect(@user1.digits.scope.shard_value).to eq @user1
         expect(@user1.digits.find(d1.id)).to eq d1
       end
 
@@ -99,11 +92,7 @@ module Switchman
 
         expect(shadow_digit.shard).to eq @shard1
 
-        if ::Rails.version < '4'
-          expect(@user1.digits.scoped.shard_value).to eq @user1
-        else
-          expect(@user1.digits.scope.shard_value).to eq @user1
-        end
+        expect(@user1.digits.scope.shard_value).to eq @user1
         expect(@user1.digits.find(shadow_digit.id)).to eq shadow_digit
       end
 
@@ -152,15 +141,10 @@ module Switchman
       it "should properly set up a cross-shard-category query" do
         @shard1.activate(:mirror_universe) do
           mirror_user = MirrorUser.create!
-          relation = mirror_user.association(:user)
-          relation = ::Rails.version < '4' ? relation.scoped : relation.scope
+          relation = mirror_user.association(:user).scope
           expect(relation.shard_value).to eq Shard.default
-          if ::Rails.version < '4'
-            expect(relation.where_values.first.right).to eq mirror_user.global_id
-          else
-            expect(relation.where_values.first.right).to be_a(::Arel::Nodes::BindParam)
-            expect(relation.bind_values.map(&:last)).to eq [mirror_user.global_id]
-          end
+          expect(relation.where_values.first.right).to be_a(::Arel::Nodes::BindParam)
+          expect(relation.bind_values.map(&:last)).to eq [mirror_user.global_id]
         end
       end
 

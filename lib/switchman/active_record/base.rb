@@ -2,11 +2,7 @@ module Switchman
   module ActiveRecord
     module Base
       module ClassMethods
-        if ::Rails.version < '4'
-          delegate :shard, to: :scoped
-        else
-          delegate :shard, to: :all
-        end
+        delegate :shard, to: :all
 
         def shard_category
           @shard_category || (self.superclass < ::ActiveRecord::Base && self.superclass.shard_category) || :default
@@ -85,14 +81,8 @@ module Switchman
         end
       end
 
-      if ::Rails.version < '4'
-        def scope_class
-          self.class
-        end
-      else
-        def scope_class
-          self.class.base_class
-        end
+      def scope_class
+        self.class.base_class
       end
 
       def save(*args)

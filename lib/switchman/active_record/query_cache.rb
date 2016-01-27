@@ -51,7 +51,7 @@ module Switchman
 
       def select_all(arel, name = nil, binds = [])
         if self.query_cache_enabled && !locked?(arel)
-          arel, binds = binds_from_relation(arel, binds) unless ::Rails.version < '4'.freeze
+          arel, binds = binds_from_relation(arel, binds)
           sql = to_sql(arel, binds)
           cache_sql(sql, binds) { super(sql, name, binds) }
         else

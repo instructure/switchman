@@ -17,7 +17,7 @@ module Switchman
     private_constant :CATEGORIES
     @shard_category = :unsharded
 
-    if ::Rails.version < '4' || defined?(::ProtectedAttributes)
+    if defined?(::ProtectedAttributes)
       attr_accessible :default, :name, :database_server
     end
 
@@ -115,12 +115,8 @@ module Switchman
               nil
             else
               shard = Shard.new
-              if ::Rails.version < '4'
-                shard.assign_attributes(attributes, :without_protection => true)
-              else
-                attributes.each do |attr, value|
-                  shard.send(:"#{attr}=", value)
-                end
+              attributes.each do |attr, value|
+                shard.send(:"#{attr}=", value)
               end
               shard.instance_variable_set(:@new_record, false)
               # connection info doesn't exist in database.yml;
@@ -176,7 +172,7 @@ module Switchman
                    end
         options.delete(:parallel)
 
-        scope ||= ::Rails.version < '4' ? Shard.scoped : Shard.all
+        scope ||= Shard.all
         if ::ActiveRecord::Relation === scope && scope.order_values.empty?
           scope = scope.order("database_server_id IS NOT NULL, database_server_id, id")
         end

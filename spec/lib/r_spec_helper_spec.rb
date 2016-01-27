@@ -48,32 +48,9 @@ module Switchman
     context "transactions" do
       include RSpecHelper
 
-      def begin_transaction(conn)
-        if ::Rails.version < '4'
-          conn.transaction_joinable = false
-          conn.begin_db_transaction
-          conn.increment_open_transactions
-        else
-          conn.begin_transaction joinable: false
-        end
-      end
-
-      def rollback_transaction(conn)
-        if ::Rails.version < '4'
-          conn.decrement_open_transactions
-          if conn.open_transactions == 0
-            conn.rollback_db_transaction
-          else
-            conn.rollback_to_savepoint
-          end
-        else
-          conn.rollback_transaction
-        end
-      end
-
       before :all do
         @shard2.activate do
-          begin_transaction(::ActiveRecord::Base.connection)
+          ::ActiveRecord::Base.connection.begin_transaction(joinable: false)
           User.create!
         end
       end
@@ -92,7 +69,7 @@ module Switchman
           expect(User.count).to eq 1
           conn = ::ActiveRecord::Base.connection
           expect(conn.open_transactions).to eql 1 # RSpecHelper shouldn't have rolled back the before :all one above
-          rollback_transaction(::ActiveRecord::Base.connection)
+          ::ActiveRecord::Base.connection.rollback_transaction
         end
       end
     end

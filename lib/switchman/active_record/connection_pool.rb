@@ -54,11 +54,9 @@ module Switchman
               false
             end
           end
-          if ::Rails.version >= '4'
-            @available.clear
-            @connections.each do |conn|
-              @available.add conn
-            end
+          @available.clear
+          @connections.each do |conn|
+            @available.add conn
           end
         end
       end

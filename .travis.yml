@@ -3,16 +3,12 @@ language: ruby
 rvm:
   - 2.1.7
   - 2.2.3
+  - 2.3.0
 
 gemfile:
-  - gemfiles/activerecord_3.2.gemfile
   - gemfiles/activerecord_4.0.gemfile
   - gemfiles/activerecord_4.1.gemfile
-
-matrix:
-  exclude:
-    - rvm: 2.2.3
-      gemfile: gemfiles/activerecord_3.2.gemfile
+  - gemfiles/activerecord_4.2.gemfile
 
 script: bundle exec rake spec
 

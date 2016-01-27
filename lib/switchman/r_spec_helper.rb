@@ -126,20 +126,7 @@ module Switchman
           shards << @shard1 unless @shard1.database_server == Shard.default.database_server
           shards.each do |shard|
             shard.activate do
-              # this is how AR does it in database_statements.rb
-              if ::Rails.version < '4'
-                conn = ::ActiveRecord::Base.connection
-                # support nested transactions around (groups of) specs (e.g. for once-ler)
-                if conn.open_transactions == 0
-                  conn.transaction_joinable = false
-                  conn.begin_db_transaction
-                else
-                  conn.create_savepoint
-                end
-                conn.increment_open_transactions
-              else
-                ::ActiveRecord::Base.connection.begin_transaction joinable: false
-              end
+              ::ActiveRecord::Base.connection.begin_transaction joinable: false
             end
           end
         end
@@ -152,19 +139,7 @@ module Switchman
           shards << @shard1 unless @shard1.database_server == Shard.default.database_server
           shards.each do |shard|
             shard.activate do
-              if ::Rails.version < '4'
-                conn = ::ActiveRecord::Base.connection
-                if conn.open_transactions > 0
-                  conn.decrement_open_transactions
-                  if conn.open_transactions == 0
-                    conn.rollback_db_transaction
-                  else
-                    conn.rollback_to_savepoint
-                  end
-                end
-              else
-                ::ActiveRecord::Base.connection.rollback_transaction if ::ActiveRecord::Base.connection.transaction_open?
-              end
+              ::ActiveRecord::Base.connection.rollback_transaction if ::ActiveRecord::Base.connection.transaction_open?
             end
           end
         end

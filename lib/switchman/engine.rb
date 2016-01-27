@@ -57,11 +57,7 @@ module Switchman
       # Rails.cache will be overridden to pull appropriate values from the
       # cache map, but between now and then, Rails.cache should return the
       # Rails.env entry in the cache map.
-      if ::Rails.version < '4'
-        silence_warnings { Object.const_set "RAILS_CACHE", Switchman.config[:cache_map][::Rails.env] }
-      else
-        ::Rails.cache = Switchman.config[:cache_map][::Rails.env]
-      end
+      ::Rails.cache = Switchman.config[:cache_map][::Rails.env]
 
       require "switchman/rails"
       ::Rails.send(:include, Rails)

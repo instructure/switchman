@@ -31,22 +31,22 @@ module Switchman
         end
 
         it "should be the default shard if it's a scope of Shard" do
-          expect(User.shard(::Rails.version < '4' ? Shard.scoped : Shard.all).primary_shard).to eq Shard.default
+          expect(User.shard(Shard.all).primary_shard).to eq Shard.default
           @shard1.activate do
-            expect(User.shard(::Rails.version < '4' ? Shard.scoped : Shard.all).primary_shard).to eq Shard.default
+            expect(User.shard(Shard.all).primary_shard).to eq Shard.default
           end
         end
       end
 
       it "should default to the current shard" do
-        relation = ::Rails.version < '4' ? User.scoped : User.all
+        relation = User.all
         expect(relation.shard_value).to eq Shard.default
         expect(relation.shard_source_value).to eq :implicit
 
         @shard1.activate do
           expect(relation.shard_value).to eq Shard.default
 
-          relation = ::Rails.version < '4' ? User.scoped : User.all
+          relation = User.all
           expect(relation.shard_value).to eq @shard1
           expect(relation.shard_source_value).to eq :implicit
         end
@@ -145,8 +145,7 @@ module Switchman
           grandchild = child.children.create!
           expect(child.reload.parent).to eq @user1
 
-          relation = @user1.association(:grandchildren)
-          relation = ::Rails.version < '4' ? relation.scoped : relation.scope
+          relation = @user1.association(:grandchildren).scope
 
           attribute = relation.where_values.first.left
           expect(attribute.name.to_s).to eq 'parent_id'

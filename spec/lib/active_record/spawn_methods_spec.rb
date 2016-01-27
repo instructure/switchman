@@ -20,21 +20,21 @@ module Switchman
         end
 
         it "should ignore implicit shard value lhs" do
-          scope = ::Rails.version < '4' ? User.scoped : User.all
+          scope = User.all
           result = scope.merge(User.shard(@shard1))
           expect(result.shard_value).to eq @shard1
           expect(result.shard_source_value).to eq :explicit
         end
 
         it "should ignore implicit shard value rhs" do
-          result = User.shard(@shard1).merge(::Rails.version < '4' ? User.scoped : User.all)
+          result = User.shard(@shard1).merge(User.all)
           expect(result.shard_value).to eq @shard1
           expect(result.shard_source_value).to eq :explicit
         end
 
         it "should take lhs shard_value for double implicit" do
-          scope1 = @shard2.activate { ::Rails.version < '4' ? User.scoped : User.all }
-          result = scope1.merge(::Rails.version < '4' ? User.scoped : User.all)
+          scope1 = @shard2.activate { User.all }
+          result = scope1.merge(User.all)
           expect(result.shard_value).to eq @shard2
           expect(result.shard_source_value).to eq :implicit
         end

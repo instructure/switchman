@@ -50,7 +50,7 @@ module Switchman
 
         it "should work for a multi-shard scope" do
           user2 = @shard2.activate { User.create!(name: "multi-shard exists") }
-          expect(User.where(name: "multi-shard exists").shard(::Rails.version < '4' ? Shard.scoped : Shard.all).exists?).to eq true
+          expect(User.where(name: "multi-shard exists").shard(Shard.all).exists?).to eq true
         end
       end
     end

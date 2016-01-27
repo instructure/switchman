@@ -118,13 +118,11 @@ module Switchman
         klass.attribute_method_prefix "global_", "local_", "original_"
       end
       
-      unless ::Rails.version < '4'
-        # ensure that we're using the sharded attribute method
-        # and not the silly one in AR::AttributeMethods::PrimaryKey
-        def id
-          self.class.define_attribute_methods
-          super
-        end
+      # ensure that we're using the sharded attribute method
+      # and not the silly one in AR::AttributeMethods::PrimaryKey
+      def id
+        self.class.define_attribute_methods
+        super
       end
     end
   end

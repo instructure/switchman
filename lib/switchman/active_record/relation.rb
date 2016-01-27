@@ -8,7 +8,7 @@ module Switchman
           klass.alias_method_chain(method, :deshackles)
         end
 
-        %w{initialize explain to_a update_all delete_all new create create!}.each do |method|
+        %w{initialize clone explain to_a update_all delete_all new create create!}.each do |method|
           klass.alias_method_chain(method, :sharding)
         end
       end
@@ -17,6 +17,12 @@ module Switchman
         initialize_without_sharding(*args)
         self.shard_value = Shard.current(klass.respond_to?(:shard_category) ? klass.shard_category : :default) unless shard_value
         self.shard_source_value = :implicit unless shard_source_value
+      end
+
+      def clone_with_sharding
+        result = clone_without_sharding
+        result.shard_value = Shard.current(klass.respond_to?(:shard_category) ? klass.shard_category : :default) unless shard_value
+        result
       end
 
       def merge(*args)

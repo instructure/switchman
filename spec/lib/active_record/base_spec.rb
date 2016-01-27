@@ -102,6 +102,29 @@ module Switchman
           end
         end
       end
+
+      describe ".unscoped" do
+        it "doesn't capture the shard permanently (block form)" do
+          @shard1.activate do
+            User.unscoped do
+              Shard.default.activate do
+                expect(User.all.shard_value).to eq Shard.default
+              end
+            end
+          end
+        end
+
+        it "doesn't capture the shard permanently" do
+          @shard1.activate do
+            scope = User.unscoped
+            scope.scoping do
+              Shard.default.activate do
+                expect(User.all.shard_value).to eq Shard.default
+              end
+            end
+          end
+        end
+      end
     end
   end
 end

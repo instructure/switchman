@@ -42,6 +42,15 @@ module Switchman
           expect(u.local_id).to eq 1
         end
       end
+
+      describe "#clone" do
+        it "sets the shard_value that was previously nil" do
+          scope = User.all
+          scope.shard_value = nil
+          scope = scope.clone
+          expect(scope.shard_value).to eq Shard.current
+        end
+      end
     end
   end
 end

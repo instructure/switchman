@@ -52,6 +52,19 @@ module Switchman
           @sharded_column_values = {}
           super
         end
+
+        def unscoped
+          if block_given?
+            super do
+              current_scope.shard_value = nil
+              yield
+            end
+          else
+            result = super
+            result.shard_value = nil
+            result
+          end
+        end
       end
 
       def self.included(klass)

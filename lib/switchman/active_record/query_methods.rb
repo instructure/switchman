@@ -82,6 +82,8 @@ module Switchman
           [shard_value]
         when ::ActiveRecord::Base
           shard_value.respond_to?(:associated_shards) ? shard_value.associated_shards : [shard_value.shard]
+        when nil
+          [Shard.current(klass.respond_to?(:shard_category) ? klass.shard_category : default)]
         else
           shard_value
         end

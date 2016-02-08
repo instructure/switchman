@@ -13,7 +13,7 @@ module Switchman
       end
 
       def shard_scope(shard_ids)
-        Rake.send(:shard_scope, Shard.all, shard_ids)
+        Rake.send(:shard_scope, Shard.all, shard_ids).order(:id)
       end
 
       it "should work for default shard" do

@@ -5,16 +5,22 @@ module Switchman
       @filter_database_servers_chain = lambda { |servers| block.call(servers, chain) }
     end
 
-    def self.scope(base_scope = Shard)
+    def self.scope(base_scope = Shard,
+      database_server: ENV['DATABASE_SERVER'],
+      shard: ENV['SHARDS'])
       servers = DatabaseServer.all
 
-      if ENV['DATABASE_SERVER']
-        servers = ENV['DATABASE_SERVER']
+      if database_server
+        servers = database_server
         if servers.first == '-'
           negative = true
           servers = servers[1..-1]
         end
-        servers = servers.split(',').map { |server| DatabaseServer.find(server) }.compact
+        servers = servers.split(',')
+        open = servers.delete('open')
+
+        servers = servers.map { |server| DatabaseServer.find(server) }.compact
+        servers.concat(DatabaseServer.all.select { |server| server.config[:open] }) if open
         servers = DatabaseServer.all - servers if negative
       end
 
@@ -27,8 +33,8 @@ module Switchman
         scope = scope.where(conditions)
       end
 
-      if ENV['SHARD']
-        scope = shard_scope(scope, ENV['SHARD'])
+      if shard
+        scope = shard_scope(scope, shard)
       end
 
       scope

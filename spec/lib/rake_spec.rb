@@ -88,5 +88,13 @@ module Switchman
         expect(shard_scope("7/7").to_a).to eq []
       end
     end
+
+    describe '.scope' do
+      it "supports selecting open servers" do
+        db = DatabaseServer.create(config: { open: true })
+        shard = db.shards.create!
+        expect(Rake.scope(database_server: 'open').to_a).to eq([shard])
+      end
+    end
   end
 end

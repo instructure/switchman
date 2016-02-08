@@ -30,6 +30,7 @@ module Switchman
           shard.stubs(:name).returns('bob')
           ::ActiveRecord::Base.connection.stubs(:use_qualified_names?).returns(true)
           ::ActiveRecord::Base.connection.stubs(:shard).returns(shard)
+          ::ActiveRecord::Base.connection.stubs(:columns).returns([])
 
           expect(User.joins(:parent).where(id: 1).to_sql).to be_include %{* FROM "bob"."users" INNER JOIN "bob"."users" "parents_users" ON "parents_users"."id" = "users"."parent_id" WHERE "users"."id" = 1}
         end

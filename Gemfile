@@ -10,6 +10,5 @@ gem 'mocha', :require => false
 
 group :development do
   gem 'appraisal'
-  gem 'debugger', platform: :mri_19
-  gem 'byebug', platform: [:mri_20, :mri_21, :mri_22]
+  gem 'byebug'
 end

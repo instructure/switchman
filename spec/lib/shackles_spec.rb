@@ -40,7 +40,7 @@ module Switchman
     it "should connect to the first working slave" do
       # have to unstub long enough to create this
       ::Rails.env.unstub(:test?)
-      ds = DatabaseServer.create(config: Shard.default.database_server.config.merge(
+      ds = DatabaseServer.create(Shard.default.database_server.config.merge(
         :slave => [{ host: 'some.postgres.server' }, nil]))
       ::Rails.env.stubs(:test?).returns(false)
       ds.shackle!
@@ -86,7 +86,7 @@ module Switchman
         Shard.default.database_server.shackle!
         # have to unstub long enough to create this
         ::Rails.env.unstub(:test?)
-        ds = DatabaseServer.create(config: { adapter: 'postgresql', host: 'notshackled', slave: { host: 'shackled' }})
+        ds = DatabaseServer.create(adapter: 'postgresql', host: 'notshackled', slave: { host: 'shackled' })
         ::Rails.env.stubs(:test?).returns(false)
         s = ds.shards.create!
         s.activate do

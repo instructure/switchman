@@ -6,7 +6,7 @@ module Switchman
       it "should be able to access another shard on a db server after the 'primary' shard is gone" do
         skip 'A "real" database"' unless Shard.default.database_server.shareable?
         # separate connections
-        server = DatabaseServer.create(:config => Shard.default.database_server.config.dup)
+        server = DatabaseServer.create(Shard.default.database_server.config)
         s1 = server.shards.create!(:name => 'non_existent_shard') # don't actually create any schema
         s2 = server.shards.create! # inherit's the default shard's config, which is functional
         s1.activate do
@@ -22,7 +22,7 @@ module Switchman
       describe "clear_idle_connections!" do
         before do
           skip 'A "real" database"' unless Shard.default.database_server.shareable?
-          @server = DatabaseServer.create(:config => Shard.default.database_server.config.dup)
+          @server = DatabaseServer.create(Shard.default.database_server.config)
           @shard = @server.shards.create!
           @conn, @pool = @shard.activate{ [User.connection, User.connection_pool.current_pool] }
         end
@@ -56,7 +56,7 @@ module Switchman
       describe "release_connection" do
         before do
           skip 'A "real" database"' unless Shard.default.database_server.shareable?
-          @server = DatabaseServer.create(:config => Shard.default.database_server.config.dup)
+          @server = DatabaseServer.create(Shard.default.database_server.config)
           @shard = @server.shards.create!
           @pool = @shard.activate{ User.connection_pool.current_pool }
           @timeout_was = @pool.spec.config[:idle_timeout]

@@ -15,9 +15,13 @@ module Switchman
 
       def create(settings = {})
         raise "database servers should be set up in database.yml" unless ::Rails.env.test?
-        @id ||= 0
-        @id += 1
-        server = DatabaseServer.new({ :id => @id.to_s }.merge(settings))
+        id = settings[:id]
+        if !id
+          @id ||= 0
+          @id += 1
+          id = @id
+        end
+        server = DatabaseServer.new(id.to_s, settings)
         server.instance_variable_set(:@fake, true)
         database_servers[server.id] = server
       end
@@ -33,16 +37,16 @@ module Switchman
         unless @database_servers
           @database_servers = {}.with_indifferent_access
           ::ActiveRecord::Base.configurations.each do |(id, config)|
-            @database_servers[id] = DatabaseServer.new(:id => id, :config => config)
+            @database_servers[id] = DatabaseServer.new(id, config)
           end
         end
         @database_servers
       end
     end
 
-    def initialize(settings = {})
-      @id = settings[:id]
-      @config = (settings[:config] || {}).deep_symbolize_keys
+    def initialize(id = nil, config = {})
+      @id = id
+      @config = config.deep_symbolize_keys
       @configs = {}
     end
 

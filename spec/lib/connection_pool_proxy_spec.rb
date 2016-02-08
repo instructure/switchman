@@ -5,7 +5,7 @@ module Switchman
     include RSpecHelper
 
     it "should not share connections for sqlite shards on the same db" do
-      @db = DatabaseServer.create(:config => { :adapter => 'sqlite3', :database => ':memory:' })
+      @db = DatabaseServer.create(adapter: 'sqlite3', database: ':memory:')
       @sqlite_shard1 = @db.shards.create!
       @sqlite_shard2 = @db.shards.create!
       expect(::ActiveRecord::Base.connection).not_to eq @sqlite_shard2.activate { ::ActiveRecord::Base.connection }

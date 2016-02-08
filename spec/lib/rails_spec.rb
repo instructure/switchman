@@ -5,7 +5,7 @@ module Switchman
     it "should automatically isolate cache keys from different shards" do
       cache = ::ActiveSupport::Cache.lookup_store(:memory_store)
       ::Rails.stubs(:cache).returns(cache)
-      db = DatabaseServer.create(:settings => { :adapter => 'sqlite3' })
+      db = DatabaseServer.create(adapter: 'sqlite3')
       s1 = db.shards.create!
       s2 = db.shards.create!
 

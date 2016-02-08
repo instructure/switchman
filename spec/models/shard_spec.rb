@@ -27,7 +27,7 @@ module Switchman
 
     describe ".destroy" do
       it "works on created shards" do
-        server = DatabaseServer.create(:config => Shard.default.database_server.config)
+        server = DatabaseServer.create(Shard.default.database_server.config)
         shard = server.create_new_shard
         expect{ shard.destroy }.to_not raise_error
         expect(Shard.where(id: shard.id)).to be_empty
@@ -83,7 +83,7 @@ module Switchman
     describe "#drop_database" do
       it "should work" do
         # use a separate connection so we don't commit the transaction
-        server = DatabaseServer.create(:config => Shard.default.database_server.config)
+        server = DatabaseServer.create(Shard.default.database_server.config)
         shard = server.create_new_shard
         shard.activate do
           User.create!
@@ -279,19 +279,19 @@ module Switchman
       end
 
       it "should fall back to shard_name in the config if nil" do
-        db = DatabaseServer.new(config: { adapter: 'mysql', database: 'canvas', shard_name: 'yoyoyo' })
+        db = DatabaseServer.new(nil, adapter: 'mysql', database: 'canvas', shard_name: 'yoyoyo')
         shard = Shard.new(database_server: db)
         expect(shard.name).to eq 'yoyoyo'
       end
 
       it "should fall back to the database_server if nil" do
-        db = DatabaseServer.new(config: { adapter: 'mysql', database: 'canvas' })
+        db = DatabaseServer.new(nil, adapter: 'mysql', database: 'canvas')
         shard = Shard.new(database_server: db)
         expect(shard.name).to eq 'canvas'
       end
 
       it "should get it from the postgres connection if not otherwise specified" do
-        db = DatabaseServer.create(config: { adapter: 'postgresql', database: 'notme' })
+        db = DatabaseServer.create(adapter: 'postgresql', database: 'notme')
         shard = Shard.new(database_server: db)
         shard.database_server = db
         connection = mock()

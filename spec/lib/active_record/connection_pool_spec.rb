@@ -10,12 +10,12 @@ module Switchman
         s1 = server.shards.create!(:name => 'non_existent_shard') # don't actually create any schema
         s2 = server.shards.create! # inherit's the default shard's config, which is functional
         s1.activate do
-          expect { User.count }.to raise_exception
+          expect { User.count }.to raise_error(::ActiveRecord::StatementInvalid)
         end
         # the config for s1 should not be the permanent default for all new
         # connections now
         s2.activate do
-          expect { User.count }.not_to raise_exception
+          expect { User.count }.not_to raise_error
         end
       end
 

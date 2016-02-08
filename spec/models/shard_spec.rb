@@ -35,7 +35,7 @@ module Switchman
 
       it "fails on the default shard" do
         shard = Shard.default
-        expect{ shard.destroy }.to raise_error
+        expect{ shard.destroy }.to raise_error("Cannot destroy the default shard")
       end
     end
 
@@ -91,12 +91,12 @@ module Switchman
         end
         shard.drop_database
         shard.activate do
-          expect { User.count }.to raise_error
+          expect { User.count }.to raise_error(::ActiveRecord::StatementInvalid)
         end
       end
 
       it "raises an exception if the shard is the default shard" do
-        expect{ Shard.default.drop_database }.to raise_error
+        expect{ Shard.default.drop_database }.to raise_error("Cannot drop the database of the default shard")
       end
     end
 
@@ -123,7 +123,7 @@ module Switchman
     describe ".with_each_shard" do
       describe ":exception" do
         it "should default to :raise" do
-          expect { Shard.with_each_shard { raise "error" } }.to raise_error
+          expect { Shard.with_each_shard { raise "error" } }.to raise_error("error")
         end
 
         it "should :ignore" do
@@ -132,7 +132,7 @@ module Switchman
 
         it "should :defer" do
           counter = 0
-          expect { Shard.with_each_shard(exception: :defer) { counter += 1; raise "error" } }.to raise_error
+          expect { Shard.with_each_shard(exception: :defer) { counter += 1; raise "error" } }.to raise_error("error")
           # called more than once
           expect(counter).to be > 1
         end

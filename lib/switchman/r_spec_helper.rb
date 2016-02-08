@@ -1,4 +1,4 @@
-require_dependency "switchman/test_helper"
+require "switchman/test_helper"
 
 module Switchman
   # including this module in your specs will give you several shards to

@@ -1,4 +1,4 @@
-require_dependency 'switchman/database_server'
+require 'switchman/database_server'
 
 module Switchman
   class DefaultShard

@@ -1,6 +1,6 @@
-require_dependency 'switchman/database_server'
-require_dependency 'switchman/default_shard'
-require_dependency 'switchman/environment'
+require 'switchman/database_server'
+require 'switchman/default_shard'
+require 'switchman/environment'
 
 module Switchman
   class Shard < ::ActiveRecord::Base

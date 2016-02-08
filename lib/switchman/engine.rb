@@ -189,12 +189,5 @@ module Switchman
       end
     end
 
-    initializer 'switchman.set_reloader_hooks', :before => "active_record.set_reloader_hooks" do |app|
-      ::ActiveSupport.on_load(:active_record) do
-        ActionDispatch::Reloader.to_prepare do
-          require_dependency 'switchman/default_shard'
-        end
-      end
-    end
   end
 end

@@ -1,8 +1,8 @@
 module Switchman
   module Shackles
     module ClassMethods
-      def ensure_handler
-        raise "This should not be called with switchman installed"
+      def self.prepended(klass)
+        klass.send(:remove_method, :ensure_handler)
       end
 
       # drops the save_handler and ensure_handler calls from the vanilla
@@ -23,13 +23,6 @@ module Switchman
       ensure
         activate!(old_environment)
       end
-    end
-
-    def self.included(klass)
-      klass.extend(ClassMethods)
-      klass.singleton_class.send(:remove_method, :ensure_handler)
-      klass.singleton_class.send(:remove_method, :activate!)
-      klass.singleton_class.send(:remove_method, :activate)
     end
   end
 end

@@ -23,15 +23,8 @@ module Switchman
         end
       end
 
-      def self.included(klass)
-        klass.alias_method_chain(:establish_connection, :sharding)
-        klass.alias_method_chain(:remove_connection, :sharding)
-        klass.send(:remove_method, :retrieve_connection_pool)
-        klass.send(:remove_method, :pool_for)
-      end
-
-      def establish_connection_with_sharding(owner, spec)
-        establish_connection_without_sharding(owner, spec)
+      def establish_connection(owner, spec)
+        super
 
         # this is the first place that the adapter would have been required; but now we
         # need this addition ASAP since it will be called when loading the default shard below
@@ -114,9 +107,9 @@ module Switchman
         proxy
       end
 
-      def remove_connection_with_sharding(model)
+      def remove_connection(model)
         uninitialize_ar(model) if owner_to_pool[model.name].is_a?(ConnectionPoolProxy)
-        result = remove_connection_without_sharding(model)
+        result = super
         initialize_categories
         result
       end
@@ -171,12 +164,6 @@ module Switchman
       end
 
       private
-
-      # AR3 only; AR4 defines it, and hides this version,
-      # and it's a slightly different data structure
-      def class_to_pool
-        @class_to_pool
-      end
 
       # semi-private
       public

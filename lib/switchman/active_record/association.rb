@@ -1,12 +1,6 @@
 module Switchman
   module ActiveRecord
     module Association
-      def self.included(klass)
-        %w{build_record creation_attributes load_target association_scope scope}.each do |method|
-          klass.alias_method_chain(method, :sharding)
-        end
-      end
-
       def shard
         if @reflection.options[:polymorphic] || @reflection.klass.shard_category == @owner.class.shard_category
           # polymorphic associations assume the same shard as the owning item
@@ -16,27 +10,27 @@ module Switchman
         end
       end
 
-      def build_record_with_sharding(*args)
-        self.shard.activate { build_record_without_sharding(*args) }
+      def build_record(*args)
+        self.shard.activate { super }
       end
 
-      def load_target_with_sharding
-        self.shard.activate { load_target_without_sharding }
+      def load_target
+        self.shard.activate { super }
       end
 
-      def association_scope_with_sharding
+      def association_scope
         if klass
-          shard.activate(klass.shard_category) { association_scope_without_sharding }
+          shard.activate(klass.shard_category) { super }
         end
       end
 
-      def scope_with_sharding
+      def scope
         shard_value = @reflection.options[:multishard] ? @owner : self.shard
-        @owner.shard.activate { scope_without_sharding.shard(shard_value, :association) }
+        @owner.shard.activate { super.shard(shard_value, :association) }
       end
 
-      def creation_attributes_with_sharding
-        attributes = creation_attributes_without_sharding
+      def creation_attributes
+        attributes = super
 
         # translate keys
         if reflection.macro.in?([:has_one, :has_many]) && !options[:through]
@@ -56,16 +50,12 @@ module Switchman
     end
 
     module BelongsToAssociation
-      def self.included(klass)
-        klass.send(:alias_method_chain, :replace_keys, :sharding)
-      end
-
-      def replace_keys_with_sharding(record)
+      def replace_keys(record)
         if record && record.class.sharded_column?(reflection.association_primary_key(record.class))
           foreign_id = record[reflection.association_primary_key(record.class)]
           owner[reflection.foreign_key] = Shard.relative_id_for(foreign_id, record.shard, owner.shard)
         else
-          replace_keys_without_sharding(record)
+          super
         end
       end
 
@@ -89,12 +79,6 @@ module Switchman
 
     module Preloader
       module Association
-        def self.included(klass)
-          klass.send(:remove_method, :associated_records_by_owner)
-          klass.send(:remove_method, :owners_by_key)
-          klass.send(:remove_method, :scope)
-        end
-
         def associated_records_by_owner(preloader = nil)
           owners_map = owners_by_key
 

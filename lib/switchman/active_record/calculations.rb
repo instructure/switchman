@@ -1,18 +1,16 @@
 module Switchman
   module ActiveRecord
     module Calculations
-      def self.included(klass)
-        %w{execute_simple_calculation pluck}.each do |method|
-          klass.alias_method_chain(method, :sharding)
-        end
-      end
+      CALL_SUPER = Object.new.freeze
+      private_constant :CALL_SUPER
 
-      def pluck_with_sharding(*column_names)
+      def pluck(*column_names)
+        return super(*column_names[1..-1]) if column_names.first.equal?(CALL_SUPER)
         target_shard = Shard.current(klass.shard_category)
         shard_count = 0
         result = self.activate do |relation, shard|
           shard_count += 1
-          results = relation.pluck_without_sharding(*column_names)
+          results = relation.pluck(CALL_SUPER, *column_names)
           if column_names.length > 1
             column_names.each_with_index do |column_name, idx|
               if klass.sharded_column?(column_name)
@@ -32,12 +30,13 @@ module Switchman
         result
       end
 
-      def execute_simple_calculation_with_sharding(operation, column_name, distinct)
+      def execute_simple_calculation(operation, column_name, distinct, super_method: false)
+        return super(operation, column_name, distinct) if super_method
         operation = operation.to_s.downcase
         if operation == "average"
           result = calculate_simple_average(column_name, distinct)
         else
-          result = self.activate{ |relation| relation.send(:execute_simple_calculation_without_sharding, operation, column_name, distinct) }
+          result = self.activate{ |relation| relation.send(:execute_simple_calculation, operation, column_name, distinct, super_method: true) }
           if result.is_a?(Array)
             case operation
             when "count", "sum"

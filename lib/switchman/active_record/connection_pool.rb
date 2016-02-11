@@ -1,12 +1,6 @@
 module Switchman
   module ActiveRecord
     module ConnectionPool
-      def self.included(klass)
-        klass.alias_method_chain(:checkout_new_connection, :sharding)
-        klass.alias_method_chain(:connection, :sharding)
-        klass.alias_method_chain(:release_connection, :idle_timeout)
-      end
-
       attr_writer :shard
 
       def shard
@@ -21,23 +15,23 @@ module Switchman
         @schemas.first
       end
 
-      def checkout_new_connection_with_sharding
+      def checkout_new_connection
         # TODO: this might be a threading issue
         spec.config[:shard_name] = self.shard.name
 
-        conn = checkout_new_connection_without_sharding
+        conn = super
         conn.shard = self.shard
         conn
       end
 
-      def connection_with_sharding
-        conn = connection_without_sharding
+      def connection
+        conn = super
         switch_database(conn) if conn.shard != self.shard
         conn
       end
 
-      def release_connection_with_idle_timeout(with_id = current_connection_id)
-        release_connection_without_idle_timeout(with_id)
+      def release_connection(with_id = current_connection_id)
+        super
 
         if spec.config[:idle_timeout]
           clear_idle_connections!(Time.now - spec.config[:idle_timeout].to_i)

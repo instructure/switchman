@@ -1,26 +1,18 @@
 module Switchman
   module ActiveRecord
     module Relation
-      def self.included(klass)
+      def self.prepended(klass)
         klass::SINGLE_VALUE_METHODS.concat [ :shard, :shard_source ]
-
-        %w{exec_queries update_all delete_all}.each do |method|
-          klass.alias_method_chain(method, :deshackles)
-        end
-
-        %w{initialize clone explain to_a update_all delete_all new create create!}.each do |method|
-          klass.alias_method_chain(method, :sharding)
-        end
       end
 
-      def initialize_with_sharding(*args)
-        initialize_without_sharding(*args)
+      def initialize(*args)
+        super
         self.shard_value = Shard.current(klass.respond_to?(:shard_category) ? klass.shard_category : :default) unless shard_value
         self.shard_source_value = :implicit unless shard_source_value
       end
 
-      def clone_with_sharding
-        result = clone_without_sharding
+      def clone
+        result = super
         result.shard_value = Shard.current(klass.respond_to?(:shard_category) ? klass.shard_category : :default) unless shard_value
         result
       end
@@ -34,35 +26,27 @@ module Switchman
         relation
       end
 
-      def new_with_sharding(*args, &block)
-        primary_shard.activate(klass.shard_category) { new_without_sharding(*args, &block) }
+      def new(*args, &block)
+        primary_shard.activate(klass.shard_category) { super }
       end
 
-      def create_with_sharding(*args, &block)
-        primary_shard.activate(klass.shard_category) { create_without_sharding(*args, &block) }
+      def create(*args, &block)
+        primary_shard.activate(klass.shard_category) { super }
       end
 
-      def create_with_sharding!(*args, &block)
-        primary_shard.activate(klass.shard_category) { create_without_sharding!(*args, &block) }
+      def create!(*args, &block)
+        primary_shard.activate(klass.shard_category) { super }
       end
 
-      def exec_queries_with_deshackles(*args)
-        if self.lock_value
-          db = Shard.current(shard_category).database_server
-          if ::Shackles.environment != db.shackles_environment
-            return db.unshackle { exec_queries_without_deshackles(*args) }
-          end
-        end
-        exec_queries_without_deshackles(*args)
+      def explain(super_method: false)
+        return super() if super_method
+        self.activate { |relation| relation.explain(super_method: true) }
       end
 
-      def explain_with_sharding
-        self.activate { |relation| relation.send(:explain_without_sharding) }
-      end
-
-      def to_a_with_sharding
+      def to_a(super_method: false)
+        return super() if super_method
         return @records if loaded?
-        results = self.activate { |relation| relation.send(:to_a_without_sharding) }
+        results = self.activate { |relation| relation.to_a(super_method: true) }
         case shard_value
         when Array, ::ActiveRecord::Relation, ::ActiveRecord::Base
           @records = results
@@ -71,19 +55,14 @@ module Switchman
         results
       end
 
+      CALL_SUPER = Object.new.freeze
+      private_constant :CALL_SUPER
+
       %w{update_all delete_all}.each do |method|
         class_eval <<-RUBY, __FILE__, __LINE__ + 1
-          def #{method}_with_deshackles(*args)
-            db = Shard.current(shard_category).database_server
-            if ::Shackles.environment != db.shackles_environment
-              db.unshackle { #{method}_without_deshackles(*args) }
-            else
-              #{method}_without_deshackles(*args)
-            end
-          end
-
-          def #{method}_with_sharding(*args)
-            result = self.activate { |relation| relation.#{method}_without_sharding(*args) }
+          def #{method}(*args)
+            return super(*args[1..-1]) if args.first.equal?(CALL_SUPER)
+            result = self.activate { |relation| relation.#{method}(CALL_SUPER, *args) }
             result = result.sum if result.is_a?(Array)
             result
           end

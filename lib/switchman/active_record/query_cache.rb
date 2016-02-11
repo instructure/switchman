@@ -1,7 +1,5 @@
 module Switchman
   module ActiveRecord
-    # needs to be included in the same class as ::ActiveRecord::ConnectionAdapters::QueryCache
-    # *after* that module is included
     module QueryCache
       # thread local accessors to replace @query_cache_enabled
       def query_cache
@@ -88,19 +86,6 @@ module Switchman
           result.dup
         else
           result.collect { |row| row.dup }
-        end
-      end
-
-      def self.included(base)
-        base.class_eval do
-          # when we call insert, update, and delete, we want it to find the
-          # definitions from this module (which will then find the definitions
-          # from ActiveRecord::ConnectionAdapters::DatabaseStatements as
-          # 'super'), not the ones defined on base by
-          # ActiveRecord::ConnectionAdapters::QueryCache.
-          remove_method :insert
-          remove_method :update
-          remove_method :delete
         end
       end
     end

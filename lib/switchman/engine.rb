@@ -20,7 +20,7 @@ module Switchman
 
     initializer 'switchman.initialize_cache', :before => 'initialize_cache' do
       require "switchman/active_support/cache"
-      ::ActiveSupport::Cache.send(:include, ActiveSupport::Cache)
+      ::ActiveSupport::Cache.singleton_class.prepend(ActiveSupport::Cache::ClassMethods)
 
       # if we haven't already setup our cache map out-of-band, set it up from
       # config.cache_store now. behaves similarly to Rails' default
@@ -60,7 +60,7 @@ module Switchman
       ::Rails.cache = Switchman.config[:cache_map][::Rails.env]
 
       require "switchman/rails"
-      ::Rails.send(:include, Rails)
+      ::Rails.singleton_class.prepend(Rails::ClassMethods)
     end
 
     initializer 'switchman.extend_ar', :before => "active_record.initialize_database" do
@@ -83,6 +83,7 @@ module Switchman
         require "switchman/active_record/relation"
         require "switchman/active_record/spawn_methods"
         require "switchman/arel"
+        require "switchman/shackles/relation"
 
         include ActiveRecord::Base
         include ActiveRecord::AttributeMethods
@@ -103,32 +104,33 @@ module Switchman
           prepend(ActiveRecord::AutosaveAssociation)
         end
 
-        ::ActiveRecord::Associations::Association.send(:include, ActiveRecord::Association)
-        ::ActiveRecord::Associations::BelongsToAssociation.send(:include, ActiveRecord::BelongsToAssociation)
-        ::ActiveRecord::Associations::CollectionProxy.send(:include, ActiveRecord::CollectionProxy)
-        ::ActiveRecord::Associations::Builder::CollectionAssociation.send(:include, ActiveRecord::Builder::CollectionAssociation)
+        ::ActiveRecord::Associations::Association.prepend(ActiveRecord::Association)
+        ::ActiveRecord::Associations::BelongsToAssociation.prepend(ActiveRecord::BelongsToAssociation)
+        ::ActiveRecord::Associations::CollectionProxy.include(ActiveRecord::CollectionProxy)
+        ::ActiveRecord::Associations::Builder::CollectionAssociation.include(ActiveRecord::Builder::CollectionAssociation)
 
-        ::ActiveRecord::Associations::Preloader::Association.send(:include, ActiveRecord::Preloader::Association)
+        ::ActiveRecord::Associations::Preloader::Association.prepend(ActiveRecord::Preloader::Association)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::AbstractAdapter)
-        ::ActiveRecord::ConnectionAdapters::ConnectionHandler.send(:include, ActiveRecord::ConnectionHandler)
-        ::ActiveRecord::ConnectionAdapters::ConnectionPool.send(:include, ActiveRecord::ConnectionPool)
-        ::ActiveRecord::ConnectionAdapters::AbstractAdapter.send(:include, ActiveRecord::QueryCache)
+        ::ActiveRecord::ConnectionAdapters::ConnectionHandler.prepend(ActiveRecord::ConnectionHandler)
+        ::ActiveRecord::ConnectionAdapters::ConnectionPool.prepend(ActiveRecord::ConnectionPool)
+        ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::QueryCache)
         # when we call super in Switchman::ActiveRecord::QueryCache#select_all,
         # we want it to find the definition from
         # ActiveRecord::ConnectionAdapters::DatabaseStatements, not
         # ActiveRecord::ConnectionAdapters::QueryCache
         ::ActiveRecord::ConnectionAdapters::QueryCache.send(:remove_method, :select_all)
 
-        ::ActiveRecord::LogSubscriber.send(:include, ActiveRecord::LogSubscriber)
+        ::ActiveRecord::LogSubscriber.prepend(ActiveRecord::LogSubscriber)
         ::ActiveRecord::Reflection::AssociationReflection.prepend(ActiveRecord::Reflection::AssociationReflection)
-        ::ActiveRecord::Relation.send(:include, ActiveRecord::Calculations)
-        ::ActiveRecord::Relation.send(:include, ActiveRecord::FinderMethods)
-        ::ActiveRecord::Relation.send(:include, ActiveRecord::QueryMethods)
-        ::ActiveRecord::Relation.send(:include, ActiveRecord::Relation)
-        ::ActiveRecord::Relation.send(:include, ActiveRecord::SpawnMethods)
+        ::ActiveRecord::Relation.prepend(ActiveRecord::Calculations)
+        ::ActiveRecord::Relation.include(ActiveRecord::FinderMethods)
+        ::ActiveRecord::Relation.include(ActiveRecord::QueryMethods)
+        ::ActiveRecord::Relation.prepend(ActiveRecord::Relation)
+        ::ActiveRecord::Relation.include(ActiveRecord::SpawnMethods)
+        ::ActiveRecord::Relation.prepend(Shackles::Relation)
 
         ::Arel::Visitors::ToSql.prepend(Arel::Visitors::ToSql)
-        ::Arel::Visitors::PostgreSQL.send(:include, Arel::Visitors::PostgreSQL) if ::Rails.version < '4.2'
+        ::Arel::Visitors::PostgreSQL.include(Arel::Visitors::PostgreSQL) if ::Rails.version < '4.2'
       end
     end
 
@@ -141,23 +143,11 @@ module Switchman
     initializer 'switchman.extend_connection_adapters', :after => "active_record.initialize_database" do
       ::ActiveSupport.on_load(:active_record) do
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.descendants.each do |klass|
-          next if klass.instance_methods.include?(:add_column_with_foreign_key_check)
-          klass.class_eval do
-            def add_column_with_foreign_key_check(table, name, type, options = {})
-              Switchman::Engine.foreign_key_check(name, type, options)
-              add_column_without_foreign_key_check(table, name, type, options)
-            end
-            alias_method_chain(:add_column, :foreign_key_check)
-          end
+          klass.prepend(ActiveRecord::AbstractAdapter::ForeignKeyCheck)
         end
 
-        ::ActiveRecord::ConnectionAdapters::TableDefinition.class_eval do
-          def column_with_foreign_key_check(name, type, options = {})
-            Switchman::Engine.foreign_key_check(name, type, options)
-            column_without_foreign_key_check(name, type, options)
-          end
-          alias_method_chain(:column, :foreign_key_check)
-        end
+        require 'switchman/active_record/table_definition'
+        ::ActiveRecord::ConnectionAdapters::TableDefinition.prepend(ActiveRecord::TableDefinition)
 
         if defined?(::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter)
           require "switchman/active_record/postgresql_adapter"
@@ -177,7 +167,7 @@ module Switchman
       ::ActiveSupport.on_load(:active_record) do
         require "switchman/shackles"
 
-        ::Shackles.send(:include, Shackles)
+        ::Shackles.singleton_class.prepend(Shackles::ClassMethods)
       end
     end
 
@@ -185,7 +175,7 @@ module Switchman
       ::ActiveSupport.on_load(:action_controller) do
         require "switchman/action_controller/caching"
 
-        ::ActionController::Base.send(:include, ActionController::Caching)
+        ::ActionController::Base.include(ActionController::Caching)
       end
     end
 

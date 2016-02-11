@@ -1,10 +1,6 @@
 module Switchman
   module ActiveRecord
     module LogSubscriber
-      def self.included(klass)
-        klass.send(:remove_method, :sql)
-      end
-
       # sadly, have to completely replace this
       def sql(event)
         self.class.runtime += event.duration

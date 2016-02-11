@@ -3,6 +3,13 @@ require 'switchman/sharded_instrumenter'
 module Switchman
   module ActiveRecord
     module AbstractAdapter
+      module ForeignKeyCheck
+        def add_column(table, name, type, options = {})
+          Engine.foreign_key_check(name, type, options)
+          super
+        end
+      end
+
       attr_writer :shard
       attr_reader :last_query_at
 

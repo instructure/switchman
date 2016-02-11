@@ -1,5 +1,14 @@
 module Switchman
   module Arel
+    module Table
+      def model
+        if ::Rails.version >= '5'
+          type_caster.model
+        else
+          engine
+        end
+      end
+    end
     module Visitors
       module ToSql
         def visit_Arel_Nodes_TableAlias *args

@@ -152,7 +152,7 @@ module Switchman
       end
 
       def actual_connection_count
-        ::ActiveRecord::Base.connection_pool.current_pool.instance_variable_get(:@reserved_connections).size
+        ::ActiveRecord::Base.connection_pool.current_pool.instance_variable_get(::Rails.version >= '5' ? :@thread_cached_conns : :@reserved_connections).size
       end
 
       it "should really return active connections to the pool in all envs" do

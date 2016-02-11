@@ -48,3 +48,19 @@ def where_value(value)
     value
   end
 end
+
+def predicates(relation)
+  if ::Rails.version >= '5'
+    relation.where_clause.send(:predicates)
+  else
+    relation.where_values
+  end
+end
+
+def bind_values(relation)
+  if ::Rails.version >= '5'
+    relation.where_clause.binds.map(&:value)
+  else
+    relation.bind_values.map(&:last)
+  end
+end

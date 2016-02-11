@@ -49,7 +49,7 @@ module Switchman
 
         it "should post-uniq multi-shard" do
           user3 = User.create!(name: 'user2')
-          expect(User.where(id: [@user1.id, @user2.id, user3.id]).uniq.pluck(:name).sort).to match_array ["user1", "user2"]
+          expect(User.where(id: [@user1.id, @user2.id, user3.id]).distinct.pluck(:name).sort).to match_array ["user1", "user2"]
         end
 
         it "should work when setting an AR shard value" do

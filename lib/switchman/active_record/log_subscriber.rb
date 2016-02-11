@@ -26,11 +26,16 @@ module Switchman
           }.inspect
         end
 
-        if odd?
-          name = color(name, self.class::CYAN, true)
-          sql  = color(sql, nil, true)
+        if ::Rails.version >= '5'
+          name = colorize_payload_name(name, payload[:name])
+          sql  = color(sql, sql_color(sql), true)
         else
-          name = color(name, self.class::MAGENTA, true)
+          if odd?
+            name = color(name, self.class::CYAN, true)
+            sql  = color(sql, nil, true)
+          else
+            name = color(name, self.class::MAGENTA, true)
+          end
         end
 
         debug "  #{name}  #{sql}#{binds}#{shard}"

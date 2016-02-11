@@ -43,17 +43,20 @@ module Switchman
         self.activate { |relation| relation.explain(super_method: true) }
       end
 
-      def to_a(super_method: false)
-        return super() if super_method
-        return @records if loaded?
-        results = self.activate { |relation| relation.to_a(super_method: true) }
-        case shard_value
-        when Array, ::ActiveRecord::Relation, ::ActiveRecord::Base
-          @records = results
-          @loaded = true
+      to_a_method = ::Rails.version > '5.0.0.beta2' ? :records : :to_a
+      class_eval <<-RUBY, __FILE__, __LINE__ + 1
+        def #{to_a_method}(super_method: false)
+          return super() if super_method
+          return @records if loaded?
+          results = self.activate { |relation| relation.#{to_a_method}(super_method: true) }
+          case shard_value
+          when Array, ::ActiveRecord::Relation, ::ActiveRecord::Base
+            @records = results
+            @loaded = true
+          end
+          results
         end
-        results
-      end
+      RUBY
 
       CALL_SUPER = Object.new.freeze
       private_constant :CALL_SUPER

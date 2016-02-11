@@ -8,6 +8,17 @@ module Switchman
           super
         end
       end
+
+      module AssociationQueryValue
+        def convert_to_id(value)
+          case value
+          when ::ActiveRecord::Base
+            value.send(primary_key)
+          else
+            super
+          end
+        end
+      end
     end
   end
 end

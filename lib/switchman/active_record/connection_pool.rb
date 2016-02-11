@@ -30,8 +30,13 @@ module Switchman
         conn
       end
 
-      def release_connection(with_id = current_connection_id)
-        super
+      def release_connection(with_id = nil)
+        with_id ||= if ::Rails.version >= '5'
+                      Thread.current
+                    else
+                      current_connection_id
+                    end
+        super(with_id)
 
         if spec.config[:idle_timeout]
           clear_idle_connections!(Time.now - spec.config[:idle_timeout].to_i)

@@ -24,7 +24,7 @@ module Switchman
           end
           results
         end
-        if uniq_value && shard_count > 1
+        if distinct_value && shard_count > 1
           result.uniq!
         end
         result
@@ -167,7 +167,8 @@ module Switchman
               'count', opts[:distinct]).as('count')
         end
 
-        select_values += select_values unless having_values.empty?
+        haves = ::Rails.version >= "5" ? having_clause.send(:predicates) : having_values
+        select_values += select_values unless haves.empty?
         select_values.concat opts[:group_fields].zip(opts[:group_aliases]).map { |field,aliaz|
           if field.respond_to?(:as)
             field.as(aliaz)

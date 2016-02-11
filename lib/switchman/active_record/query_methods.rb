@@ -33,25 +33,27 @@ module Switchman
 
       def shard!(value, source = :explicit)
         raise ArgumentError, "shard can't be nil" unless value
-        primary_shard = self.primary_shard
+        old_primary_shard = self.primary_shard
         self.shard_value = value
         self.shard_source_value = source
-        if (primary_shard != self.primary_shard || source == :to_a)
-          self.where_values = transpose_predicates(where_values, primary_shard, self.primary_shard, source == :to_a) if !where_values.empty?
-          self.having_values = transpose_predicates(having_values, primary_shard, self.primary_shard, source == :to_a) if !having_values.empty?
+        if (old_primary_shard != self.primary_shard || source == :to_a)
+          transpose_clauses(old_primary_shard, self.primary_shard, source == :to_a)
         end
         self
       end
 
-      def build_where(opts, other = [])
-        case opts
-        when Hash, ::Arel::Nodes::Node
-          predicates = super
-          infer_shards_from_primary_key(predicates) if shard_source_value == :implicit && shard_value.is_a?(Shard)
-          predicates = transpose_predicates(predicates, nil, primary_shard) if shard_source_value != :explicit
-          predicates
-        else
-          super
+      if ::Rails.version < '5'
+        # moved to WhereClauseFactory#build in Rails 5
+        def build_where(opts, other = [])
+          case opts
+          when Hash, ::Arel::Nodes::Node
+            predicates = super
+            infer_shards_from_primary_key(predicates) if shard_source_value == :implicit && shard_value.is_a?(Shard)
+            predicates = transpose_predicates(predicates, nil, primary_shard) if shard_source_value != :explicit
+            predicates
+          else
+            super
+          end
         end
       end
 
@@ -90,10 +92,38 @@ module Switchman
       end
 
       private
-      def infer_shards_from_primary_key(predicates)
+
+      [:where, :having].each do |type|
+        class_eval <<-RUBY
+          def transpose_#{type}_clauses(source_shard, target_shard, remove_nonlocal_primary_keys)
+            if ::Rails.version >= '5'
+              unless (predicates = #{type}_clause.send(:predicates)).empty?
+                new_predicates = transpose_predicates(predicates, source_shard,
+                                                      target_shard, remove_nonlocal_primary_keys)
+                if new_predicates != predicates
+                  self.#{type}_clause = #{type}_clause.dup
+                  #{type}_clause.instance_variable_set(:@predicates, new_predicates)
+                end
+              end
+            else
+              unless #{type}_values.empty?
+                self.#{type}_values = transpose_predicates(#{type}_values,
+                  source_shard, target_shard, remove_nonlocal_primary_keys)
+              end
+            end
+          end
+        RUBY
+      end
+
+      def transpose_clauses(source_shard, target_shard, remove_nonlocal_primary_keys = false)
+        transpose_where_clauses(source_shard, target_shard, remove_nonlocal_primary_keys)
+        transpose_having_clauses(source_shard, target_shard, remove_nonlocal_primary_keys)
+      end
+
+      def infer_shards_from_primary_key(predicates, binds = nil)
         primary_key = predicates.detect do |predicate|
           predicate.is_a?(::Arel::Nodes::Binary) && predicate.left.is_a?(::Arel::Attributes::Attribute) &&
-            predicate.left.relation.is_a?(::Arel::Table) && predicate.left.relation.engine == klass &&
+            predicate.left.relation.is_a?(::Arel::Table) && predicate.left.relation.model == klass &&
             klass.primary_key == predicate.left.name
         end
         if primary_key
@@ -116,18 +146,27 @@ module Switchman
               return
             else
               id_shards = id_shards.to_a
-              self.where_values = transpose_predicates(where_values, primary_shard, id_shards.first) if !where_values.empty?
-              self.having_values = transpose_predicates(having_values, primary_shard, id_shards.first) if !having_values.empty?
+              transpose_clauses(primary_shard, id_shards.first)
               self.shard_value = id_shards
               return
             end
           when ::Arel::Nodes::BindParam
             # look for a bind param with a matching column name
-            if bind_values && idx = bind_values.find_index{|b| b.is_a?(Array) && b.first.try(:name).to_s == klass.primary_key.to_s}
-              column, value = bind_values[idx]
-              unless ::Rails.version >= '4.2' && value.is_a?(::ActiveRecord::StatementCache::Substitute)
-                local_id, id_shard = Shard.local_id_for(value)
-                id_shard ||= Shard.current(klass.shard_category) if local_id
+            if ::Rails.version >= "5"
+              binds ||= where_clause.binds + having_clause.binds
+              if binds && bind = binds.detect{|b| b.try(:name).to_s == klass.primary_key.to_s}
+                unless bind.value.is_a?(::ActiveRecord::StatementCache::Substitute)
+                  local_id, id_shard = Shard.local_id_for(bind.value)
+                  id_shard ||= Shard.current(klass.shard_category) if local_id
+                end
+              end
+            else
+              if bind_values && idx = bind_values.find_index{|b| b.is_a?(Array) && b.first.try(:name).to_s == klass.primary_key.to_s}
+                column, value = bind_values[idx]
+                unless ::Rails.version >= '4.2' && value.is_a?(::ActiveRecord::StatementCache::Substitute)
+                  local_id, id_shard = Shard.local_id_for(value)
+                  id_shard ||= Shard.current(klass.shard_category) if local_id
+                end
               end
             end
           else
@@ -135,8 +174,7 @@ module Switchman
             id_shard ||= Shard.current(klass.shard_category) if local_id
           end
           return if !id_shard || id_shard == primary_shard
-          self.where_values = transpose_predicates(where_values, primary_shard, id_shard) if !where_values.empty?
-          self.having_values = transpose_predicates(having_values, primary_shard, id_shard) if !having_values.empty?
+          transpose_clauses(primary_shard, id_shard)
           self.shard_value = id_shard
         end
       end
@@ -160,8 +198,8 @@ module Switchman
 
       def sharded_primary_key?(relation, column)
         column = column.to_s
-        return column == 'id' if relation.engine == ::ActiveRecord::Base
-        relation.engine.primary_key == column
+        return column == 'id' if relation.model == ::ActiveRecord::Base
+        relation.model.primary_key == column
       end
 
       def source_shard_for_foreign_key(relation, column)
@@ -180,16 +218,20 @@ module Switchman
         [attribute.relation, column]
       end
 
+      def where_clause_factory
+        super.tap { |factory| factory.scope = self }
+      end
+
       # semi-private
       public
-      def transpose_predicates(predicates, source_shard, target_shard, remove_nonlocal_primary_keys = false)
+      def transpose_predicates(predicates, source_shard, target_shard, remove_nonlocal_primary_keys = false, binds = nil)
         predicates.map do |predicate|
           next predicate unless predicate.is_a?(::Arel::Nodes::Binary)
           next predicate unless predicate.left.is_a?(::Arel::Attributes::Attribute)
           relation, column = relation_and_column(predicate.left)
           next predicate unless (type = transposable_attribute_type(relation, column))
 
-          remove = true if type == :primary && remove_nonlocal_primary_keys && predicate.left.relation.engine == klass
+          remove = true if type == :primary && remove_nonlocal_primary_keys && predicate.left.relation.model == klass
           current_source_shard =
               if source_shard
                 source_shard
@@ -218,15 +260,30 @@ module Switchman
             local_ids
           when ::Arel::Nodes::BindParam
             # look for a bind param with a matching column name
-            if bind_values && idx = bind_values.find_index{|b| b.is_a?(Array) && b.first.try(:name).to_s == predicate.left.name.to_s}
-              column, value = bind_values[idx]
-              if ::Rails.version >= '4.2' && value.is_a?(::ActiveRecord::StatementCache::Substitute)
-                value.sharded = true # mark for transposition later
-                value.primary = true if type == :primary
-              else
-                local_id = Shard.relative_id_for(value, current_source_shard, target_shard)
-                local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
-                bind_values[idx] = [column, local_id]
+            if ::Rails.version >= "5"
+              binds ||= where_clause.binds + having_clause.binds
+              if binds && bind = binds.detect{|b| b.try(:name).to_s == predicate.left.name.to_s}
+                if bind.value.is_a?(::ActiveRecord::StatementCache::Substitute)
+                  bind.value.sharded = true # mark for transposition later
+                  bind.value.primary = true if type == :primary
+                else
+                  local_id = Shard.relative_id_for(bind.value, current_source_shard, target_shard)
+                  local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
+                  bind.instance_variable_set(:@value, local_id)
+                  bind.instance_variable_set(:@value_for_database, nil)
+                end
+              end
+            else
+              if bind_values && idx = bind_values.find_index{|b| b.is_a?(Array) && b.first.try(:name).to_s == predicate.left.name.to_s}
+                column, value = bind_values[idx]
+                if ::Rails.version >= '4.2' && value.is_a?(::ActiveRecord::StatementCache::Substitute)
+                  value.sharded = true # mark for transposition later
+                  value.primary = true if type == :primary
+                else
+                  local_id = Shard.relative_id_for(value, current_source_shard, target_shard)
+                  local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
+                  bind_values[idx] = [column, local_id]
+                end
               end
             end
             predicate.right

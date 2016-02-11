@@ -47,13 +47,21 @@ module Switchman
         Thread.current[:query_cache].try(:clear)
       end
 
-      def select_all(arel, name = nil, binds = [])
+      def select_all(arel, name = nil, binds = [], preparable: nil)
         if self.query_cache_enabled && !locked?(arel)
           arel, binds = binds_from_relation(arel, binds)
           sql = to_sql(arel, binds)
-          cache_sql(sql, binds) { super(sql, name, binds) }
+          if ::Rails.version >= '5'
+            cache_sql(sql, binds) { super(sql, name, binds, preparable: visitor.preparable) }
+          else
+            cache_sql(sql, binds) { super(sql, name, binds) }
+          end
         else
-          super
+          if ::Rails.version >= '5'
+            super
+          else
+            super(arel, name, binds)
+          end
         end
       end
 

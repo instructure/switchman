@@ -82,6 +82,8 @@ module Switchman
         require "switchman/active_record/reflection"
         require "switchman/active_record/relation"
         require "switchman/active_record/spawn_methods"
+        require "switchman/active_record/where_clause_factory"
+        require "switchman/active_record/type_caster"
         require "switchman/arel"
         require "switchman/shackles/relation"
 
@@ -107,7 +109,9 @@ module Switchman
         ::ActiveRecord::Associations::Association.prepend(ActiveRecord::Association)
         ::ActiveRecord::Associations::BelongsToAssociation.prepend(ActiveRecord::BelongsToAssociation)
         ::ActiveRecord::Associations::CollectionProxy.include(ActiveRecord::CollectionProxy)
-        ::ActiveRecord::Associations::Builder::CollectionAssociation.include(ActiveRecord::Builder::CollectionAssociation)
+        if ::Rails.version < '5'
+          ::ActiveRecord::Associations::Builder::CollectionAssociation.include(ActiveRecord::Builder::CollectionAssociation)
+        end
 
         ::ActiveRecord::Associations::Preloader::Association.prepend(ActiveRecord::Preloader::Association)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::AbstractAdapter)
@@ -129,6 +133,14 @@ module Switchman
         ::ActiveRecord::Relation.include(ActiveRecord::SpawnMethods)
         ::ActiveRecord::Relation.prepend(Shackles::Relation)
 
+        if ::Rails.version >= '5'
+          ::ActiveRecord::Relation::WhereClauseFactory.prepend(ActiveRecord::WhereClauseFactory)
+          ::ActiveRecord::PredicateBuilder::AssociationQueryValue.prepend(ActiveRecord::PredicateBuilder::AssociationQueryValue)
+          ::ActiveRecord::TypeCaster::Map.include(ActiveRecord::TypeCaster::Map)
+          ::ActiveRecord::TypeCaster::Connection.include(ActiveRecord::TypeCaster::Connection)
+        end
+
+        ::Arel::Table.prepend(Arel::Table)
         ::Arel::Visitors::ToSql.prepend(Arel::Visitors::ToSql)
         ::Arel::Visitors::PostgreSQL.include(Arel::Visitors::PostgreSQL) if ::Rails.version < '4.2'
       end

@@ -5,6 +5,39 @@ module Switchman
         klass::NATIVE_DATABASE_TYPES[:primary_key] = "bigserial primary key".freeze
       end
 
+      # copy/paste; use quote_local_table_name
+      def create_database(name, options = {})
+        options = { encoding: 'utf8' }.merge!(options.symbolize_keys)
+
+        option_string = options.sum do |key, value|
+          case key
+            when :owner
+              " OWNER = \"#{value}\""
+            when :template
+              " TEMPLATE = \"#{value}\""
+            when :encoding
+              " ENCODING = '#{value}'"
+            when :collation
+              " LC_COLLATE = '#{value}'"
+            when :ctype
+              " LC_CTYPE = '#{value}'"
+            when :tablespace
+              " TABLESPACE = \"#{value}\""
+            when :connection_limit
+              " CONNECTION LIMIT = #{value}"
+            else
+              ""
+          end
+        end
+
+        execute "CREATE DATABASE #{quote_local_table_name(name)}#{option_string}"
+      end
+
+      # copy/paste; use quote_local_table_name
+      def drop_database(name) #:nodoc:
+        execute "DROP DATABASE IF EXISTS #{quote_local_table_name(name)}"
+      end
+
       def current_schemas
         select_values("SELECT * FROM unnest(current_schemas(false))")
       end

@@ -7,7 +7,7 @@ module Switchman
 
     def self.scope(base_scope = Shard,
       database_server: ENV['DATABASE_SERVER'],
-      shard: ENV['SHARDS'])
+      shard: ENV['SHARD'])
       servers = DatabaseServer.all
 
       if database_server

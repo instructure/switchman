@@ -200,7 +200,7 @@ module Switchman
             search_path = "--schema=#{Shellwords.escape(shard)}"
           end
 
-          command = "pg_dump -i -s -x -O -f #{Shellwords.escape(filename)} #{search_path} #{Shellwords.escape(configuration['database'])}"
+          command = "pg_dump -s -x -O -f #{Shellwords.escape(filename)} #{search_path} #{Shellwords.escape(configuration['database'])}"
           raise 'Error dumping database' unless Kernel.system(command)
 
           File.open(filename, "a") { |f| f << "SET search_path TO #{serialized_search_path};\n\n" }
@@ -208,7 +208,7 @@ module Switchman
       else
         def structure_dump(filename)
           set_psql_env
-          args = ['-i', '-s', '-x', '-O', '-f', filename]
+          args = ['-s', '-x', '-O', '-f', filename]
           search_path = configuration['schema_search_path']
           if configuration['use_qualified_names']
             shard = Shard.current.name

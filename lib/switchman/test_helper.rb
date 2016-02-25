@@ -35,7 +35,12 @@ module Switchman
           shard2.name = server1.config[:shard2]
           shard2.save! if shard2.changed?
 
-          recreate_shards = shard1.activate { ::ActiveRecord::Base.connection.tables == [] }
+          recreate_shards = begin
+            shard1.activate { ::ActiveRecord::Base.connection.tables == [] }
+          rescue ::ActiveRecord::StatementInvalid # e.g. `ERROR:  invalid value for parameter "search_path"`
+            true
+          end
+
           if recreate_shards
             if dont_create
               shard1.destroy

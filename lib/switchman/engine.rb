@@ -58,9 +58,6 @@ module Switchman
       # cache map, but between now and then, Rails.cache should return the
       # Rails.env entry in the cache map.
       ::Rails.cache = Switchman.config[:cache_map][::Rails.env]
-
-      require "switchman/rails"
-      ::Rails.singleton_class.prepend(Rails::ClassMethods)
     end
 
     initializer 'switchman.extend_ar', :before => "active_record.initialize_database" do
@@ -85,7 +82,9 @@ module Switchman
         require "switchman/active_record/where_clause_factory"
         require "switchman/active_record/type_caster"
         require "switchman/arel"
+        require "switchman/rails"
         require "switchman/shackles/relation"
+        require "switchman/shard_internal"
 
         include ActiveRecord::Base
         include ActiveRecord::AttributeMethods
@@ -139,6 +138,8 @@ module Switchman
           ::ActiveRecord::TypeCaster::Map.include(ActiveRecord::TypeCaster::Map)
           ::ActiveRecord::TypeCaster::Connection.include(ActiveRecord::TypeCaster::Connection)
         end
+
+        ::Rails.singleton_class.prepend(Rails::ClassMethods)
 
         ::Arel::Table.prepend(Arel::Table)
         ::Arel::Visitors::ToSql.prepend(Arel::Visitors::ToSql)

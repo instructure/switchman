@@ -1,5 +1,4 @@
 require 'switchman/connection_pool_proxy'
-require 'switchman/shard'
 
 module Switchman
   module ActiveRecord

@@ -460,6 +460,7 @@ module Switchman
 
       after(:each) do
         Shard.unstub(:where)
+        Shard.send(:active_shards).clear
         Shard.default(reload: true)
       end
 
@@ -523,6 +524,12 @@ module Switchman
         end
       end
 
+      it "doesn't forget current shard activations when reloading" do
+        @shard1.activate do
+          Shard.default(reload: true)
+          expect(Shard.current).to eq @shard1
+        end
+      end
     end
 
     describe ".determine_max_procs" do

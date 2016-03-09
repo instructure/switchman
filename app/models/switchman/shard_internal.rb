@@ -51,8 +51,6 @@ module Switchman
 
           # the first time we need a dummy dummy for re-entrancy to avoid looping on ourselves
           @default ||= default
-          # forget our current shard activations - it might have "another" default shard serialized there
-          active_shards.clear
 
           # Now find the actual record, if it exists; rescue the fake default if the table doesn't exist
           @default = begin
@@ -60,7 +58,14 @@ module Switchman
           rescue
             default
           end
-          activate!(:default => @default)
+
+          # rebuild current shard activations - it might have "another" default shard serialized there
+          active_shards.replace(active_shards.map do |category, shard|
+            shard = Shard.lookup((!shard || shard.default?) ? 'default' : shard.id)
+            [category, shard]
+          end.to_h)
+
+          activate!(default: @default) if active_shards.empty?
         end
         @default
       end

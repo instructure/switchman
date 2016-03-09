@@ -98,6 +98,9 @@ module Switchman
           ::ActiveRecord::StatementCache::Substitute.send(:attr_accessor, :primary, :sharded)
 
           ::ActiveRecord::Associations::CollectionAssociation.prepend(ActiveRecord::CollectionAssociation)
+        end
+
+        if ::Rails.version >= '4.1.15'
           ::ActiveRecord::PredicateBuilder.singleton_class.prepend(ActiveRecord::PredicateBuilder)
         end
 

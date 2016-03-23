@@ -57,6 +57,24 @@ To create a new shard, you find the database server, and call `create_new_shard`
 >>> s = Switchman::DatabaseServer.find('cluster2').create_new_shard
 ```
 
+If you want to execute custom SQL upon new shard creation (i.e. to preset
+default permissions), you need to set `Switchman.config[:create_statement]`,
+and any instances of `%{name}` and `%{password}` will be replaced with
+relevant values:
+
+```ruby
+>>> Switchman.config[:create_statement] = <<-SQL
+  CREATE SCHEMA %{name};
+  CREATE ROLE %{name} LOGIN %{password};
+  GRANT USAGE ON SCHEMA %{name} TO readwrite;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA %{name} GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO readwrite;
+SQL
+```
+
+If there is no `create_statement` in the config, Switchman will create a
+suitable one for your database to just create a new schema (Postgres) or
+database (MySQL).
+
 To start reading/writing data on a shard, you need to activate it:
 
 ```ruby
@@ -172,3 +190,78 @@ Rails environment (e.g. config.cache_store['production']).
 
 If the config.cache_store is a single configuration value, it will be
 used as the cache store for all database servers.
+
+## Connection Pooling
+
+In a common Postgres situation, Switchman will switch between shards
+(which are implemented as Postgres schemas/namespaces) on the same database
+server by issuing a `SET search_path TO ` command prior to executing a query
+against a different shard. Unfortunately, if you use pgbouncer, this means
+that you cannot use transaction pooling, and must use session pooling.
+There exist two workarounds to this:
+
+### Connection Per Shard
+
+By adding setting `username: %{shard_name},public` to database.yml,
+Switchman will know that the username will vary per shard, and will establish
+a new connection to the database for each shard, instead of sharing a single
+connection among all shards on the same server. This will allow pgbouncer
+to be set up for transaction pooling, at the cost of pgbouncer not being
+able to pool connections among shards (and causing connection churn when
+you start to hit pgbouncer's per-database connection limits when you
+have several very active shards).
+
+### Qualified Names
+
+If instead you add `use_qualified_names: true` to database.yml, Switchman
+will automatically prefix all table names in FROM clauses with the schema
+name, like so:
+
+```SQL
+SELECT "users".* FROM "shard_11"."users"
+```
+
+Because the query no longer depends on the search_path being correct,
+it's safe to use pgbouncer's transaction pooling. There are a few caveats
+of this:
+
+  * Custom SQL - if you write custom joins, you need to make sure you
+    quote table names, which is how Switchman knows where to insert the
+    shard name qualification:
+
+```ruby
+  User.joins("LEFT OUTER JOIN #{Appendage.quoted_table_name} ON user_id=users.id")
+```
+
+Note that you do _not_ need to modify where clauses - Postgres is smart
+enough to know that shard_1.users is the only table addressed by this query,
+so users.id can only possibly refer to this table. In order to enforce this
+quality and prevent bugs where you forget to do this, and instead pull
+data from an unexpected shard, it's recommended that you set the search_path
+to something bogus. Setting `schema_search_path: "''"` in database.yml
+accomplishes this.
+
+  * Query serialized on one shard, but executed on another:
+
+```ruby
+  relation = User.joins("LEFT OUTER JOIN #{Appendage.quoted_table_name} ON user_id=users.id")
+  relation.shard(@shard2).where(name: 'bob').first
+```
+
+In this case, the query will serialize as
+`SELECT "users".* FROM "shard_2"."users" LEFT OUTER JOIN "shard_1"."appendages" ...`,
+causing a cross-shard query. If the two shards are on separate database
+servers, it will simply fail. This happens because the JOIN serialized
+while shard 1 was active, but the query executed (and the initial FROM)
+against shard 2. This could also happen with a subquery:
+
+```ruby
+  relation = Appendage.all
+  @shard1.activate { relation.where("EXISTS (?)", User.where(name: 'bob')) }
+  relation.first
+```
+
+In this case, the subquery was serialized at the `where` call, and not
+delayed until actual query execution. The solution to both of these
+problems is you must be careful around such queries, to ensure the
+serialization happens on the correct shard.

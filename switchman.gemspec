@@ -14,8 +14,7 @@ Gem::Specification.new do |s|
   s.description = "Sharding"
   s.license     = "MIT"
 
-  s.files = Dir["{app,config,db,lib}/**/*"] + ["Rakefile"]
-  s.test_files = Dir["spec/**/*"]
+  s.files = Dir["{app,db,lib}/**/*"] + ["Rakefile"]
 
   s.required_ruby_version = '>= 2.0'
 

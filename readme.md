@@ -30,7 +30,10 @@ include:
 
 ## Installation
 
-Add `gem 'switchman'` to your Gemfile (requires Rails 3.2 only)
+1. Add `gem 'switchman'` to your Gemfile (requires Rails >= 3.2 only)
+2. Run `bundle install` from your project's root
+3. Run `rake switchman:install:migrations` to copy over the migration files
+   from Switchman to your application
 
 ## Usage
 

@@ -19,6 +19,12 @@ module Switchman
         end
       end
 
+      it "raises an error when a non-existent shard is activated" do
+        Shard.new.activate do
+          expect { User.count }.to raise_error(NonExistentShardError)
+        end
+      end
+
       describe "clear_idle_connections!" do
         before do
           skip 'A "real" database"' unless Shard.default.database_server.shareable?

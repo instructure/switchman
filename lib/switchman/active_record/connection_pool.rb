@@ -1,3 +1,5 @@
+require 'switchman/errors'
+
 module Switchman
   module ActiveRecord
     module ConnectionPool
@@ -26,6 +28,7 @@ module Switchman
 
       def connection
         conn = super
+        raise NonExistentShardError if shard.new_record?
         switch_database(conn) if conn.shard != self.shard
         conn
       end

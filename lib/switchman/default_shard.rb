@@ -11,6 +11,7 @@ module Switchman
     def global_id_for(local_id); local_id; end
     def database_server_id; nil; end
     def database_server; DatabaseServer.find(nil); end
+    def new_record?; false; end
     def name
       unless instance_variable_defined?(:@name)
         @name = nil # prevent taking this branch on recursion

@@ -294,6 +294,7 @@ module Switchman
         db = DatabaseServer.create(adapter: 'postgresql', database: 'notme')
         shard = Shard.new(database_server: db)
         shard.database_server = db
+        shard.stubs(:new_record?).returns(false)
         connection = mock()
         connection.stubs(:open_transactions).returns(0)
         connection.expects(:current_schemas).returns(['canvas', 'public']).once

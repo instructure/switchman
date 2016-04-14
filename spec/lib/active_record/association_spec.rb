@@ -262,6 +262,13 @@ module Switchman
             expect(root.user_id).to eq @user2.global_id
             expect(root.user).to eq @user2
           end
+
+          it "fetches unsharded children" do
+            root1 = @user2.roots.create!
+            root2 = @user2.roots.create!
+            root3 = @user2.roots.create!
+            expect(@user2.reload.roots.count).to eq(3)
+          end
         end
 
         describe "belongs_to associations" do

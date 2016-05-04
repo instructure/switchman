@@ -324,6 +324,14 @@ module Switchman
         expect(Shard.shard_for(@shard1.global_id_for(1), @shard1)).to eq @shard1
         expect(Shard.shard_for(Shard.default.global_id_for(1), @shard1)).to eq Shard.default
       end
+
+      it "works for non-integeral primary key AR objects" do
+        user = @shard1.activate { User.new }
+        user.stubs(:id).returns('abc')
+        expect(user.id).to eq 'abc'
+        expect(user.shard).to eq @shard1
+        expect(Shard.shard_for(user)).to eq @shard1
+      end
     end
 
     describe ".local_id_for" do

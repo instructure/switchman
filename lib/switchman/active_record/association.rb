@@ -103,7 +103,7 @@ module Switchman
               # for belongs_to, it's the shard of the foreign_key
               partition_proc = ->(owner) do
                 if owner.class.sharded_column?(owner_key_name)
-                  Shard.shard_for(owner, owner[owner_key_name])
+                  Shard.shard_for(owner[owner_key_name], owner.shard)
                 else
                   Shard.current
                 end

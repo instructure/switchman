@@ -470,6 +470,7 @@ module Switchman
       end
 
       def shard_for(any_id, source_shard = nil)
+        return any_id.shard if any_id.is_a?(::ActiveRecord::Base)
         _, shard = local_id_for(any_id)
         shard || source_shard || Shard.current
       end

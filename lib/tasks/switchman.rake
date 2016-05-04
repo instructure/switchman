@@ -225,6 +225,20 @@ module Switchman
           run_cmd('pg_dump', args, 'dumping')
           File.open(filename, "a") { |f| f << "SET search_path TO #{serialized_search_path};\n\n" }
         end
+
+        if ::Rails.version < '4.2.5'
+          # These methods are backported from rails 4.2.5 to work with the above
+          def run_cmd(cmd, args, action)
+            fail run_cmd_error(cmd, args, action) unless Kernel.system(cmd, *args)
+          end
+
+          def run_cmd_error(cmd, args, action)
+            msg = "failed to execute:\n"
+            msg << "#{cmd} #{args.join(' ')}\n\n"
+            msg << "Please check the output above for any errors and make sure that `#{cmd}` is installed in your PATH and has proper permissions.\n\n"
+            msg
+          end
+        end
       end
     end
   end

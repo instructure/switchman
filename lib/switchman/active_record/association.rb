@@ -115,10 +115,9 @@ module Switchman
               # for multishard associations, it's the owner object itself
               # (all associated shards)
 
-              # this is the default behavior of partition_by_shard, so just set it to nil
+              # this is the default behavior of partition_by_shard, so just let it be nil
               # to avoid the proc call
               # partition_proc = ->(owner) { owner }
-              partitition_proc = nil
             end
 
             records = Shard.partition_by_shard(owners, partition_proc) do |partitioned_owners|

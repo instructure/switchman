@@ -128,7 +128,7 @@ module Switchman
       end
 
       def hash
-        self.class.sharded_primary_key? ? global_id.hash : super
+        self.class.sharded_primary_key? ? Shard.global_id_for(id).hash : super
       end
 
       def to_param

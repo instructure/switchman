@@ -15,7 +15,7 @@ module Switchman
         current_shard = Shard.current(klass.shard_category)
         target_shard ||= current_shard
 
-        bind_values = bind_map.bind(params, current_shard, target_shard || current_shard)
+        bind_values = bind_map.bind(params, current_shard, target_shard)
 
         sql = query_builder.sql_for(bind_values, connection)
         target_shard.activate(klass.shard_category) do

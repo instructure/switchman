@@ -93,9 +93,11 @@ module Switchman
 
         if ::Rails.version > '4.2'
           require "switchman/active_record/statement_cache"
+          require "switchman/active_record/core"
           ::ActiveRecord::StatementCache.prepend(ActiveRecord::StatementCache)
           ::ActiveRecord::StatementCache::BindMap.prepend(ActiveRecord::StatementCache::BindMap)
           ::ActiveRecord::StatementCache::Substitute.send(:attr_accessor, :primary, :sharded)
+          singleton_class.prepend ActiveRecord::Core
 
           ::ActiveRecord::Associations::CollectionAssociation.prepend(ActiveRecord::CollectionAssociation)
         end

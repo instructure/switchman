@@ -20,6 +20,31 @@ module Switchman
             expect(User.find(@user.global_id)).to eq @user
           end
         end
+
+        if ::Rails.version > '4.2'
+          it "should use cached AST when query is run in the same shard" do
+            cache_key = { id: @user.local_id }
+            @shard1.activate do
+              User.find_by(cache_key)
+              ::ActiveRecord::StatementCache.expects(:create).never
+              User.find_by(cache_key)
+            end
+          end
+
+          it "should not use cached AST when query is run in a different shard" do
+            cache_key = { id: @user.local_id }
+            cached_ast = @shard1.activate do
+              User.find_by(cache_key)
+              if ::Rails.version > '5'
+                User.send(:cached_find_by_statement, [:id])
+              else
+                User.find_by_statement_cache[[:id]]
+              end
+            end
+            ::ActiveRecord::StatementCache.expects(:create).returns(cached_ast)
+            @shard2.activate { User.find_by(cache_key) }
+          end
+        end
       end
 
       describe "#find_by_attributes" do

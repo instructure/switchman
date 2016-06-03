@@ -121,7 +121,7 @@ module Switchman
           AND a.attnum IN (#{indkey.join(",")})
           SQL
 
-          column_names = columns.values_at(*indkey).compact
+          column_names = columns.stringify_keys.values_at(*indkey).compact
 
           unless column_names.empty?
             # add info on sort order for columns (only desc order is explicitly specified, asc is the default)

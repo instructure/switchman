@@ -66,6 +66,7 @@ module Switchman
         require "switchman/active_record/association"
         require "switchman/active_record/attribute_methods"
         require "switchman/active_record/base"
+        require "switchman/active_record/batches"
         require "switchman/active_record/calculations"
         require "switchman/active_record/connection_handler"
         require "switchman/active_record/connection_pool"
@@ -130,6 +131,7 @@ module Switchman
 
         ::ActiveRecord::LogSubscriber.prepend(ActiveRecord::LogSubscriber)
         ::ActiveRecord::Reflection::AssociationReflection.prepend(ActiveRecord::Reflection::AssociationReflection)
+        ::ActiveRecord::Relation.prepend(ActiveRecord::Batches)
         ::ActiveRecord::Relation.prepend(ActiveRecord::Calculations)
         ::ActiveRecord::Relation.include(ActiveRecord::FinderMethods)
         ::ActiveRecord::Relation.include(ActiveRecord::QueryMethods)

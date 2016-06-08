@@ -1,6 +1,22 @@
 module Switchman
   module ActiveRecord
     module StatementCache
+      module ClassMethods
+        def create(connection, block = Proc.new)
+          relation = block.call ::ActiveRecord::StatementCache::Params.new
+
+          binds = ::Rails.version >= '5' ? relation.bound_attributes : relation.bind_values
+          bind_map = ::ActiveRecord::StatementCache::BindMap.new(binds)
+          new relation.arel, bind_map
+        end
+      end
+
+      def initialize(arel, bind_map)
+        @arel = arel
+        @bind_map = bind_map
+        @qualified_query_builders = {}
+      end
+
       # since the StatememtCache is only implemented
       # for basic relations in AR::Base#find, AR::Base#find_by and AR::Association#get_records,
       # we can make some assumptions about the shard source
@@ -17,10 +33,23 @@ module Switchman
 
         bind_values = bind_map.bind(params, current_shard, target_shard)
 
-        sql = query_builder.sql_for(bind_values, connection)
         target_shard.activate(klass.shard_category) do
-          klass.find_by_sql(sql, bind_values)
+          if connection.use_qualified_names?
+            sql = qualified_query_builder(target_shard, klass).sql_for(bind_values, connection)
+            klass.find_by_sql(sql, bind_values)
+          else
+            sql = generic_query_builder(connection).sql_for(bind_values, connection)
+            klass.find_by_sql(sql, bind_values)
+          end
         end
+      end
+
+      def generic_query_builder(connection)
+        @query_builder ||= connection.cacheable_query(@arel)
+      end
+
+      def qualified_query_builder(shard, klass)
+        @qualified_query_builders[shard.id] ||= klass.connection.cacheable_query(@arel)
       end
 
       module BindMap

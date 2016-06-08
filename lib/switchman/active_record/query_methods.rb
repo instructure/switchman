@@ -91,6 +91,7 @@ module Switchman
         end
       end
 
+
       private
 
       [:where, :having].each do |type|
@@ -220,6 +221,22 @@ module Switchman
 
       def where_clause_factory
         super.tap { |factory| factory.scope = self }
+      end
+
+      def arel_columns(columns)
+        columns.map do |field|
+          if (Symbol === field || String === field) && ::Rails.version >= '5' && (klass.has_attribute?(field) || klass.attribute_alias?(field)) && !from_clause.value
+            klass.arel_attribute(field, table)
+          elsif (Symbol === field || String === field) && ::Rails.version < '5' && columns_hash.key?(field.to_s) && !from_value
+            arel_table[field]
+          elsif Symbol === field
+            # the rest of this is pulled from AR - the only change is from quote_table_name to quote_column_name here
+            # otherwise qualified names will add the schema to a column
+            connection.quote_column_name(field.to_s)
+          else
+            field
+          end
+        end
       end
 
       # semi-private

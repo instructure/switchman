@@ -276,6 +276,15 @@ module Switchman
             expect(Appendage.group(:user_id).order("COUNT(*) DESC").limit(1).count).to eq({ @user1.id => 2 })
           end
         end
+
+        it "should be able to group by joined columns with qualified names" do
+          Appendage.connection.stubs(:use_qualified_names?).returns(true)
+
+          user = User.create!
+          user.appendages.create!
+
+          expect(Appendage.joins(:user).group(:mirror_user_id).count).to eq({ nil => 1 })
+        end
       end
     end
   end

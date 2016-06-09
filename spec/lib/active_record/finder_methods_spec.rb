@@ -31,6 +31,15 @@ module Switchman
         end
       end
 
+      context "#find_last" do
+        it "should work across shards with qualified names" do
+          User.connection.stubs(:use_qualified_names?).returns(true)
+
+          @user = @shard1.activate { User.create! }
+          expect(User.shard(@shard1).where(:id => @user.local_id).last).to eq @user
+        end
+      end
+
       describe "#find_by_attributes" do
         it "should find with a global id" do
           expect(User.find_by_id(@user.global_id)).to eq @user

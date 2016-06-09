@@ -7,10 +7,12 @@ module Switchman
 
       after do
         User.reset_table_name
+        User.instance_variable_set(:@quoted_table_name, nil)
       end
 
       it "caches per-shard" do
         User.reset_table_name
+        User.instance_variable_set(:@quoted_table_name, nil)
         User.connection.expects(:quote_table_name).returns("1")
         expect(User.quoted_table_name).to eq "1"
         User.connection.expects(:quote_table_name).returns("2")

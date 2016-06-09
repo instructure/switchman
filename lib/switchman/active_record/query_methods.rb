@@ -91,6 +91,19 @@ module Switchman
         end
       end
 
+      if ::Rails.version >= '4.2' && ::Rails.version < '5'
+        # fixes an issue in Rails 4.2 with `reverse_sql_order` and qualified names
+        # where quoted_table_name is called before shard(s) have been activated
+        # if there's no ordering
+        def reverse_order!
+          orders = order_values.uniq
+          orders.reject!(&:blank?)
+          orders = [arel_table[primary_key].desc] if orders.empty?
+
+          self.order_values = reverse_sql_order(orders)
+          self
+        end
+      end
 
       private
 

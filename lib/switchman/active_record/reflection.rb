@@ -13,6 +13,20 @@ module Switchman
             owner.send(active_record_primary_key) # use sharded id values in association binds
           end
         end
+
+        # cache association scopes by shard.
+        if ::Rails.version >= '4.2'
+          def association_scope_cache(conn, owner)
+            key = conn.prepared_statements
+            if polymorphic?
+              key = [key, owner._read_attribute(@foreign_type)]
+            end
+            key = [key, owner.shard.id].flatten
+            @association_scope_cache[key] ||= @scope_lock.synchronize {
+              @association_scope_cache[key] ||= yield
+            }
+          end
+        end
       end
     end
   end

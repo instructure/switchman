@@ -49,7 +49,7 @@ module Switchman
       old_actions = old_task.actions.dup
       old_task.actions.clear
 
-      old_task.enhance do
+      old_task.enhance do |*task_args|
         if ::Rails.env.test?
           require 'switchman/test_helper'
           TestHelper.recreate_persistent_test_shards(dont_create: true)
@@ -62,7 +62,7 @@ module Switchman
             ::ActiveRecord::Base.connection_pool.spec.config[:shard_name] = Shard.current.name
             ::ActiveRecord::Base.configurations[::Rails.env] = ::ActiveRecord::Base.connection_pool.spec.config.stringify_keys
             shard.database_server.unshackle do
-              old_actions.each(&:call)
+              old_actions.each { |action| action.call(*task_args) }
             end
             nil
           end

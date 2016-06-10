@@ -98,9 +98,11 @@ module Switchman
         def reverse_order!
           orders = order_values.uniq
           orders.reject!(&:blank?)
-          orders = [arel_table[primary_key].desc] if orders.empty?
-
-          self.order_values = reverse_sql_order(orders)
+          if orders.empty?
+            self.order_values = [arel_table[primary_key].desc]
+          else
+            self.order_values = reverse_sql_order(orders)
+          end
           self
         end
       end

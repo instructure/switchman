@@ -35,8 +35,11 @@ module Switchman
         it "should work across shards with qualified names" do
           User.connection.stubs(:use_qualified_names?).returns(true)
 
-          @user = @shard1.activate { User.create! }
-          expect(User.shard(@shard1).where(:id => @user.local_id).last).to eq @user
+          @shard1.activate do
+            User.create!
+            @user = User.create!
+          end
+          expect(User.shard(@shard1).last).to eq @user
         end
       end
 

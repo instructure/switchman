@@ -100,6 +100,11 @@ module Switchman
             expect(where_value(predicates(relation).first.right)).to eq [@user1.global_id, @user2.local_id]
           end
         end
+
+        it "doesn't choke on valid objects with no id" do
+          u = User.new
+          User.where.not(id: u).shard([Shard.default, @shard1]).to_a
+        end
       end
 
       describe "with foreign key conditions" do

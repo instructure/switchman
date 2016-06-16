@@ -110,7 +110,7 @@ module Switchman
       private
 
       [:where, :having].each do |type|
-        class_eval <<-RUBY
+        class_eval <<-RUBY, __FILE__, __LINE__ + 1
           def transpose_#{type}_clauses(source_shard, target_shard, remove_nonlocal_primary_keys)
             if ::Rails.version >= '5'
               unless (predicates = #{type}_clause.send(:predicates)).empty?
@@ -263,7 +263,11 @@ module Switchman
           relation, column = relation_and_column(predicate.left)
           next predicate unless (type = transposable_attribute_type(relation, column))
 
-          remove = true if type == :primary && remove_nonlocal_primary_keys && predicate.left.relation.model == klass
+          remove = true if type == :primary &&
+              remove_nonlocal_primary_keys &&
+              predicate.left.relation.model == klass &&
+              predicate.is_a?(::Arel::Nodes::Equality)
+
           current_source_shard =
               if source_shard
                 source_shard

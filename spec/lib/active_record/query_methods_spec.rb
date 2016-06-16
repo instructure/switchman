@@ -105,6 +105,11 @@ module Switchman
           u = User.new
           User.where.not(id: u).shard([Shard.default, @shard1]).to_a
         end
+
+        it "doesn't choke on NotEqual queries with valid objects on other shards" do
+          u = User.create!
+          User.where.not(id: u).shard([Shard.default, @shard1]).to_a
+        end
       end
 
       describe "with foreign key conditions" do

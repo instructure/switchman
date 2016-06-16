@@ -38,6 +38,10 @@ module Switchman
         primary_shard.activate(klass.shard_category) { super }
       end
 
+      def to_sql
+        primary_shard.activate(klass.shard_category) { super }
+      end
+
       def explain(super_method: false)
         return super() if super_method
         self.activate { |relation| relation.explain(super_method: true) }

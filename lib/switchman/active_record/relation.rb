@@ -7,13 +7,13 @@ module Switchman
 
       def initialize(*args)
         super
-        self.shard_value = Shard.current(klass.respond_to?(:shard_category) ? klass.shard_category : :default) unless shard_value
+        self.shard_value = Shard.current(klass ? klass.shard_category : :default) unless shard_value
         self.shard_source_value = :implicit unless shard_source_value
       end
 
       def clone
         result = super
-        result.shard_value = Shard.current(klass.respond_to?(:shard_category) ? klass.shard_category : :default) unless shard_value
+        result.shard_value = Shard.current(klass ? klass.shard_category : :default) unless shard_value
         result
       end
 

@@ -71,7 +71,7 @@ module Switchman
         when ::ActiveRecord::Relation
           Shard.default
         when nil
-          Shard.current(klass.respond_to?(:shard_category) ? klass.shard_category : :default)
+          Shard.current(klass.shard_category)
         else
           raise ArgumentError, "invalid shard value #{shard_value}"
         end
@@ -85,7 +85,7 @@ module Switchman
         when ::ActiveRecord::Base
           shard_value.respond_to?(:associated_shards) ? shard_value.associated_shards : [shard_value.shard]
         when nil
-          [Shard.current(klass.respond_to?(:shard_category) ? klass.shard_category : default)]
+          [Shard.current(klass.shard_category)]
         else
           shard_value
         end

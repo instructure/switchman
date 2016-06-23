@@ -3,10 +3,12 @@ require 'switchman/errors'
 module Switchman
   module ActiveRecord
     module ConnectionPool
-      attr_writer :shard
-
       def shard
-        @shard || Shard.default
+        Thread.current["#{object_id}_shard".to_sym] || Shard.default
+      end
+
+      def shard=(value)
+        Thread.current["#{object_id}_shard".to_sym] = value
       end
 
       def default_schema
@@ -18,10 +20,14 @@ module Switchman
       end
 
       def checkout_new_connection
-        # TODO: this might be a threading issue
-        spec.config[:shard_name] = self.shard.name
+        conn = synchronize do
+          # ideally I would just keep a thread-local spec that I could modify
+          # without locking anything, but if spec returns not-the-object passed
+          # to initialize this pool, things break
+          spec.config[:shard_name] = self.shard.name
 
-        conn = super
+          super
+        end
         conn.shard = self.shard
         conn
       end

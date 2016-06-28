@@ -6,9 +6,4 @@ gem "mocha", :require => false
 gem "activerecord", "~> 4.1.0"
 gem "railties", "~> 4.1.0"
 
-group :development do
-  gem "appraisal"
-  gem "byebug"
-end
-
 gemspec :path => "../"

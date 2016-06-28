@@ -1,6 +1,7 @@
 appraise "activerecord-4.0" do
   gem 'activerecord', '~> 4.0.4'
   gem 'railties', '~> 4.0.4'
+  gem "test-unit"
 end
 
 appraise "activerecord-4.1" do
@@ -14,6 +15,6 @@ appraise "activerecord-4.2" do
 end
 
 appraise "activerecord-5.0" do
-  gem 'activerecord', '>= 5.0.0.beta3', '< 5.1'
-  gem 'railties', '>= 5.0.0.beta3', '< 5.1'
+  gem 'activerecord', '>= 5.0.0.1', '< 5.1'
+  gem 'railties', '>= 5.0.0.1', '< 5.1'
 end

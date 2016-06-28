@@ -7,8 +7,3 @@ gemspec
 
 # if put in the gemspec, the :require => false is ignored
 gem 'mocha', :require => false
-
-group :development do
-  gem 'appraisal'
-  gem 'byebug'
-end

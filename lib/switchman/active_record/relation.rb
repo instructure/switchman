@@ -7,13 +7,13 @@ module Switchman
 
       def initialize(*args)
         super
-        self.shard_value = Shard.current(klass ? klass.shard_category : :default) unless shard_value
+        self.shard_value = Shard.current(klass ? klass.shard_category : :primary) unless shard_value
         self.shard_source_value = :implicit unless shard_source_value
       end
 
       def clone
         result = super
-        result.shard_value = Shard.current(klass ? klass.shard_category : :default) unless shard_value
+        result.shard_value = Shard.current(klass ? klass.shard_category : :primary) unless shard_value
         result
       end
 
@@ -47,7 +47,7 @@ module Switchman
         self.activate { |relation| relation.explain(super_method: true) }
       end
 
-      to_a_method = ::Rails.version > '5.0.0.beta2' ? :records : :to_a
+      to_a_method = ::Rails.version >= '5' ? :records : :to_a
       class_eval <<-RUBY, __FILE__, __LINE__ + 1
         def #{to_a_method}(super_method: false)
           return super() if super_method

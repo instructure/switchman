@@ -48,7 +48,7 @@ module Switchman
     # task. tasks which modify the schema may want to pass all categories in
     # so that schema updates for non-default tables happen against all shards.
     # this is handled automatically for the default migration tasks, below.
-    def self.shardify_task(task_name, categories: [:default])
+    def self.shardify_task(task_name, categories: [:primary])
       old_task = ::Rake::Task[task_name]
       old_actions = old_task.actions.dup
       old_task.actions.clear

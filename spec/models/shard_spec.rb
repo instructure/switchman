@@ -8,7 +8,7 @@ module Switchman
       it "should activate a hash of shard categories" do
         expect(Shard.current).to eq Shard.default
         expect(Shard.current(:other)).to eq Shard.default
-        Shard.activate(:default => @shard1, :other => @shard2) do
+        Shard.activate(:primary => @shard1, :other => @shard2) do
           expect(Shard.current).to eq @shard1
           expect(Shard.current(:other)).to eq @shard2
         end
@@ -60,7 +60,7 @@ module Switchman
       it "should activate multiple categories" do
         expect(Shard.current).to eq Shard.default
         expect(Shard.current(:other)).to eq Shard.default
-        @shard1.activate(:default, :other) do
+        @shard1.activate(:primary, :other) do
           expect(Shard.current).to eq @shard1
           expect(Shard.current(:other)).to eq @shard1
         end

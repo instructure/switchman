@@ -5,10 +5,6 @@ source "http://rubygems.org"
 gem "mocha", :require => false
 gem "activerecord", "~> 4.0.4"
 gem "railties", "~> 4.0.4"
-
-group :development do
-  gem "appraisal"
-  gem "byebug"
-end
+gem "test-unit"
 
 gemspec :path => "../"

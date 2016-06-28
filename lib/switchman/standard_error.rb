@@ -5,7 +5,7 @@ module Switchman
       super
     end
 
-    def current_shard(category = :default)
+    def current_shard(category = :primary)
       @active_shards[category] || Shard.default
     end
   end

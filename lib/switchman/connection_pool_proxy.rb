@@ -79,6 +79,10 @@ module Switchman
       EOS
     end
 
+    def automatic_reconnect=(value)
+      @connection_pools.values.each { |pool| pool.automatic_reconnect = value }
+    end
+
     def clear_idle_connections!(since_when)
       @connection_pools.values.each { |pool| pool.clear_idle_connections!(since_when) }
     end
@@ -113,7 +117,9 @@ module Switchman
           end
         end
       end
-      spec = ::ActiveRecord::ConnectionAdapters::ConnectionSpecification.new(config, "#{config[:adapter]}_connection")
+      args = [config, "#{config[:adapter]}_connection"]
+      args.unshift(pool_key.join("/")) if ::Rails.version >= '5' # seems as good a name as any
+      spec = ::ActiveRecord::ConnectionAdapters::ConnectionSpecification.new(*args)
       # unfortunately the AR code that does this require logic can't really be
       # called in isolation
       require "active_record/connection_adapters/#{config[:adapter]}_adapter"

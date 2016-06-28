@@ -23,11 +23,11 @@ module Switchman
     end
 
     it "should correctly set up pools for sharding categories" do
-      models = ::ActiveRecord::Base.connection_handler.send(:class_to_pool)
+      models = ::ActiveRecord::Base.connection_handler.send(::Rails.version < '5' ? :class_to_pool : :owner_to_pool)
       default_pools = {}
       models.each_pair { |k, v| default_pools[k] = v.current_pool }
       ::Shackles.activate(:slave_that_no_one_else_uses) do
-        models = ::ActiveRecord::Base.connection_handler.send(:class_to_pool)
+        models = ::ActiveRecord::Base.connection_handler.send(::Rails.version < '5' ? :class_to_pool : :owner_to_pool)
         pools = {}
         models.each_pair { |k, v| pools[k] = v.current_pool }
         expect(default_pools.keys.sort).to eq pools.keys.sort

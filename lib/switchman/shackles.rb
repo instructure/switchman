@@ -11,7 +11,7 @@ module Switchman
         environment ||= :master
         activated_environments << environment
         old_environment = self.environment
-        @environment = environment
+        Thread.current[:shackles_environment] = environment
         old_environment
       end
 

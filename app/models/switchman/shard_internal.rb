@@ -11,12 +11,12 @@ module Switchman
     CATEGORIES =
       {
           # special cased to mean all other models
-          :default => nil,
+          :primary => nil,
           # special cased to not allow activating a shard other than the default
           :unsharded => [Shard]
       }
     private_constant :CATEGORIES
-    @shard_category = :unsharded
+    @connection_specification_name = @shard_category = :unsharded
 
     if defined?(::ProtectedAttributes)
       attr_accessible :default, :name, :database_server
@@ -71,7 +71,7 @@ module Switchman
         @default
       end
 
-      def current(category = :default)
+      def current(category = :primary)
         active_shards[category] || Shard.default
       end
 
@@ -682,7 +682,7 @@ module Switchman
 
     def hashify_categories(categories)
       if categories.empty?
-        { :default => self }
+        { :primary => self }
       else
         categories.inject({}) { |h, category| h[category] = self; h }
       end

@@ -22,8 +22,9 @@ module Switchman
         end
       end
 
-      def establish_connection(owner, spec)
-        super
+      def establish_connection(*args)
+        pool = super
+        owner, spec = ::Rails.version < '5' ? args : [nil, args.first]
 
         # this is the first place that the adapter would have been required; but now we
         # need this addition ASAP since it will be called when loading the default shard below
@@ -31,17 +32,6 @@ module Switchman
           require "switchman/active_record/postgresql_adapter"
           ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(ActiveRecord::PostgreSQLAdapter)
         end
-
-        # AR3 uses the name, AR4 uses the model
-        model = case owner
-                when String
-                  owner.constantize
-                when Class
-                  owner
-                else
-                  raise "unknown owner #{owner}"
-                end
-        pool = owner_to_pool[owner.name]
 
         first_time = !Shard.instance_variable_get(:@default)
         if first_time
@@ -55,13 +45,19 @@ module Switchman
 
           ::ActiveRecord::Base.configurations[::Rails.env] = spec.instance_variable_get(:@config).stringify_keys
         end
+
         @shard_connection_pools ||= { [:master, Shard.default.database_server.shareable? ? ::Rails.env : Shard.default] => pool}
 
-        proxy = ConnectionPoolProxy.new(model.shard_category,
+        category = ::Rails.version < '5' ? owner.shard_category : pool.spec.name.to_sym
+        proxy = ConnectionPoolProxy.new(category,
                                         pool,
                                         @shard_connection_pools)
-        owner_to_pool[owner.name] = proxy
-        class_to_pool.clear
+        if ::Rails.version < '5'
+          owner_to_pool[owner.name] = proxy
+          class_to_pool.clear
+        else
+          owner_to_pool[pool.spec.name] = proxy
+        end
 
         if first_time
           if Shard.default.database_server.config[:prefer_slave]
@@ -79,7 +75,7 @@ module Switchman
         # DON'T do it if we're not the current connection handler - that means
         # we're in the middle of switching environments, and we don't want to
         # establish a connection with incorrect settings
-        if (model == ::ActiveRecord::Base || model == Shard) && self == ::ActiveRecord::Base.connection_handler && !first_time
+        if [:primary, :unsharded].include?(category) && self == ::ActiveRecord::Base.connection_handler && !first_time
           Shard.default(reload: true, with_fallback: true)
           proxy.disconnect!
         end
@@ -106,50 +102,85 @@ module Switchman
         proxy
       end
 
-      def remove_connection(model)
-        uninitialize_ar(model) if owner_to_pool[model.name].is_a?(ConnectionPoolProxy)
-        result = super
-        initialize_categories
-        result
-      end
+      if ::Rails.version < '5'
+        def remove_connection(model)
+          uninitialize_ar(model) if owner_to_pool[model.name].is_a?(ConnectionPoolProxy)
+          result = super
+          initialize_categories
+          result
+        end
 
-      def pool_for(owner)
-        # copypasted from AR#ConnectionHandler other than proxy handling
+        def pool_for(owner)
+          # copypasted from AR#ConnectionHandler other than proxy handling
 
-        owner_to_pool.fetch(owner.name) {
-          if ancestor_pool = pool_from_any_process_for(owner)
-            # A connection was established in an ancestor process that must have
-            # subsequently forked. We can't reuse the connection, but we can copy
-            # the specification and establish a new connection with it.
-            if ancestor_pool.is_a?(ConnectionPoolProxy)
-              establish_connection owner, ancestor_pool.default_pool.spec
+          owner_to_pool.fetch(owner.name) {
+            if ancestor_pool = pool_from_any_process_for(owner)
+              # A connection was established in an ancestor process that must have
+              # subsequently forked. We can't reuse the connection, but we can copy
+              # the specification and establish a new connection with it.
+              if ancestor_pool.is_a?(ConnectionPoolProxy)
+                establish_connection owner, ancestor_pool.default_pool.spec
+              else
+                establish_connection owner, ancestor_pool.spec
+              end
             else
-              establish_connection owner, ancestor_pool.spec
+              owner_to_pool[owner.name] = nil
             end
-          else
-            owner_to_pool[owner.name] = nil
-          end
-        }
-      end
+          }
+        end
 
-      def retrieve_connection_pool(klass)
-        class_to_pool[klass.name] ||= begin
-          original_klass = klass
-          until pool = pool_for(klass)
-            klass = klass.superclass
-            break unless klass <= Base
-          end
+        def retrieve_connection_pool(klass)
+          class_to_pool[klass.name] ||= begin
+            original_klass = klass
+            until pool = pool_for(klass)
+              klass = klass.superclass
+              break unless klass <= Base
+            end
 
-          if pool.is_a?(ConnectionPoolProxy) && pool.category != original_klass.shard_category
-            default_pool = pool.default_pool
-            pool = nil
-            class_to_pool.each_value { |p| pool = p if p.is_a?(ConnectionPoolProxy) &&
-                p.category == original_klass.shard_category &&
-                p.default_pool == default_pool }
-            pool ||= ConnectionPoolProxy.new(original_klass.shard_category, default_pool, @shard_connection_pools)
-          end
+            if pool.is_a?(ConnectionPoolProxy) && pool.category != original_klass.shard_category
+              default_pool = pool.default_pool
+              pool = nil
+              class_to_pool.each_value { |p| pool = p if p.is_a?(ConnectionPoolProxy) &&
+                  p.category == original_klass.shard_category &&
+                  p.default_pool == default_pool }
+              pool ||= ConnectionPoolProxy.new(original_klass.shard_category, default_pool, @shard_connection_pools)
+            end
 
-          class_to_pool[original_klass.name] = pool
+            class_to_pool[original_klass.name] = pool
+          end
+        end
+      else
+        def remove_connection(spec_name)
+          pool = owner_to_pool[spec_name]
+          owner_to_pool[spec_name] = pool.default_pool if pool.is_a?(ConnectionPoolProxy)
+          super
+        end
+
+        def retrieve_connection_pool(spec_name)
+          owner_to_pool.fetch(spec_name) do
+            if ancestor_pool = pool_from_any_process_for(spec_name)
+              # A connection was established in an ancestor process that must have
+              # subsequently forked. We can't reuse the connection, but we can copy
+              # the specification and establish a new connection with it.
+              pool = nil
+              if ancestor_pool.is_a?(ConnectionPoolProxy)
+                pool = establish_connection ancestor_pool.default_pool.spec
+              else
+                pool = establish_connection ancestor_pool.spec
+              end
+              pool.instance_variable_set(:@schema_cache, ancestor_pool.schema_cache) if ancestor_pool.schema_cache
+              pool
+            elsif spec_name != "primary"
+              primary_pool = retrieve_connection_pool("primary")
+              if primary_pool.is_a?(ConnectionPoolProxy)
+                ConnectionPoolProxy.new(spec_name.to_sym, primary_pool.default_pool, @shard_connection_pools)
+              else
+                primary_pool
+              end
+            else
+              owner_to_pool[spec_name] = nil
+            end
+          end
         end
       end
 
@@ -159,7 +190,7 @@ module Switchman
       end
 
       def switchman_connection_pool_proxies
-        class_to_pool.values.uniq
+        (::Rails.version < '5' ? class_to_pool : owner_to_pool).values.uniq.select{|p| p.is_a?(ConnectionPoolProxy)}
       end
 
       private

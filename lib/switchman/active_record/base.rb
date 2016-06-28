@@ -4,8 +4,14 @@ module Switchman
       module ClassMethods
         delegate :shard, to: :all
 
-        def shard_category
-          @shard_category || (self.superclass < ::ActiveRecord::Base && self.superclass.shard_category) || :default
+        if ::Rails.version < '5'
+          def shard_category
+            @shard_category || (self.superclass < ::ActiveRecord::Base && self.superclass.shard_category) || :primary
+          end
+        else
+          def shard_category
+            connection_specification_name.to_sym
+          end
         end
 
         def shard_category=(category)
@@ -14,11 +20,15 @@ module Switchman
             categories[shard_category].delete(self)
             categories.delete(shard_category) if categories[shard_category].empty?
           end
-          connection_handler.uninitialize_ar(self)
           categories[category] ||= []
           categories[category] << self
-          @shard_category = category
-          connection_handler.initialize_categories(superclass)
+          if ::Rails.version < '5'
+            connection_handler.uninitialize_ar(self)
+            @shard_category = category
+            connection_handler.initialize_categories(superclass)
+          else
+            self.connection_specification_name = category.to_s
+          end
         end
 
         def integral_id?

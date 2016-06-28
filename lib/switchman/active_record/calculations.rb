@@ -76,7 +76,7 @@ module Switchman
         opts = grouped_calculation_options(operation.to_s.downcase, column_name, distinct)
 
         relation = build_grouped_calculation_relation(opts)
-        target_shard = Shard.current(:default)
+        target_shard = Shard.current(:primary)
 
         rows = relation.activate do |rel, shard|
           calculated_data = klass.connection.select_all(rel)

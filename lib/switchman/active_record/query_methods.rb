@@ -46,6 +46,19 @@ module Switchman
         # moved to WhereClauseFactory#build in Rails 5
         def build_where(opts, other = [])
           case opts
+          when String, Array
+            values = Hash === other.first ? other.first.values : other
+
+            values.grep(ActiveRecord::Relation) do |rel|
+              # serialize subqueries against the same shard as the outer query is currently
+              # targeted to run against
+              if rel.shard_source_value == :implicit && rel.primary_shard != primary_shard
+                rel.shard!(primary_shard)
+              end
+              self.bind_values += rel.bind_values if ::Rails.version < '4.2'
+            end
+
+            [@klass.send(:sanitize_sql, other.empty? ? opts : ([opts] + other))]
           when Hash, ::Arel::Nodes::Node
             predicates = super
             infer_shards_from_primary_key(predicates) if shard_source_value == :implicit && shard_value.is_a?(Shard)

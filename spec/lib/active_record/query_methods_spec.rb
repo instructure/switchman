@@ -171,6 +171,14 @@ module Switchman
           expect(@user1.grandchildren).to eq [grandchild]
         end
       end
+
+      it "serializes subqueries relative to the relation's shard" do
+        skip "can't detect which shard it serialized against" if Shard.default.name.include?(@shard1.name)
+        User.connection.stubs(:use_qualified_names?).returns(true)
+        sql = User.shard(@shard1).where("EXISTS (?)", User.all).to_sql
+        expect(sql).not_to be_include(Shard.default.name)
+        expect(sql.scan(@shard1.name).length).to eq 2
+      end
     end
   end
 end

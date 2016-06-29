@@ -61,6 +61,7 @@ module Switchman
             [@klass.send(:sanitize_sql, other.empty? ? opts : ([opts] + other))]
           when Hash, ::Arel::Nodes::Node
             predicates = super
+            debugger
             infer_shards_from_primary_key(predicates) if shard_source_value == :implicit && shard_value.is_a?(Shard)
             predicates = transpose_predicates(predicates, nil, primary_shard) if shard_source_value != :explicit
             predicates

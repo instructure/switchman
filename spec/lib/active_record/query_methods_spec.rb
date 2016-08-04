@@ -110,6 +110,10 @@ module Switchman
           u = User.create!
           User.where.not(id: u).shard([Shard.default, @shard1]).to_a
         end
+
+        it "doesn't choke on non-integral primary keys that look like integers" do
+          PageView.where(request_id: '123').take
+        end
       end
 
       describe "with foreign key conditions" do

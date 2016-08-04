@@ -228,7 +228,7 @@ module Switchman
       def sharded_primary_key?(relation, column)
         column = column.to_s
         return column == 'id' if relation.model == ::ActiveRecord::Base
-        relation.model.primary_key == column
+        relation.model.primary_key == column && relation.model.integral_id?
       end
 
       def source_shard_for_foreign_key(relation, column)

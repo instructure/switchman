@@ -53,7 +53,7 @@ module Switchman
 
         args = [relation, "#{name} Exists"]
         args << relation.bind_values if ::Rails.version >= '4.1'
-        activate { return true if connection.select_value(*args) }
+        relation.activate { return true if connection.select_value(*args) }
         false
       rescue
         raise if ::Rails.version >= '4.1' || !(::ActiveRecord::ThrowResult === $!)

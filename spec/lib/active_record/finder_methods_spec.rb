@@ -73,6 +73,10 @@ module Switchman
           user2 = @shard2.activate { User.create!(name: "multi-shard exists") }
           expect(User.where(name: "multi-shard exists").shard(Shard.all).exists?).to eq true
         end
+
+        it "should work if a condition is passed" do
+          expect(User.exists?(@user.global_id)).to eq true
+        end
       end
     end
   end

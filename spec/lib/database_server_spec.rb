@@ -227,5 +227,13 @@ module Switchman
         expect(dbs).to include(@db2)
       end
     end
+
+    describe "#primary_shard" do
+      it "works even without a shards table" do
+        expect(Shard.default).to be_a(DefaultShard)
+        Shard.default.database_server.expects(:shards).never
+        expect(Shard.default.database_server.primary_shard).to eq Shard.default
+      end
+    end
   end
 end

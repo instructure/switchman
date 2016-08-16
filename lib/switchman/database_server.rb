@@ -271,6 +271,9 @@ module Switchman
     end
 
     def primary_shard
+      # if sharding isn't fully set up yet, we may not be able to query the shards table
+      return Shard.default if Shard.default.database_server == self
+
       unless instance_variable_defined?(:@primary_shard)
         @primary_shard = shards.where(name: nil).first
       end

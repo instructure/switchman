@@ -1,6 +1,7 @@
 require 'switchman/database_server'
 require 'switchman/default_shard'
 require 'switchman/environment'
+require 'switchman/errors'
 
 module Switchman
   class Shard < ::ActiveRecord::Base
@@ -151,6 +152,7 @@ module Switchman
       #                sub-processes per database server. Note that parallel
       #                invocation currently uses forking, so should be used sparingly
       #                because errors are not raised, and you cannot get results back
+      #    :max_procs - only run this many parallel processes at a time
       #    :exception - :ignore, :raise, :defer (wait until the end and raise the first
       #                error), or a proc
       def with_each_shard(*args)
@@ -226,9 +228,11 @@ module Switchman
           end
 
           fd_to_name_map = {}
+          pid_to_name_map = {}
           out_fds = []
           err_fds = []
           pids = []
+          errors = []
 
           wait_for_output = lambda do |out_fds, err_fds, fd_to_name_map|
             ready, _ = IO.select(out_fds + err_fds)
@@ -263,7 +267,7 @@ module Switchman
                 name = server.id
               end
 
-              details = Open4.pfork4(lambda do
+              pid, io_in, io_out, io_err = Open4.pfork4(lambda do
                 begin
                   ::ActiveRecord::Base.clear_all_connections!
                   Switchman.config[:on_fork_proc].try(:call)
@@ -275,20 +279,24 @@ module Switchman
                   exit 1
                 end
               end)
+              pids << pid
               # don't care about writing to stdin
-              details[1].close
-              out_fds << details[2]
-              err_fds << details[3]
-              pids << details[0]
-              fd_to_name_map[details[2]] = name
-              fd_to_name_map[details[3]] = name
+              io_in.close
+              out_fds << io_out
+              err_fds << io_err
+              pid_to_name_map[pid] = name
+              fd_to_name_map[io_out] = name
+              fd_to_name_map[io_err] = name
 
               while max_procs && pids.count >= max_procs
                 while max_procs && out_fds.count >= max_procs
                   # wait for output if we've hit the max_procs limit
                   wait_for_output.call(out_fds, err_fds, fd_to_name_map)
                 end
-                pids.delete(Process.wait) # we've gotten all the output from one fd so wait for its child process to exit
+                # we've gotten all the output from one fd so wait for its child process to exit
+                found_pid, status = Process.wait2
+                pids.delete(found_pid)
+                errors << pid_to_name_map[found_pid] if status.exitstatus != 0
               end
             end
           end
@@ -298,7 +306,10 @@ module Switchman
           while out_fds.any? || err_fds.any?
             wait_for_output.call(out_fds, err_fds, fd_to_name_map)
           end
-          pids.each { |pid| Process.waitpid2(pid) }
+          pids.each do |pid|
+            _, status = Process.waitpid2(pid)
+            errors << pid_to_name_map[pid] if status.exitstatus != 0
+          end
 
           # I'm not sure why, but we have to do this
           ::ActiveRecord::Base.clear_all_connections!
@@ -312,6 +323,10 @@ module Switchman
             # No exceptions
           ensure
             exception_pipe.first.close
+          end
+
+          unless errors.empty?
+            raise ParallelShardExecError.new("The following subprocesses did not exit cleanly: #{errors.sort.join(", ")}")
           end
           return
         end

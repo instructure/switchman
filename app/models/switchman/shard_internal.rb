@@ -227,11 +227,12 @@ module Switchman
             end
           end
 
-          fd_to_name_map = {}
-          pid_to_name_map = {}
+          exception_pipes = []
+          pids = []
           out_fds = []
           err_fds = []
-          pids = []
+          pid_to_name_map = {}
+          fd_to_name_map = {}
           errors = []
 
           wait_for_output = lambda do |out_fds, err_fds, fd_to_name_map|
@@ -248,7 +249,6 @@ module Switchman
             end
           end
 
-          exception_pipe = IO.pipe
           scopes.each do |server, subscopes|
             if !(::ActiveRecord::Relation === subscopes.first) && subscopes.first.class != Array
               subscopes = [subscopes]
@@ -267,21 +267,25 @@ module Switchman
                 name = server.id
               end
 
+              exception_pipe = IO.pipe
+              exception_pipes << exception_pipe
               pid, io_in, io_out, io_err = Open4.pfork4(lambda do
                 begin
                   ::ActiveRecord::Base.clear_all_connections!
                   Switchman.config[:on_fork_proc].try(:call)
                   $0 = [$0, ARGV, name].flatten.join(' ')
                   with_each_shard(subscope, categories, options) { yield }
+                  exception_pipe.last.close
                 rescue Exception => e
-                  exception_pipe.last.write(Marshal.dump(e))
+                  Marshal.dump(e, exception_pipe.last)
                   exception_pipe.last.flush
-                  exit 1
+                  exception_pipe.last.close
+                  exit! 1
                 end
               end)
+              exception_pipe.last.close
               pids << pid
-              # don't care about writing to stdin
-              io_in.close
+              io_in.close # don't care about writing to stdin
               out_fds << io_out
               err_fds << io_err
               pid_to_name_map[pid] = name
@@ -301,8 +305,6 @@ module Switchman
             end
           end
 
-          exception_pipe.last.close
-
           while out_fds.any? || err_fds.any?
             wait_for_output.call(out_fds, err_fds, fd_to_name_map)
           end
@@ -313,16 +315,17 @@ module Switchman
 
           # I'm not sure why, but we have to do this
           ::ActiveRecord::Base.clear_all_connections!
+
           # check for an exception; we only re-raise the first one
-          # (all the sub-processes shared the same pipe, so we only
-          # have to check the one)
-          begin
-            exception = Marshal.load exception_pipe.first
-            raise exception
-          rescue EOFError
-            # No exceptions
-          ensure
-            exception_pipe.first.close
+          exception_pipes.each do |exception_pipe|
+            begin
+              exception = Marshal.load exception_pipe.first
+              raise exception
+            rescue EOFError
+              # No exceptions
+            ensure
+              exception_pipe.first.close
+            end
           end
 
           unless errors.empty?

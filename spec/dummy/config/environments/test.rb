@@ -5,7 +5,10 @@ Dummy::Application.configure do
   # test suite. You never need to work with it otherwise. Remember that
   # your test database is "scratch space" for the test suite and is wiped
   # and recreated between test runs. Don't rely on the data there!
-  config.cache_classes = true
+
+  # this is false only for Rails.version 5.0.0.beta; in 5.0 stable, we need to
+  # set enable_dependency_loading to true instead
+  config.cache_classes = false
 
   # Configure static asset server for tests with Cache-Control for performance
   config.serve_static_files = true

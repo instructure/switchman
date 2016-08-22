@@ -319,10 +319,10 @@ module Switchman
           # check for an exception; we only re-raise the first one
           exception_pipes.each do |exception_pipe|
             begin
-              exception = Marshal.load exception_pipe.first
+              serialized_exception = exception_pipe.first.read
+              next if serialized_exception.empty?
+              exception = Marshal.load(serialized_exception)
               raise exception
-            rescue EOFError
-              # No exceptions
             ensure
               exception_pipe.first.close
             end

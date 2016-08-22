@@ -195,6 +195,20 @@ module Switchman
           expect(User.connected?).to eq true
         end
       end
+
+      it 'properly re-raises an autoloaded exception' do
+        expect(defined?(TestException)).to eq nil
+        ::ActiveSupport::Dependencies.autoload_paths << File.expand_path(File.join(__FILE__, "../.."))
+        begin
+          Shard.with_each_shard([Shard.default, @shard2], parallel: true) do
+            raise TestException
+          end
+        rescue => e
+          expect(e.class).to eq TestException
+          raised = true
+        end
+        expect(raised).to eq true
+      end
     end
 
     describe ".cached_shards" do

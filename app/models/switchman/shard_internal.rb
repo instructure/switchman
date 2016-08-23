@@ -255,8 +255,6 @@ module Switchman
             end
             # only one process; don't bother forking
             if scopes.length == 1 && subscopes.length == 1
-              exception_pipe.first.close
-              exception_pipe.last.close
               return with_each_shard(subscopes.first, categories, options) { yield }
             end
 

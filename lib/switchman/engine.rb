@@ -86,6 +86,9 @@ module Switchman
         require "switchman/rails"
         require "switchman/shackles/relation"
         require "switchman/shard_internal"
+        require "switchman/standard_error"
+
+        ::StandardError.include(StandardError)
 
         include ActiveRecord::Base
         include ActiveRecord::AttributeMethods

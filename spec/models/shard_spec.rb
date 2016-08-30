@@ -194,6 +194,19 @@ module Switchman
           Shard.with_each_shard([]) {}
           expect(User.connected?).to eq true
         end
+
+        it "properly re-raises a PG exception that's not dumpable" do
+          begin
+            Shard.with_each_shard([Shard.default, @shard2], parallel: true) do
+              User.connection.execute("die") if Shard.current == @shard2
+            end
+          rescue => e
+            expect(e.message).to match(/die/)
+            expect(e.current_shard).to eq @shard2
+            raised = true
+          end
+          expect(raised).to eq true
+        end
       end
 
       it 'properly re-raises an autoloaded exception' do

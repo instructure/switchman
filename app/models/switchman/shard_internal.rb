@@ -279,8 +279,19 @@ module Switchman
                   $0 = [$0, ARGV, name].flatten.join(' ')
                   with_each_shard(subscope, categories, options) { yield }
                   exception_pipe.last.close
-                rescue Exception => e
-                  Marshal.dump(e, exception_pipe.last)
+                rescue => e
+                  begin
+                    dumped = Marshal.dump(e)
+                  rescue
+                    # couldn't dump the exception; create a copy with just
+                    # the message and the backtrace
+                    e2 = e.class.new(e.message)
+                    e2.set_backtrace(e.backtrace)
+                    e2.instance_variable_set(:@active_shards, e.instance_variable_get(:@active_shards))
+                    dumped = Marshal.dump(e2)
+                  end
+                  exception_pipe.last.set_encoding(dumped.encoding)
+                  exception_pipe.last.write(dumped)
                   exception_pipe.last.flush
                   exception_pipe.last.close
                   exit! 1

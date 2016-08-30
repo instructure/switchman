@@ -75,7 +75,8 @@ module Switchman
           @user2.appendages.to_a # trigger the cache
 
           keys = User.reflect_on_association('appendages').instance_variable_get(:@association_scope_cache).keys
-          expect(keys).to eq [[true, @user1.shard.id], [true, @user2.shard.id]]
+          prepared = User.connection.prepared_statements
+          expect(keys).to eq [[prepared, @user1.shard.id], [prepared, @user2.shard.id]]
         end
       end
 

@@ -249,13 +249,19 @@ module Switchman
             end
           end
 
+          # only one process; don't bother forking
+          if scopes.length == 1 && parallel == 1
+            return with_each_shard(subscopes.first, categories, options) { yield }
+          end
+
+          # clear connections prior to forking (no more queries will be executed in the parent,
+          # and we want them gone so that we don't accidentally use them post-fork doing something
+          # silly like dealloc'ing prepared statements)
+          ::ActiveRecord::Base.clear_all_connections!
+
           scopes.each do |server, subscopes|
             if !(::ActiveRecord::Relation === subscopes.first) && subscopes.first.class != Array
               subscopes = [subscopes]
-            end
-            # only one process; don't bother forking
-            if scopes.length == 1 && subscopes.length == 1
-              return with_each_shard(subscopes.first, categories, options) { yield }
             end
 
             subscopes.each_with_index do |subscope, idx|
@@ -269,7 +275,6 @@ module Switchman
               exception_pipes << exception_pipe
               pid, io_in, io_out, io_err = Open4.pfork4(lambda do
                 begin
-                  ::ActiveRecord::Base.clear_all_connections!
                   Switchman.config[:on_fork_proc].try(:call)
                   $0 = [$0, ARGV, name].flatten.join(' ')
                   with_each_shard(subscope, categories, options) { yield }
@@ -310,9 +315,6 @@ module Switchman
             _, status = Process.waitpid2(pid)
             errors << pid_to_name_map[pid] if status.exitstatus != 0
           end
-
-          # I'm not sure why, but we have to do this
-          ::ActiveRecord::Base.clear_all_connections!
 
           # check for an exception; we only re-raise the first one
           exception_pipes.each do |exception_pipe|

@@ -456,8 +456,12 @@ module Switchman
           expect(Shard.relative_id_for(@global_id, @shard2, @shard2)).to eq @global_id
         end
 
-        it "should return the original id for unrecognized ids" do
-          expect(Shard.relative_id_for('not an id', @shard1, @shard2)).to eq 'not an id'
+        it "should return the nil for unrecognized ids" do
+          expect(Shard.relative_id_for('not an id', @shard1, @shard2)).to eq nil
+        end
+
+        it "returns an integral form of an id when it refers to a non-existent shard" do
+          expect(Shard.relative_id_for("#{@shard2.id + 1}~1", @shard1, @shard2)).to eq Shard.new(id: @shard2.id + 1).global_id_for(1)
         end
       end
 

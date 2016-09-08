@@ -75,6 +75,11 @@ module Switchman
           expect(where_value(predicates(relation).first.right)).to eq [@user2.local_id, @user2.local_id]
         end
 
+        it "does not die with an array of garbage executing on another shard" do
+          relation = User.where(id: ['garbage', 'more_garbage'])
+          expect(relation.shard([Shard.default, @shard1]).to_a).to eq []
+        end
+
         it "should infer the correct shard from an array of 1" do
           relation = User.where(:id => [@user2])
           # execute on @shard1, with id local to that shard

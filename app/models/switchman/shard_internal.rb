@@ -451,7 +451,8 @@ module Switchman
 
       # takes an id-ish, and returns a local id and the shard it's
       # local to. [nil, nil] if it can't be interpreted. [id, nil]
-      # if it's already a local ID
+      # if it's already a local ID. [nil, nil] if it's a well formed
+      # id, but the shard it refers to does not exist
       NIL_NIL_ID = [nil, nil].freeze
       def local_id_for(any_id)
         id = integral_id_for(any_id)
@@ -466,10 +467,13 @@ module Switchman
       end
 
       # takes an id-ish, and returns an integral id relative to
-      # target_shard. returns any_id itself if it can't be interpreted
+      # target_shard. returns nil if it can't be interpreted,
+      # or the integral version of the id if it refers to a shard
+      # that does not exist
       def relative_id_for(any_id, source_shard, target_shard)
-        local_id, shard = local_id_for(any_id)
-        return any_id unless local_id
+        integral_id = integral_id_for(any_id)
+        local_id, shard = local_id_for(integral_id)
+        return integral_id unless local_id
         shard ||= source_shard
         return local_id if shard == target_shard
         shard.global_id_for(local_id)

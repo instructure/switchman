@@ -338,7 +338,7 @@ module Switchman
             end
             predicate.right
           else
-            local_id = Shard.relative_id_for(predicate.right, current_source_shard, target_shard)
+            local_id = Shard.relative_id_for(predicate.right, current_source_shard, target_shard) || predicate.right
             local_id = [] if remove && local_id.is_a?(Fixnum) && local_id > Shard::IDS_PER_SHARD
             local_id
           end

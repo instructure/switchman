@@ -80,6 +80,11 @@ module Switchman
           expect(relation.shard([Shard.default, @shard1]).to_a).to eq []
         end
 
+        it "doesn't munge a subquery" do
+          relation = User.where(id: User.where(id: @user1))
+          expect(relation.to_a).to eq [@user1]
+        end
+
         it "should infer the correct shard from an array of 1" do
           relation = User.where(:id => [@user2])
           # execute on @shard1, with id local to that shard

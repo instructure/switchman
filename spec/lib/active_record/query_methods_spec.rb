@@ -124,6 +124,16 @@ module Switchman
         it "doesn't choke on non-integral primary keys that look like integers" do
           PageView.where(request_id: '123').take
         end
+
+        it "transposes a global id to the shard the query will execute on" do
+          u = @shard1.activate { User.create! }
+          expect(User.shard(@shard1).where(id: u.id).take).to eq u
+        end
+
+        it "interprets a local id as relative to a relation's explicit shard" do
+          u = @shard1.activate { User.create! }
+          expect(User.shard(@shard1).where(id: u.local_id).take).to eq u
+        end
       end
 
       describe "with foreign key conditions" do

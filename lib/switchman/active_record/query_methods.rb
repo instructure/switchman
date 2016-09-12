@@ -62,7 +62,7 @@ module Switchman
           when Hash, ::Arel::Nodes::Node
             predicates = super
             infer_shards_from_primary_key(predicates) if shard_source_value == :implicit && shard_value.is_a?(Shard)
-            predicates = transpose_predicates(predicates, nil, primary_shard) if shard_source_value != :explicit
+            predicates = transpose_predicates(predicates, nil, primary_shard)
             predicates
           else
             super
@@ -284,6 +284,8 @@ module Switchman
           current_source_shard =
               if source_shard
                 source_shard
+              elsif shard_source_value == :explicit
+                primary_shard
               elsif type == :primary
                 Shard.current(klass.shard_category)
               elsif type == :foreign

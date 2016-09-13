@@ -44,7 +44,11 @@ module Switchman
       { parallel: ENV['PARALLEL'].to_i, max_procs: ENV['MAX_PARALLEL_PROCS'] }
     end
 
-    def self.shardify_task(task_name)
+    # categories - an array or proc, to activate as the current shard during the
+    # task. tasks which modify the schema may want to pass all categories in
+    # so that schema updates for non-default tables happen against all shards.
+    # this is handled automatically for the default migration tasks, below.
+    def self.shardify_task(task_name, categories: [:default])
       old_task = ::Rake::Task[task_name]
       old_actions = old_task.actions.dup
       old_task.actions.clear
@@ -57,7 +61,8 @@ module Switchman
 
         ::Shackles.activate(:deploy) do
           begin
-            Shard.with_each_shard(scope, Shard.categories, options) do
+            categories = categories.call if categories.respond_to?(:call)
+            Shard.with_each_shard(scope, categories, options) do
               shard = Shard.current
               puts "#{shard.id}: #{shard.description}"
               ::ActiveRecord::Base.connection_pool.spec.config[:shard_name] = Shard.current.name
@@ -75,7 +80,9 @@ module Switchman
       end
     end
 
-    %w{db:migrate db:migrate:up db:migrate:down db:rollback}.each { |task_name| shardify_task(task_name) }
+    %w{db:migrate db:migrate:up db:migrate:down db:rollback}.each do |task_name|
+      shardify_task(task_name, categories: ->{ Shard.categories })
+    end
 
     private
 

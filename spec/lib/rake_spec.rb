@@ -96,5 +96,53 @@ module Switchman
         expect(Rake.scope(database_server: 'open').to_a).to eq([shard])
       end
     end
+
+    describe '.shardify_task' do
+      before do
+        ::Rake::Task.define_task('dummy:touch_mirror_users') do
+          MirrorUser.update_all(updated_at: Time.now.utc)
+        end
+      end
+
+      after do
+        ::Rake::Task.clear
+      end
+
+      it "only activates each shard as the :default category by default" do
+        mu = @shard2.activate(:mirror_universe) do
+          mu = MirrorUser.create!
+          MirrorUser.where(id: mu).update_all(updated_at: 2.days.ago)
+          mu
+        end
+
+        Rake.shardify_task('dummy:touch_mirror_users')
+
+        @shard1.activate(:mirror_universe) do
+          ::Rake::Task['dummy:touch_mirror_users'].execute
+        end
+
+        @shard2.activate(:mirror_universe) do
+          expect(mu.reload.updated_at).to be < 1.day.ago
+        end
+      end
+
+      it "can activate each shard as all categories" do
+        mu = @shard2.activate(:mirror_universe) do
+          mu = MirrorUser.create!
+          MirrorUser.where(id: mu).update_all(updated_at: 2.days.ago)
+          mu
+        end
+
+        Rake.shardify_task('dummy:touch_mirror_users', categories: ->{ Shard.categories })
+
+        @shard1.activate(:mirror_universe) do
+          ::Rake::Task['dummy:touch_mirror_users'].execute
+        end
+
+        @shard2.activate(:mirror_universe) do
+          expect(mu.reload.updated_at).to be > 1.day.ago
+        end
+      end
+    end
   end
 end

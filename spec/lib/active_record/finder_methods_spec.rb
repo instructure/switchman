@@ -29,6 +29,13 @@ module Switchman
 
           expect(User.find(@user.global_id)).to eq @user
         end
+
+        it "should find digit with a global id on an association" do
+          appendage = @shard2.activate { Appendage.create!(user: @user) }
+          digit = appendage.digits.create!
+          @user.associated_shards = [@shard1, @shard2]
+          expect(@user.digits.find(digit.global_id)).to eq digit
+        end
       end
 
       context "#find_last" do

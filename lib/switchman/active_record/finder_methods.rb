@@ -9,6 +9,8 @@ module Switchman
           current_shard = Shard.current(klass.shard_category)
           result = self.activate do |relation, shard|
             current_id = Shard.relative_id_for(id, current_shard, shard)
+            # current_id will be nil for non-integral id
+            next unless current_id
             # skip the shard if the object can't be on it. unless we're only looking at one shard;
             # we might be expecting a shadow object
             next if current_id > Shard::IDS_PER_SHARD && self.all_shards.length > 1

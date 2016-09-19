@@ -41,6 +41,10 @@ module Switchman
           pv = PageView.create!(request_id: 'abc')
           expect(PageView.shard(Shard.default).find('abc')).to eq pv
         end
+
+        it "doesn't break with bogus id" do
+          expect { User.shard(Shard.default).find('bogus') }.to raise_error(::ActiveRecord::RecordNotFound)
+        end
       end
 
       context "#find_last" do

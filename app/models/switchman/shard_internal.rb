@@ -251,7 +251,7 @@ module Switchman
 
           # only one process; don't bother forking
           if scopes.length == 1 && parallel == 1
-            return with_each_shard(subscopes.first, categories, options) { yield }
+            return with_each_shard(scopes.first.last, categories, options) { yield }
           end
 
           # clear connections prior to forking (no more queries will be executed in the parent,

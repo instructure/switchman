@@ -2,6 +2,7 @@ module Switchman
   module ActiveRecord
     module FinderMethods
       def find_one(id, call_super: false)
+        return super(id) unless klass.integral_id?
         return super(id) if call_super
 
         if shard_source_value != :implicit

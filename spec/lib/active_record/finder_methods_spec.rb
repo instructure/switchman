@@ -36,6 +36,11 @@ module Switchman
           @user.associated_shards = [@shard1, @shard2]
           expect(@user.digits.find(digit.global_id)).to eq digit
         end
+
+        it "doesn't break non-integral primary keys" do
+          pv = PageView.create!(request_id: 'abc')
+          expect(PageView.shard(Shard.default).find('abc')).to eq pv
+        end
       end
 
       context "#find_last" do

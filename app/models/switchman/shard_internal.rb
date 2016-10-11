@@ -67,6 +67,11 @@ module Switchman
           end.to_h)
 
           activate!(default: @default) if active_shards.empty?
+
+          # make sure this is not erroneously cached
+          if @default.database_server.instance_variable_defined?(:@primary_shard)
+            @default.database_server.remove_instance_variable(:@primary_shard)
+          end
         end
         @default
       end

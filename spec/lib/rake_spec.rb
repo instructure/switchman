@@ -108,7 +108,7 @@ module Switchman
         ::Rake::Task.clear
       end
 
-      it "only activates each shard as the :default category by default" do
+      it "only activates each shard as the :primary category by default" do
         mu = @shard2.activate(:mirror_universe) do
           mu = MirrorUser.create!
           MirrorUser.where(id: mu).update_all(updated_at: 2.days.ago)

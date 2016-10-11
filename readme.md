@@ -108,7 +108,7 @@ Categories let you activate different shards for different purposes at the same
 time. There are two special categories. A model marked as belonging to the
 `unsharded` category always lives on the default shard. An example of this is
 the switchman_shards table itself - there is only one copy of the data in this
-table, no matter how many shards there are. The other is `default`, which is
+table, no matter how many shards there are. The other is `primary`, which is
 every model not otherwise marked as belonging to a category. You can come up
 with your own categories by simply annotating your models, like so:
 
@@ -119,10 +119,10 @@ end
 ```
 
 When activating shards, the `unsharded` category is always locked to the
-default shard, and passing no arguments defaults to `default`:
+default shard, and passing no arguments defaults to `primary`:
 
 ```ruby
->>> Switchman::Shard.current(:default)
+>>> Switchman::Shard.current(:primary)
  => <Switchman::Shard id:1>
 >>> Switchman::Shard.current
  => <Switchman::Shard id:1>
@@ -131,7 +131,7 @@ default shard, and passing no arguments defaults to `default`:
 >>> shard2.activate(:some_category) {
  [Switchman::Shard.current, Switchman::Shard.current(:some_category)] }
  => [<Switchman::Shard id:1>, <Switchman::Shard id:2>]
->>> Switchman::Shard.activate(default: shard2, some_category: shard3) {
+>>> Switchman::Shard.activate(primary: shard2, some_category: shard3) {
   [Switchman::Shard.current, Switchman::Shard.current(:some_category)] }
  => [<Switchman::Shard id:2>, <Switchman::Shard id:3>]
 ```

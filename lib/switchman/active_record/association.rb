@@ -2,12 +2,7 @@ module Switchman
   module ActiveRecord
     module Association
       def shard
-        if @reflection.options[:polymorphic] || @reflection.klass.shard_category == @owner.class.shard_category
-          # polymorphic associations assume the same shard as the owning item
-          @owner.shard
-        else
-          Shard.default
-        end
+        reflection.shard(owner)
       end
 
       def build_record(*args)
@@ -42,8 +37,10 @@ module Switchman
 
     module CollectionAssociation
       def get_records
-        shards = reflection.options[:multishard] && owner.respond_to?(:associated_shards) ? owner.associated_shards : [owner.shard]
-        Shard.with_each_shard(shards, [klass.shard_category]) do
+        shards = reflection.options[:multishard] && owner.respond_to?(:associated_shards) ? owner.associated_shards : [shard]
+        # activate both the owner and the target's shard category, so that Reflection#join_id_for,
+        # when called for the owner, will be returned relative to shard the query will execute on
+        Shard.with_each_shard(shards, [klass.shard_category, owner.class.shard_category].uniq) do
           super
         end
       end

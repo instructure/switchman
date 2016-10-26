@@ -132,6 +132,11 @@ module Switchman
         ::ActiveRecord::ConnectionAdapters::QueryCache.send(:remove_method, :select_all)
 
         ::ActiveRecord::LogSubscriber.prepend(ActiveRecord::LogSubscriber)
+        if ::Rails.version >= '4.2'
+          ::ActiveRecord::Reflection::AbstractReflection.include(ActiveRecord::Reflection::AbstractReflection)
+        else
+          ::ActiveRecord::Reflection::AssociationReflection.include(ActiveRecord::Reflection::AbstractReflection)
+        end
         ::ActiveRecord::Reflection::AssociationReflection.prepend(ActiveRecord::Reflection::AssociationReflection)
         ::ActiveRecord::Relation.prepend(ActiveRecord::Batches)
         ::ActiveRecord::Relation.prepend(ActiveRecord::Calculations)

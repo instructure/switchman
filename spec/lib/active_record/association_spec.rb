@@ -78,6 +78,15 @@ module Switchman
           prepared = User.connection.prepared_statements
           expect(keys).to eq [[prepared, @user1.shard.id], [prepared, @user2.shard.id]]
         end
+
+        it "uses the target's shard category's shard as part of the association_scope_cache key" do
+          @user1.roots.to_a # trigger the cache
+          @user2.roots.to_a # trigger the cache
+
+          keys = User.reflect_on_association('roots').instance_variable_get(:@association_scope_cache).keys
+          prepared = User.connection.prepared_statements
+          expect(keys).to eq [[prepared, Shard.default.id]]
+        end
       end
 
       it "should work with has_many through associations" do
@@ -169,6 +178,14 @@ module Switchman
         end
 
         expect(@d.appendage).to eq @a
+      end
+
+      it "loads cross-category unsharded associations from the correct shard" do
+        u = @shard1.activate { User.create! }
+        r = Root.create!(user: u)
+        @shard1.activate do
+          expect(u.roots.to_a).to eq [r]
+        end
       end
 
       it "should load collection associations from the correct shard" do

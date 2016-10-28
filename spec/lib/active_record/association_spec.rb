@@ -37,6 +37,12 @@ module Switchman
         expect { @user2.appendages.find(a1.id) }.to raise_exception(::ActiveRecord::RecordNotFound)
       end
 
+      it "doesn't choke instantiating a renamed has_many :through" do
+        a = @user1.appendages.create!
+        d = a.digits.create!
+        expect(@user1.renamed_digits.to_a).to eq [d]
+      end
+
       it "should transpose ids correctly when using AR objects as query params" do
         a1 = @user1.appendages.create!
 

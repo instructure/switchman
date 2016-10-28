@@ -134,6 +134,8 @@ module Switchman
         ::ActiveRecord::LogSubscriber.prepend(ActiveRecord::LogSubscriber)
         if ::Rails.version >= '4.2'
           ::ActiveRecord::Reflection::AbstractReflection.include(ActiveRecord::Reflection::AbstractReflection)
+          ::ActiveRecord::Reflection::AssociationReflection.prepend(ActiveRecord::Reflection::AssociationScopeCache)
+          ::ActiveRecord::Reflection::ThroughReflection.prepend(ActiveRecord::Reflection::AssociationScopeCache)
         else
           ::ActiveRecord::Reflection::AssociationReflection.include(ActiveRecord::Reflection::AbstractReflection)
         end

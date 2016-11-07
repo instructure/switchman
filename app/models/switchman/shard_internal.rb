@@ -115,13 +115,7 @@ module Switchman
             attributes = Switchman.cache.fetch(['shard', id].join('/')) do
               shard = find_by_id(id)
               if shard
-                attributes = shard.attributes
-                if ::Rails.version < '4.2'
-                  attributes.each_key do |key|
-                    attributes[key] = attributes[key].unserialize if attributes[key].is_a?(::ActiveRecord::AttributeMethods::Serialization::Attribute)
-                  end
-                end
-                attributes
+                shard.attributes
               else
                 :nil
               end
@@ -435,7 +429,7 @@ module Switchman
       # converts an AR object, integral id, string id, or string short-global-id to a
       # integral id. nil if it can't be interpreted
       def integral_id_for(any_id)
-        if ::Rails.version >= '4.2' && any_id.is_a?(::Arel::Nodes::Casted)
+        if any_id.is_a?(::Arel::Nodes::Casted)
           any_id = any_id.val
         end
 

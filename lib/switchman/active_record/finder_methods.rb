@@ -26,19 +26,7 @@ module Switchman
 
         local_id, shard = Shard.local_id_for(id)
         if shard
-          if ::Rails.version < '4.2'
-            # find_one uses binds, so we can't depend on QueryMethods
-            # catching it
-            begin
-              old_shard_value = shard_value
-              self.shard_value = shard
-              super(local_id)
-            ensure
-              self.shard_value = old_shard_value
-            end
-          else
-            shard.activate { super(local_id) }
-          end
+          shard.activate { super(local_id) }
         else
           super(id)
         end
@@ -52,13 +40,8 @@ module Switchman
         conditions = conditions.id if ::ActiveRecord::Base === conditions
         return false if !conditions
 
-        if ::Rails.version >= '4.1'
-          relation = apply_join_dependency(self, construct_join_dependency)
-          return false if ::ActiveRecord::NullRelation === relation
-        else
-          join_dependency = construct_join_dependency_for_association_find
-          relation = construct_relation_for_association_find(join_dependency)
-        end
+        relation = apply_join_dependency(self, construct_join_dependency)
+        return false if ::ActiveRecord::NullRelation === relation
 
         relation = relation.except(:select, :order).select("1 AS one").limit(1)
 
@@ -70,11 +53,8 @@ module Switchman
         end
 
         args = [relation, "#{name} Exists"]
-        args << relation.bind_values if ::Rails.version >= '4.1'
+        args << relation.bind_values
         relation.activate { return true if connection.select_value(*args) }
-        false
-      rescue
-        raise if ::Rails.version >= '4.1' || !(::ActiveRecord::ThrowResult === $!)
         false
       end
     end

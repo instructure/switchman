@@ -57,38 +57,20 @@ module Switchman
       end
 
       def table_exists?(name)
-        if ::Rails.version < '4.2'
-          schema, table = ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter::Utils.extract_schema_and_table(name.to_s)
-          return false unless table
-          schema ||= shard.name if use_qualified_names?
-
-          binds = [[nil, table]]
-          binds << [nil, schema] if schema
-
-          exec_query(<<-SQL, 'SCHEMA').rows.first[0].to_i > 0
-              SELECT COUNT(*)
-              FROM pg_class c
-              LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
-              WHERE c.relkind in ('v','r')
-              AND c.relname = '#{table.gsub(/(^"|"$)/,'')}'
-              AND n.nspname = #{schema ? "'#{schema}'" : 'ANY (current_schemas(false))'}
-          SQL
-        else
-          name =  ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)
-          return false unless name.identifier
-          if !name.schema && use_qualified_names?
-            name.instance_variable_set(:@schema, shard.name)
-          end
-
-          exec_query(<<-SQL, 'SCHEMA').rows.first[0].to_i > 0
-              SELECT COUNT(*)
-              FROM pg_class c
-              LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
-              WHERE c.relkind IN ('r','v','m') -- (r)elation/table, (v)iew, (m)aterialized view
-              AND c.relname = '#{name.identifier}'
-              AND n.nspname = #{name.schema ? "'#{name.schema}'" : 'ANY (current_schemas(false))'}
-          SQL
+        name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)
+        return false unless name.identifier
+        if !name.schema && use_qualified_names?
+          name.instance_variable_set(:@schema, shard.name)
         end
+
+        exec_query(<<-SQL, 'SCHEMA').rows.first[0].to_i > 0
+            SELECT COUNT(*)
+            FROM pg_class c
+            LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relkind IN ('r','v','m') -- (r)elation/table, (v)iew, (m)aterialized view
+            AND c.relname = '#{name.identifier}'
+            AND n.nspname = #{name.schema ? "'#{name.schema}'" : 'ANY (current_schemas(false))'}
+        SQL
       end
 
       def indexes(table_name)
@@ -158,60 +140,42 @@ module Switchman
       end
 
       def quote_table_name name
-        if ::Rails.version < '4.2'.freeze
-          schema, name_part = extract_pg_identifier_from_name(name.to_s)
-
-          if !name_part && use_qualified_names? && shard.name
-            schema, name_part = shard.name, schema
-          end
-
-          unless name_part
-            quote_column_name(schema)
-          else
-            table_name, name_part = extract_pg_identifier_from_name(name_part)
-            "#{quote_column_name(schema)}.#{quote_column_name(table_name)}"
-          end
-        else
-
-          name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)
-          if !name.schema && use_qualified_names?
-            name.instance_variable_set(:@schema, shard.name)
-          end
-          name.quoted
+        name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)
+        if !name.schema && use_qualified_names?
+          name.instance_variable_set(:@schema, shard.name)
         end
+        name.quoted
       end
 
-      if ::Rails.version >= '4.2'
-        def foreign_keys(table_name)
-          schema = shard.name if use_qualified_names?
+      def foreign_keys(table_name)
+        schema = shard.name if use_qualified_names?
 
-          # mostly copy-pasted from AR - only change is to the nspname condition for qualified names support
-          fk_info = select_all <<-SQL.strip_heredoc
-            SELECT t2.oid::regclass::text AS to_table, a1.attname AS column, a2.attname AS primary_key, c.conname AS name, c.confupdtype AS on_update, c.confdeltype AS on_delete
-            FROM pg_constraint c
-            JOIN pg_class t1 ON c.conrelid = t1.oid
-            JOIN pg_class t2 ON c.confrelid = t2.oid
-            JOIN pg_attribute a1 ON a1.attnum = c.conkey[1] AND a1.attrelid = t1.oid
-            JOIN pg_attribute a2 ON a2.attnum = c.confkey[1] AND a2.attrelid = t2.oid
-            JOIN pg_namespace t3 ON c.connamespace = t3.oid
-            WHERE c.contype = 'f'
-              AND t1.relname = #{quote(table_name)}
-              AND t3.nspname = #{schema ? "'#{schema}'" : 'ANY (current_schemas(false))'}
-            ORDER BY c.conname
-          SQL
+        # mostly copy-pasted from AR - only change is to the nspname condition for qualified names support
+        fk_info = select_all <<-SQL.strip_heredoc
+          SELECT t2.oid::regclass::text AS to_table, a1.attname AS column, a2.attname AS primary_key, c.conname AS name, c.confupdtype AS on_update, c.confdeltype AS on_delete
+          FROM pg_constraint c
+          JOIN pg_class t1 ON c.conrelid = t1.oid
+          JOIN pg_class t2 ON c.confrelid = t2.oid
+          JOIN pg_attribute a1 ON a1.attnum = c.conkey[1] AND a1.attrelid = t1.oid
+          JOIN pg_attribute a2 ON a2.attnum = c.confkey[1] AND a2.attrelid = t2.oid
+          JOIN pg_namespace t3 ON c.connamespace = t3.oid
+          WHERE c.contype = 'f'
+            AND t1.relname = #{quote(table_name)}
+            AND t3.nspname = #{schema ? "'#{schema}'" : 'ANY (current_schemas(false))'}
+          ORDER BY c.conname
+        SQL
 
-          fk_info.map do |row|
-            options = {
-              column: row['column'],
-              name: row['name'],
-              primary_key: row['primary_key']
-            }
+        fk_info.map do |row|
+          options = {
+            column: row['column'],
+            name: row['name'],
+            primary_key: row['primary_key']
+          }
 
-            options[:on_delete] = extract_foreign_key_action(row['on_delete'])
-            options[:on_update] = extract_foreign_key_action(row['on_update'])
+          options[:on_delete] = extract_foreign_key_action(row['on_delete'])
+          options[:on_update] = extract_foreign_key_action(row['on_update'])
 
-            ::ActiveRecord::ConnectionAdapters::ForeignKeyDefinition.new(table_name, row['to_table'], options)
-          end
+          ::ActiveRecord::ConnectionAdapters::ForeignKeyDefinition.new(table_name, row['to_table'], options)
         end
       end
     end

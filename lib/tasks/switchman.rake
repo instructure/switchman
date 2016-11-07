@@ -198,58 +198,37 @@ end
 module Switchman
   module ActiveRecord
     module PostgreSQLDatabaseTasks
-      if ::Rails.version < '4.2'
-        def structure_dump(filename)
-          set_psql_env
-          search_path = configuration['schema_search_path']
-          unless search_path.blank?
-            search_path = search_path.split(",").map{|search_path_part| "--schema=#{Shellwords.escape(search_path_part.strip)}" }.join(" ")
-            serialized_search_path = ::ActiveRecord::Base.connection.schema_search_path
-          end
-          if configuration['use_qualified_names']
-            shard = Shard.current.name
-            serialized_search_path = shard
-            search_path = "--schema=#{Shellwords.escape(shard)}"
-          end
-
-          command = "pg_dump -s -x -O -f #{Shellwords.escape(filename)} #{search_path} #{Shellwords.escape(configuration['database'])}"
-          raise 'Error dumping database' unless Kernel.system(command)
-
-          File.open(filename, "a") { |f| f << "SET search_path TO #{serialized_search_path};\n\n" }
-        end
-      else
-        def structure_dump(filename)
-          set_psql_env
-          args = ['-s', '-x', '-O', '-f', filename]
-          search_path = configuration['schema_search_path']
-          if configuration['use_qualified_names']
-            shard = Shard.current.name
-            serialized_search_path = shard
-            args << "--schema=#{Shellwords.escape(shard)}"
-          elsif !search_path.blank?
-            args << search_path.split(',').map do |part|
-              "--schema=#{part.strip}"
-            end.join(' ')
-            serialized_search_path = connection.schema_search_path
-          end
-
-          args << configuration['database']
-          run_cmd('pg_dump', args, 'dumping')
-          File.open(filename, "a") { |f| f << "SET search_path TO #{serialized_search_path};\n\n" }
+      def structure_dump(filename)
+        set_psql_env
+        args = ['-s', '-x', '-O', '-f', filename]
+        search_path = configuration['schema_search_path']
+        if configuration['use_qualified_names']
+          shard = Shard.current.name
+          serialized_search_path = shard
+          args << "--schema=#{Shellwords.escape(shard)}"
+        elsif !search_path.blank?
+          args << search_path.split(',').map do |part|
+            "--schema=#{part.strip}"
+          end.join(' ')
+          serialized_search_path = connection.schema_search_path
         end
 
-        if ::Rails.version < '4.2.5'
-          # These methods are backported from rails 4.2.5 to work with the above
-          def run_cmd(cmd, args, action)
-            fail run_cmd_error(cmd, args, action) unless Kernel.system(cmd, *args)
-          end
+        args << configuration['database']
+        run_cmd('pg_dump', args, 'dumping')
+        File.open(filename, "a") { |f| f << "SET search_path TO #{serialized_search_path};\n\n" }
+      end
 
-          def run_cmd_error(cmd, args, action)
-            msg = "failed to execute:\n"
-            msg << "#{cmd} #{args.join(' ')}\n\n"
-            msg << "Please check the output above for any errors and make sure that `#{cmd}` is installed in your PATH and has proper permissions.\n\n"
-            msg
-          end
+      if ::Rails.version < '4.2.5'
+        # These methods are backported from rails 4.2.5 to work with the above
+        def run_cmd(cmd, args, action)
+          fail run_cmd_error(cmd, args, action) unless Kernel.system(cmd, *args)
+        end
+
+        def run_cmd_error(cmd, args, action)
+          msg = "failed to execute:\n"
+          msg << "#{cmd} #{args.join(' ')}\n\n"
+          msg << "Please check the output above for any errors and make sure that `#{cmd}` is installed in your PATH and has proper permissions.\n\n"
+          msg
         end
       end
     end

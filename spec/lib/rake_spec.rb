@@ -1,6 +1,5 @@
 require "spec_helper"
 
-require 'rake' if ::Rails.version < '4'
 Dummy::Application.load_tasks
 
 module Switchman

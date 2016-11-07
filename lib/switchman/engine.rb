@@ -80,8 +80,9 @@ module Switchman
         require "switchman/active_record/reflection"
         require "switchman/active_record/relation"
         require "switchman/active_record/spawn_methods"
-        require "switchman/active_record/where_clause_factory"
+        require "switchman/active_record/statement_cache"
         require "switchman/active_record/type_caster"
+        require "switchman/active_record/where_clause_factory"
         require "switchman/arel"
         require "switchman/rails"
         require "switchman/shackles/relation"
@@ -95,23 +96,16 @@ module Switchman
         include ActiveRecord::Persistence
         singleton_class.prepend ActiveRecord::ModelSchema::ClassMethods
 
-        if ::Rails.version > '4.2'
-          require "switchman/active_record/statement_cache"
-          ::ActiveRecord::StatementCache.prepend(ActiveRecord::StatementCache)
-          ::ActiveRecord::StatementCache.singleton_class.prepend(ActiveRecord::StatementCache::ClassMethods)
-          ::ActiveRecord::StatementCache::BindMap.prepend(ActiveRecord::StatementCache::BindMap)
-          ::ActiveRecord::StatementCache::Substitute.send(:attr_accessor, :primary, :sharded)
+        ::ActiveRecord::StatementCache.prepend(ActiveRecord::StatementCache)
+        ::ActiveRecord::StatementCache.singleton_class.prepend(ActiveRecord::StatementCache::ClassMethods)
+        ::ActiveRecord::StatementCache::BindMap.prepend(ActiveRecord::StatementCache::BindMap)
+        ::ActiveRecord::StatementCache::Substitute.send(:attr_accessor, :primary, :sharded)
 
-          ::ActiveRecord::Associations::CollectionAssociation.prepend(ActiveRecord::CollectionAssociation)
-        end
+        ::ActiveRecord::Associations::CollectionAssociation.prepend(ActiveRecord::CollectionAssociation)
 
-        if ::Rails.version >= '4.1.15'
-          ::ActiveRecord::PredicateBuilder.singleton_class.prepend(ActiveRecord::PredicateBuilder)
-        end
+        ::ActiveRecord::PredicateBuilder.singleton_class.prepend(ActiveRecord::PredicateBuilder)
 
-        if ::Rails.version > '4.1'
-          prepend(ActiveRecord::AutosaveAssociation)
-        end
+        prepend(ActiveRecord::AutosaveAssociation)
 
         ::ActiveRecord::Associations::Association.prepend(ActiveRecord::Association)
         ::ActiveRecord::Associations::BelongsToAssociation.prepend(ActiveRecord::BelongsToAssociation)
@@ -132,13 +126,9 @@ module Switchman
         ::ActiveRecord::ConnectionAdapters::QueryCache.send(:remove_method, :select_all)
 
         ::ActiveRecord::LogSubscriber.prepend(ActiveRecord::LogSubscriber)
-        if ::Rails.version >= '4.2'
-          ::ActiveRecord::Reflection::AbstractReflection.include(ActiveRecord::Reflection::AbstractReflection)
-          ::ActiveRecord::Reflection::AssociationReflection.prepend(ActiveRecord::Reflection::AssociationScopeCache)
-          ::ActiveRecord::Reflection::ThroughReflection.prepend(ActiveRecord::Reflection::AssociationScopeCache)
-        else
-          ::ActiveRecord::Reflection::AssociationReflection.include(ActiveRecord::Reflection::AbstractReflection)
-        end
+        ::ActiveRecord::Reflection::AbstractReflection.include(ActiveRecord::Reflection::AbstractReflection)
+        ::ActiveRecord::Reflection::AssociationReflection.prepend(ActiveRecord::Reflection::AssociationScopeCache)
+        ::ActiveRecord::Reflection::ThroughReflection.prepend(ActiveRecord::Reflection::AssociationScopeCache)
         ::ActiveRecord::Reflection::AssociationReflection.prepend(ActiveRecord::Reflection::AssociationReflection)
         ::ActiveRecord::Relation.prepend(ActiveRecord::Batches)
         ::ActiveRecord::Relation.prepend(ActiveRecord::Calculations)
@@ -159,7 +149,6 @@ module Switchman
 
         ::Arel::Table.prepend(Arel::Table)
         ::Arel::Visitors::ToSql.prepend(Arel::Visitors::ToSql)
-        ::Arel::Visitors::PostgreSQL.include(Arel::Visitors::PostgreSQL) if ::Rails.version < '4.2'
       end
     end
 

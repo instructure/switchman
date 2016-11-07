@@ -137,9 +137,7 @@ module Switchman
             records.flatten!
           end
 
-          if ::Rails.version >= '4.1'
-            @preloaded_records = records
-          end
+          @preloaded_records = records
 
           # Each record may have multiple owners, and vice-versa
           records_by_owner = owners.each_with_object({}) do |owner,h|

@@ -4,12 +4,6 @@ Switchman
 [![Build
 Status](https://travis-ci.org/instructure/switchman.svg?branch=master)](https://travis-ci.org/instructure/switchman)
 
-## WARNING
-
-Switchman is being ported from private code used in Instructure's canvas-lms
-product. This port is not yet complete, so there may be missing functionality
-or bugs still remaining.
-
 ## About
 
 Switchman is an ActiveRecord extension for sharding your database. Key features
@@ -30,7 +24,7 @@ include:
 
 ## Installation
 
-1. Add `gem 'switchman'` to your Gemfile (requires Rails >= 3.2 only)
+1. Add `gem 'switchman'` to your Gemfile (requires Rails >= 4.2 only)
 2. Run `bundle install` from your project's root
 3. Run `rake switchman:install:migrations` to copy over the migration files
    from Switchman to your application

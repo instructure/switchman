@@ -55,7 +55,6 @@ module Switchman
               if rel.shard_source_value == :implicit && rel.primary_shard != primary_shard
                 rel.shard!(primary_shard)
               end
-              self.bind_values += rel.bind_values if ::Rails.version < '4.2'
             end
 
             [@klass.send(:sanitize_sql, other.empty? ? opts : ([opts] + other))]
@@ -104,7 +103,7 @@ module Switchman
         end
       end
 
-      if ::Rails.version >= '4.2' && ::Rails.version < '5'
+      if ::Rails.version < '5'
         # fixes an issue in Rails 4.2 with `reverse_sql_order` and qualified names
         # where quoted_table_name is called before shard(s) have been activated
         # if there's no ordering
@@ -192,7 +191,7 @@ module Switchman
             else
               if bind_values && idx = bind_values.find_index{|b| b.is_a?(Array) && b.first.try(:name).to_s == klass.primary_key.to_s}
                 column, value = bind_values[idx]
-                unless ::Rails.version >= '4.2' && value.is_a?(::ActiveRecord::StatementCache::Substitute)
+                unless value.is_a?(::ActiveRecord::StatementCache::Substitute)
                   local_id, id_shard = Shard.local_id_for(value)
                   id_shard ||= Shard.current(klass.shard_category) if local_id
                 end
@@ -299,7 +298,7 @@ module Switchman
               local_id = Shard.relative_id_for(value, current_source_shard, target_shard)
               next unless local_id
               unless remove && local_id > Shard::IDS_PER_SHARD
-                if ::Rails.version > "4.2" && value.is_a?(::Arel::Nodes::Casted)
+                if value.is_a?(::Arel::Nodes::Casted)
                   if local_id == value.val
                     local_id = value
                   elsif local_id != value
@@ -328,7 +327,7 @@ module Switchman
             else
               if bind_values && idx = bind_values.find_index{|b| b.is_a?(Array) && b.first.try(:name).to_s == predicate.left.name.to_s}
                 column, value = bind_values[idx]
-                if ::Rails.version >= '4.2' && value.is_a?(::ActiveRecord::StatementCache::Substitute)
+                if value.is_a?(::ActiveRecord::StatementCache::Substitute)
                   value.sharded = true # mark for transposition later
                   value.primary = true if type == :primary
                 else
@@ -347,7 +346,7 @@ module Switchman
 
           if new_right_value == predicate.right
             predicate
-          elsif ::Rails.version >= "4.2" && predicate.right.is_a?(::Arel::Nodes::Casted)
+          elsif predicate.right.is_a?(::Arel::Nodes::Casted)
             if new_right_value == predicate.right.val
               predicate
             else

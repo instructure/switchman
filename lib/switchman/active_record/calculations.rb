@@ -61,12 +61,12 @@ module Switchman
         initial_results = relation.activate{ |rel| klass.connection.select_all(rel) }
         if initial_results.is_a?(Array)
           initial_results.each do |r|
-            r["average"] = type_cast_calculated_value(r["average"], column_or_type_for(column_name), "average")
-            r["count"] = type_cast_calculated_value(r["count"], column_or_type_for(column_name), "count")
+            r["average"] = type_cast_calculated_value(r["average"], type_for(column_name), "average")
+            r["count"] = type_cast_calculated_value(r["count"], type_for(column_name), "count")
           end
           result = initial_results.map{|r| r["average"] * r["count"]}.sum / initial_results.map{|r| r["count"]}.sum
         else
-          result = type_cast_calculated_value(initial_results.first["average"], column_or_type_for(column_name), "average")
+          result = type_cast_calculated_value(initial_results.first["average"], type_for(column_name), "average")
         end
         result
       end
@@ -89,14 +89,14 @@ module Switchman
 
           calculated_data.map do |row|
             row[opts[:aggregate_alias]] = type_cast_calculated_value(
-                row[opts[:aggregate_alias]], column_or_type_for(opts[:column_name]), opts[:operation])
+                row[opts[:aggregate_alias]], type_for(opts[:column_name]), opts[:operation])
             row['count'] = row['count'].to_i if opts[:operation] == 'average'
 
-            opts[:group_columns].each do |aliaz, column_or_type, column_name|
+            opts[:group_columns].each do |aliaz, type, column_name|
               if opts[:associated] && (aliaz == opts[:group_aliases].first)
                 row[aliaz] = key_records[Shard.relative_id_for(row[aliaz], shard, target_shard)]
               elsif column_name && @klass.sharded_column?(column_name)
-                row[aliaz] = Shard.relative_id_for(type_cast_calculated_value(row[aliaz], column_or_type), shard, target_shard)
+                row[aliaz] = Shard.relative_id_for(type_cast_calculated_value(row[aliaz], type), shard, target_shard)
               end
             end
             row
@@ -110,10 +110,6 @@ module Switchman
 
       def column_name_for(field)
         field.respond_to?(:name) ? field.name.to_s : field.to_s.split('.').last
-      end
-
-      def column_or_type_for(field)
-        ::Rails.version < '4.2' ? column_for(field) : type_for(field)
       end
 
       def grouped_calculation_options(operation, column_name, distinct)
@@ -131,7 +127,7 @@ module Switchman
 
         group_aliases = group_fields.map { |field| column_alias_for(field) }
         group_columns = group_aliases.zip(group_fields).map { |aliaz, field|
-          [aliaz, column_or_type_for(field), column_name_for(field)]
+          [aliaz, type_for(field), column_name_for(field)]
         }
         opts.merge!(:association => association, :associated => associated,
          :group_aliases => group_aliases, :group_columns => group_columns,

@@ -56,20 +56,40 @@ module Switchman
         SQL
       end
 
-      def table_exists?(name)
+      method_name = ::Rails.version >= '5' ? :data_source_exists? : :table_exists?
+      class_eval <<-RUBY, __FILE__, __LINE__ + 1
+        def #{method_name}(name)
+          name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)
+          return false unless name.identifier
+          if !name.schema && use_qualified_names?
+            name.instance_variable_set(:@schema, shard.name)
+          end
+
+          exec_query(<<-SQL, 'SCHEMA').rows.first[0].to_i > 0
+            SELECT COUNT(*)
+            FROM pg_class c
+            LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relkind IN ('r','v','m') -- (r)elation/table, (v)iew, (m)aterialized view
+            AND c.relname = '\#{name.identifier}'
+            AND n.nspname = \#{name.schema ? "'\#{name.schema}'" : 'ANY (current_schemas(false))'}
+          SQL
+        end
+      RUBY
+
+      def view_exists?(name)
         name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)
         return false unless name.identifier
         if !name.schema && use_qualified_names?
           name.instance_variable_set(:@schema, shard.name)
         end
 
-        exec_query(<<-SQL, 'SCHEMA').rows.first[0].to_i > 0
-            SELECT COUNT(*)
-            FROM pg_class c
-            LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE c.relkind IN ('r','v','m') -- (r)elation/table, (v)iew, (m)aterialized view
-            AND c.relname = '#{name.identifier}'
-            AND n.nspname = #{name.schema ? "'#{name.schema}'" : 'ANY (current_schemas(false))'}
+        select_values(<<-SQL, 'SCHEMA').any?
+          SELECT c.relname
+          FROM pg_class c
+          LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE c.relkind IN ('v','m') -- (v)iew, (m)aterialized view
+          AND c.relname = '#{name.identifier}'
+          AND n.nspname = #{name.schema ? "'#{name.schema}'" : 'ANY (current_schemas(false))'}
         SQL
       end
 

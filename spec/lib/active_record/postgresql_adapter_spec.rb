@@ -46,6 +46,19 @@ module Switchman
           expect(::ActiveRecord::Base.connection.indexes(:users).length).not_to eq 0
         end
       end
+
+      describe 'foreign_keys' do
+        it 'returns non-qualified to_table with qualified names' do
+          begin
+            search_path = User.connection.schema_search_path
+            User.connection.schema_search_path = "''"
+            ::ActiveRecord::Base.connection.stubs(:use_qualified_names?).returns(true)
+            expect(User.connection.foreign_keys(:users).first.to_table).to eq 'users'
+          ensure
+            Face.connection.schema_search_path = search_path
+          end
+        end
+      end
     end
   end
 end

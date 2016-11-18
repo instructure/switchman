@@ -195,7 +195,14 @@ module Switchman
           options[:on_delete] = extract_foreign_key_action(row['on_delete'])
           options[:on_update] = extract_foreign_key_action(row['on_update'])
 
-          ::ActiveRecord::ConnectionAdapters::ForeignKeyDefinition.new(table_name, row['to_table'], options)
+          # strip the schema name from to_table if it matches
+          to_table = row['to_table']
+          to_table_qualified_name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(to_table)
+          if use_qualified_names? && to_table_qualified_name.schema == shard.name
+            to_table = to_table_qualified_name.identifier
+          end
+
+          ::ActiveRecord::ConnectionAdapters::ForeignKeyDefinition.new(table_name, to_table, options)
         end
       end
     end

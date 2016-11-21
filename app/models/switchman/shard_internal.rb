@@ -198,7 +198,7 @@ module Switchman
             scopes = Hash[database_servers.map do |server|
               server_scope = server.shards.merge(scope)
               if parallel == 1
-                subscopes = [server_scope]
+                subscopes = server_scope
               else
                 subscopes = []
                 total = server_scope.count

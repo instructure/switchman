@@ -90,6 +90,12 @@ module Switchman
           expect(User.where(name: "multi-shard exists").shard(Shard.all).exists?).to eq true
         end
 
+        it "should work for a multi-shard association scope" do
+          @user = User.create!
+          @shard1.activate { Appendage.create!(:user_id => @user.id)}
+          expect(@user.appendages.shard([Shard.default, @shard1]).exists?).to eq true
+        end
+
         it "should work if a condition is passed" do
           expect(User.exists?(@user.global_id)).to eq true
         end

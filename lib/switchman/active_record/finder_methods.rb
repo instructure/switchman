@@ -52,9 +52,9 @@ module Switchman
           relation = relation.where(table[primary_key].eq(conditions)) if conditions != :none
         end
 
-        args = [relation, "#{name} Exists"]
-        args << relation.bind_values
-        relation.activate { return true if connection.select_value(*args) }
+        relation.activate do |shard_rel|
+          return true if connection.select_value(shard_rel, "#{name} Exists", shard_rel.bind_values)
+        end
         false
       end
     end

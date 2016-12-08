@@ -42,17 +42,15 @@ module Switchman
         primary_shard.activate(klass.shard_category) { super }
       end
 
-      def explain(super_method: false)
-        return super() if super_method
-        self.activate { |relation| relation.explain(super_method: true) }
+      def explain
+        self.activate { |relation| relation.call_super(:explain, Relation) }
       end
 
       to_a_method = ::Rails.version >= '5' ? :records : :to_a
       class_eval <<-RUBY, __FILE__, __LINE__ + 1
-        def #{to_a_method}(super_method: false)
-          return super() if super_method
+        def #{to_a_method}
           return @records if loaded?
-          results = self.activate { |relation| relation.#{to_a_method}(super_method: true) }
+          results = self.activate { |relation| relation.call_super(#{to_a_method.inspect}, Relation) }
           case shard_value
           when Array, ::ActiveRecord::Relation, ::ActiveRecord::Base
             @records = results
@@ -62,14 +60,10 @@ module Switchman
         end
       RUBY
 
-      CALL_SUPER = Object.new.freeze
-      private_constant :CALL_SUPER
-
-      %w{update_all delete_all}.each do |method|
+      %I{update_all delete_all}.each do |method|
         class_eval <<-RUBY, __FILE__, __LINE__ + 1
           def #{method}(*args)
-            return super(*args[1..-1]) if args.first.equal?(CALL_SUPER)
-            result = self.activate { |relation| relation.#{method}(CALL_SUPER, *args) }
+            result = self.activate { |relation| relation.call_super(#{method.inspect}, Relation, *args) }
             result = result.sum if result.is_a?(Array)
             result
           end

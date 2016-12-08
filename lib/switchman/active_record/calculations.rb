@@ -1,16 +1,13 @@
 module Switchman
   module ActiveRecord
     module Calculations
-      CALL_SUPER = Object.new.freeze
-      private_constant :CALL_SUPER
 
       def pluck(*column_names)
-        return super(*column_names[1..-1]) if column_names.first.equal?(CALL_SUPER)
         target_shard = Shard.current(klass.shard_category)
         shard_count = 0
         result = self.activate do |relation, shard|
           shard_count += 1
-          results = relation.pluck(CALL_SUPER, *column_names)
+          results = relation.call_super(:pluck, Calculations, *column_names)
           if column_names.length > 1
             column_names.each_with_index do |column_name, idx|
               if klass.sharded_column?(column_name)
@@ -30,13 +27,12 @@ module Switchman
         result
       end
 
-      def execute_simple_calculation(operation, column_name, distinct, super_method: false)
-        return super(operation, column_name, distinct) if super_method
+      def execute_simple_calculation(operation, column_name, distinct)
         operation = operation.to_s.downcase
         if operation == "average"
           result = calculate_simple_average(column_name, distinct)
         else
-          result = self.activate{ |relation| relation.send(:execute_simple_calculation, operation, column_name, distinct, super_method: true) }
+          result = self.activate{ |relation| relation.call_super(:execute_simple_calculation, Calculations, operation, column_name, distinct) }
           if result.is_a?(Array)
             case operation
             when "count", "sum"

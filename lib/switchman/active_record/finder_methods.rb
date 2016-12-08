@@ -1,9 +1,8 @@
 module Switchman
   module ActiveRecord
     module FinderMethods
-      def find_one(id, call_super: false)
+      def find_one(id)
         return super(id) unless klass.integral_id?
-        return super(id) if call_super
 
         if shard_source_value != :implicit
           current_shard = Shard.current(klass.shard_category)
@@ -14,7 +13,7 @@ module Switchman
             # skip the shard if the object can't be on it. unless we're only looking at one shard;
             # we might be expecting a shadow object
             next if current_id > Shard::IDS_PER_SHARD && self.all_shards.length > 1
-            relation.send(:find_one, current_id, call_super: true)
+            relation.call_super(:find_one, FinderMethods, current_id)
           end
           if result.is_a?(Array)
             result = result.first

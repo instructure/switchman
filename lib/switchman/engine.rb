@@ -84,6 +84,7 @@ module Switchman
         require "switchman/active_record/type_caster"
         require "switchman/active_record/where_clause_factory"
         require "switchman/arel"
+        require "switchman/call_super"
         require "switchman/rails"
         require "switchman/shackles/relation"
         require "switchman/shard_internal"
@@ -134,9 +135,10 @@ module Switchman
         ::ActiveRecord::Relation.prepend(ActiveRecord::Calculations)
         ::ActiveRecord::Relation.include(ActiveRecord::FinderMethods)
         ::ActiveRecord::Relation.include(ActiveRecord::QueryMethods)
+        ::ActiveRecord::Relation.prepend(Shackles::Relation)
         ::ActiveRecord::Relation.prepend(ActiveRecord::Relation)
         ::ActiveRecord::Relation.include(ActiveRecord::SpawnMethods)
-        ::ActiveRecord::Relation.prepend(Shackles::Relation)
+        ::ActiveRecord::Relation.include(CallSuper)
 
         if ::Rails.version >= '5'
           ::ActiveRecord::Relation::WhereClauseFactory.prepend(ActiveRecord::WhereClauseFactory)

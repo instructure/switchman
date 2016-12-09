@@ -189,7 +189,7 @@ module Switchman
       end
 
       after do
-        @db2.try(:destroy)
+        @db2&.destroy
       end
 
       after(:all) do

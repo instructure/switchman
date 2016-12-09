@@ -134,7 +134,7 @@ module Switchman
       create_schema = options[:schema]
       # look for another shard associated with this db
       other_shard = self.shards.where("name<>':memory:' OR name IS NULL").order(:id).first
-      temp_name = other_shard.try(:name) unless id == ::Rails.env
+      temp_name = other_shard&.name unless id == ::Rails.env
       temp_name = Shard.default.name if id == ::Rails.env
 
       case config[:adapter]
@@ -158,7 +158,7 @@ module Switchman
           create_statement = lambda { "CREATE DATABASE #{name}" }
       end
       sharding_config = Switchman.config
-      config_create_statement = sharding_config[config[:adapter]].try(:[], :create_statement)
+      config_create_statement = sharding_config[config[:adapter]]&.[](:create_statement)
       config_create_statement ||= sharding_config[:create_statement]
       if config_create_statement
         create_commands = Array(config_create_statement).dup

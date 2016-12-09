@@ -33,7 +33,7 @@ module Switchman
 
         def integral_id?
           if @integral_id == nil
-            @integral_id = columns_hash[primary_key].try(:type) == :integer
+            @integral_id = columns_hash[primary_key]&.type == :integer
           end
           @integral_id
         end

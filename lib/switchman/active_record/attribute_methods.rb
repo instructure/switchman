@@ -27,7 +27,7 @@ module Switchman
         def reflection_for_integer_attribute(attr_name)
           attr_name = attr_name.to_s
           columns_hash[attr_name] && columns_hash[attr_name].type == :integer &&
-              reflections.find { |_, r| r.belongs_to? && r.foreign_key.to_s == attr_name }.try(:last)
+              reflections.find { |_, r| r.belongs_to? && r.foreign_key.to_s == attr_name }&.last
         rescue ::ActiveRecord::StatementInvalid
           # this is for when models are referenced in initializers before migrations have been run
           raise if connection.open_transactions > 0
@@ -65,8 +65,8 @@ module Switchman
           if reflection
             if reflection.options[:polymorphic]
               # a polymorphic association has to be discovered at runtime. This code ends up being something like
-              # context_type.try(:constantize).try(:shard_category) || :primary
-              "read_attribute(:#{reflection.foreign_type}).try(:constantize).try(:shard_category) || :primary"
+              # context_type.&.constantize&.shard_category || :primary
+              "read_attribute(:#{reflection.foreign_type})&.constantize&.shard_category || :primary"
             else
               # otherwise we can just return a symbol for the statically known type of the association
               reflection.klass.shard_category.inspect

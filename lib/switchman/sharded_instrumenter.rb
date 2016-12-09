@@ -6,7 +6,7 @@ module Switchman
     end
 
     def instrument(name, payload={})
-      shard = @shard_host.try(:shard)
+      shard = @shard_host&.shard
       # attribute_methods_generated? will be false during a reload -
       # when we might be doing a query while defining attribute methods,
       # so just avoid logging then

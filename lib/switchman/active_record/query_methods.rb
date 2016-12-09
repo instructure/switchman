@@ -182,14 +182,14 @@ module Switchman
             # look for a bind param with a matching column name
             if ::Rails.version >= "5"
               binds ||= where_clause.binds + having_clause.binds
-              if binds && bind = binds.detect{|b| b.try(:name).to_s == klass.primary_key.to_s}
+              if binds && bind = binds.detect{|b| b&.name.to_s == klass.primary_key.to_s}
                 unless bind.value.is_a?(::ActiveRecord::StatementCache::Substitute)
                   local_id, id_shard = Shard.local_id_for(bind.value)
                   id_shard ||= Shard.current(klass.shard_category) if local_id
                 end
               end
             else
-              if bind_values && idx = bind_values.find_index{|b| b.is_a?(Array) && b.first.try(:name).to_s == klass.primary_key.to_s}
+              if bind_values && idx = bind_values.find_index{|b| b.is_a?(Array) && b.first&.name.to_s == klass.primary_key.to_s}
                 column, value = bind_values[idx]
                 unless value.is_a?(::ActiveRecord::StatementCache::Substitute)
                   local_id, id_shard = Shard.local_id_for(value)
@@ -313,7 +313,7 @@ module Switchman
             # look for a bind param with a matching column name
             if ::Rails.version >= "5"
               binds ||= where_clause.binds + having_clause.binds
-              if binds && bind = binds.detect{|b| b.try(:name).to_s == predicate.left.name.to_s}
+              if binds && bind = binds.detect{|b| b&.name.to_s == predicate.left.name.to_s}
                 if bind.value.is_a?(::ActiveRecord::StatementCache::Substitute)
                   bind.value.sharded = true # mark for transposition later
                   bind.value.primary = true if type == :primary
@@ -325,7 +325,7 @@ module Switchman
                 end
               end
             else
-              if bind_values && idx = bind_values.find_index{|b| b.is_a?(Array) && b.first.try(:name).to_s == predicate.left.name.to_s}
+              if bind_values && idx = bind_values.find_index{|b| b.is_a?(Array) && b.first&.name.to_s == predicate.left.name.to_s}
                 column, value = bind_values[idx]
                 if value.is_a?(::ActiveRecord::StatementCache::Substitute)
                   value.sharded = true # mark for transposition later

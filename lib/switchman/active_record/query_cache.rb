@@ -44,7 +44,7 @@ module Switchman
       end
 
       def clear_query_cache
-        Thread.current[:query_cache].try(:clear)
+        Thread.current[:query_cache]&.clear
       end
 
       def select_all(arel, name = nil, binds = [], preparable: nil)

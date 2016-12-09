@@ -272,7 +272,7 @@ module Switchman
               exception_pipes << exception_pipe
               pid, io_in, io_out, io_err = Open4.pfork4(lambda do
                 begin
-                  Switchman.config[:on_fork_proc].try(:call)
+                  Switchman.config[:on_fork_proc]&.call
                   $0 = [$0, ARGV, name].flatten.join(' ')
                   with_each_shard(subscope, categories, options) { yield }
                   exception_pipe.last.close
@@ -608,7 +608,7 @@ module Switchman
       begin
         adapter = self.database_server.config[:adapter]
         sharding_config = Switchman.config || {}
-        drop_statement = sharding_config[adapter].try(:[], :drop_statement)
+        drop_statement = sharding_config[adapter]&.[](:drop_statement)
         drop_statement ||= sharding_config[:drop_statement]
         if drop_statement
           drop_statement = Array(drop_statement).dup.

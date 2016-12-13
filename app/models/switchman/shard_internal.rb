@@ -198,7 +198,7 @@ module Switchman
             scopes = Hash[database_servers.map do |server|
               server_scope = server.shards.merge(scope)
               if parallel == 1
-                subscopes = server_scope
+                subscopes = [server_scope]
               else
                 subscopes = []
                 total = server_scope.count
@@ -223,6 +223,8 @@ module Switchman
               scopes = Hash[scopes.map do |(server, shards)|
                 [server, shards.in_groups(parallel, false).compact]
               end]
+            else
+              scopes = Hash[scopes.map { |(server, shards)| [server, [shards]] }]
             end
           end
 
@@ -250,7 +252,7 @@ module Switchman
 
           # only one process; don't bother forking
           if scopes.length == 1 && parallel == 1
-            return with_each_shard(scopes.first.last, categories, options) { yield }
+            return with_each_shard(scopes.first.last.first, categories, options) { yield }
           end
 
           # clear connections prior to forking (no more queries will be executed in the parent,
@@ -259,10 +261,6 @@ module Switchman
           ::ActiveRecord::Base.clear_all_connections!
 
           scopes.each do |server, subscopes|
-            if !(::ActiveRecord::Relation === subscopes.first) && subscopes.first.class != Array
-              subscopes = [subscopes]
-            end
-
             subscopes.each_with_index do |subscope, idx|
               if subscopes.length > 1
                 name = "#{server.id} #{idx + 1}"

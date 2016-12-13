@@ -237,6 +237,19 @@ module Switchman
         end
       end
 
+      it "forks for parallel of 1, with multiple servers" do
+        pid = Process.pid
+        Shard.with_each_shard([Shard.default, @shard2], parallel: 1) do
+          expect(Process.pid).to_not eq pid
+        end
+      end
+
+      it "forks for parallel of 1, with multiple servers, from a Relation" do
+        pid = Process.pid
+        Shard.with_each_shard(Shard.where(id: [Shard.default, @shard2]), parallel: 1) do
+          expect(Process.pid).to_not eq pid
+        end
+      end
     end
 
     describe ".cached_shards" do

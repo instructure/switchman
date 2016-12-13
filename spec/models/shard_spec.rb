@@ -158,7 +158,11 @@ module Switchman
       end
 
       context "non-transactional" do
-        self.use_transactional_fixtures = false
+        if ::Rails.version >= '5.0'
+          self.use_transactional_tests = false
+        else
+          self.use_transactional_fixtures = false
+        end
 
         it "should disconnect when switching among different database servers" do
           User.connection

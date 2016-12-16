@@ -60,21 +60,23 @@ module Switchman
         end
 
         ::Shackles.activate(:deploy) do
-          begin
-            categories = categories.call if categories.respond_to?(:call)
-            Shard.with_each_shard(scope, categories, options) do
-              shard = Shard.current
-              puts "#{shard.id}: #{shard.description}"
-              ::ActiveRecord::Base.connection_pool.spec.config[:shard_name] = Shard.current.name
-              ::ActiveRecord::Base.configurations[::Rails.env] = ::ActiveRecord::Base.connection_pool.spec.config.stringify_keys
-              shard.database_server.unshackle do
-                old_actions.each { |action| action.call(*task_args) }
+          Shard.default.database_server.unshackle do
+            begin
+              categories = categories.call if categories.respond_to?(:call)
+              Shard.with_each_shard(scope, categories, options) do
+                shard = Shard.current
+                puts "#{shard.id}: #{shard.description}"
+                ::ActiveRecord::Base.connection_pool.spec.config[:shard_name] = Shard.current.name
+                ::ActiveRecord::Base.configurations[::Rails.env] = ::ActiveRecord::Base.connection_pool.spec.config.stringify_keys
+                shard.database_server.unshackle do
+                  old_actions.each { |action| action.call(*task_args) }
+                end
+                nil
               end
-              nil
+            rescue => e
+              puts "Exception from #{e.current_shard.id}: #{e.current_shard.description}" if options[:parallel] != 0
+              raise
             end
-          rescue => e
-            puts "Exception from #{e.current_shard.id}: #{e.current_shard.description}" if options[:parallel] != 0
-            raise
           end
         end
       end

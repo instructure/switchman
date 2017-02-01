@@ -2,7 +2,7 @@ module Switchman
   class Engine < ::Rails::Engine
     isolate_namespace Switchman
 
-    config.autoload_once_paths << File.expand_path(File.join(__FILE__, "../../../app/models"))
+    config.autoload_once_paths << File.expand_path("app/models", config.paths.path)
 
     def self.lookup_stores(cache_store_config)
       result = {}
@@ -87,7 +87,7 @@ module Switchman
         require "switchman/call_super"
         require "switchman/rails"
         require "switchman/shackles/relation"
-        require "switchman/shard_internal"
+        require_dependency "switchman/shard_internal"
         require "switchman/standard_error"
 
         ::StandardError.include(StandardError)

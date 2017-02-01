@@ -8,4 +8,4 @@ ActiveRecord::Base
 # we need to make sure we define the class someone wanted (in which case
 # AR's on_load hook won't be called either yet, and establish_connection
 # will be safe)
-require 'switchman/shard_internal'
+require_dependency 'switchman/shard_internal'

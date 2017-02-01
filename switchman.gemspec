@@ -1,5 +1,3 @@
-$:.push File.expand_path("../lib", __FILE__)
-
 # Maintain your gem's version:
 require "switchman/version"
 
@@ -25,7 +23,6 @@ Gem::Specification.new do |s|
 
   s.add_development_dependency "appraisal", "~> 2.1.0"
   s.add_development_dependency "byebug"
-  s.add_development_dependency "mysql2", "~> 0.3"
   s.add_development_dependency "pg", "~> 0"
   s.add_development_dependency "rspec-rails", "3.5.2"
   s.add_development_dependency "sqlite3", "~> 1.3"

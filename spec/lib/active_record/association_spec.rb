@@ -84,6 +84,11 @@ module Switchman
         expect(keys).to eq [[prepared, @user1.shard.id], [prepared, @user2.shard.id]]
       end
 
+      it "properly saves a new child STI object onto the parent's shard" do
+        user = User.create!
+        expect(@shard1.activate { user.appendages.create!(type: 'Arm') }.shard).to eq user.shard
+      end
+
       it "uses the target's shard category's shard as part of the association_scope_cache key" do
         @user1.roots.to_a # trigger the cache
         @user2.roots.to_a # trigger the cache

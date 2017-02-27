@@ -1,5 +1,5 @@
 # Maintain your gem's version:
-require "switchman/version"
+require_relative "lib/switchman/version"
 
 # Describe your gem and declare its dependencies:
 Gem::Specification.new do |s|

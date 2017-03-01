@@ -10,7 +10,7 @@ module Switchman
   end
 
   class ConnectionPoolProxy
-    delegate :spec, :connected?, :default_schema, :with_connection,
+    delegate :spec, :connected?, :default_schema, :with_connection, :query_cache_enabled, :active_connection?,
              :to => :current_pool
 
     attr_reader :category, :schema_cache
@@ -71,7 +71,12 @@ module Switchman
       end
     end
 
-    %w{release_connection disconnect! clear_reloadable_connections! verify_active_connections! clear_stale_cached_connections!}.each do |method|
+    %w{release_connection disconnect!
+       clear_reloadable_connections!
+       verify_active_connections!
+       clear_stale_cached_connections!
+       enable_query_cache!
+       disable_query_cache! }.each do |method|
       class_eval(<<-EOS)
           def #{method}
             @connection_pools.values.each(&:#{method})
@@ -126,6 +131,9 @@ module Switchman
 
       ::ActiveRecord::ConnectionAdapters::ConnectionPool.new(spec).tap do |pool|
         pool.shard = shard
+        if ::Rails.version >= '5.0.1'
+          pool.enable_query_cache! if !@connection_pools.empty? && @connection_pools.first.last.query_cache_enabled
+        end
       end
     end
   end

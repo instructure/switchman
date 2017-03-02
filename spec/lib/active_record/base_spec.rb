@@ -125,6 +125,16 @@ module Switchman
           end
         end
       end
+
+      describe "#quoted_id" do
+        it "transposes correctly" do
+          user = @shard1.activate { User.create! }
+          expect(user.quoted_id).to eq user.global_id.to_s
+          @shard1.activate do
+            expect(user.quoted_id).to eq user.local_id.to_s
+          end
+        end
+      end
     end
   end
 end

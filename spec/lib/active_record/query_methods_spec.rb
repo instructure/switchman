@@ -171,6 +171,15 @@ module Switchman
             expect(where_value(predicates(relation).first.right)).to eq mirror_user.global_id
           end
         end
+
+        it "translates ids in array conditions when given records" do
+          original_count = Appendage.count
+          # create an off-shard appendage
+          appendage = Appendage.create!(user: @user2)
+          # make sure it ended up on this shard
+          expect(Appendage.count).to eq original_count + 1
+          expect(Appendage.where("user_id=?", @user2).take).to eq appendage
+        end
       end
 
       describe "with table aliases" do

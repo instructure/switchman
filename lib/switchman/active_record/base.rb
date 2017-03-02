@@ -151,6 +151,14 @@ module Switchman
         @shard_set_in_stone = false
         copy
       end
+
+      if ::Rails.version >= '5'
+        def quoted_id
+          return super unless self.class.sharded_primary_key?
+          # do this the Rails 4.2 way, so that if Shard.current != self.shard, the id gets transposed
+          self.class.connection.quote(id, column_for_attribute(self.class.primary_key))
+        end
+      end
     end
   end
 end

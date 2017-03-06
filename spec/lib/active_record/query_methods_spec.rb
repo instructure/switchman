@@ -188,6 +188,15 @@ module Switchman
           expect(Appendage.count).to eq original_count + 1
           expect(Appendage.where("user_id=?", @user2).take).to eq appendage
         end
+
+        it "doesn't modify another relation when using bind params" do
+          user = User.create!
+          appendage = user.appendages.create!
+          scope = user.appendages.scope
+          scope.shard(@shard1)
+          # the original scope should be unmodified
+          expect(scope.to_a).to eq [appendage]
+        end
       end
 
       describe "with table aliases" do

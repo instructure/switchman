@@ -126,11 +126,18 @@ module Switchman
           def transpose_#{type}_clauses(source_shard, target_shard, remove_nonlocal_primary_keys)
             if ::Rails.version >= '5'
               unless (predicates = #{type}_clause.send(:predicates)).empty?
-                new_predicates = transpose_predicates(predicates, source_shard,
-                                                      target_shard, remove_nonlocal_primary_keys)
-                if new_predicates != predicates
+                new_predicates, new_binds = transpose_predicates(predicates, source_shard,
+                                                                 target_shard, remove_nonlocal_primary_keys,
+                                                                 binds: #{type}_clause.binds,
+                                                                 dup_binds_on_mutation: true)
+                if new_predicates != predicates || !new_binds.equal?(#{type}_clause.binds)
                   self.#{type}_clause = #{type}_clause.dup
-                  #{type}_clause.instance_variable_set(:@predicates, new_predicates)
+                  if new_predicates != predicates
+                    #{type}_clause.instance_variable_set(:@predicates, new_predicates)
+                  end
+                  if !new_binds.equal?(#{type}_clause.binds)
+                    #{type}_clause.instance_variable_set(:@binds, new_binds)
+                  end
                 end
               end
             else
@@ -181,7 +188,6 @@ module Switchman
           when ::Arel::Nodes::BindParam
             # look for a bind param with a matching column name
             if ::Rails.version >= "5"
-              binds ||= where_clause.binds + having_clause.binds
               if binds && bind = binds.detect{|b| b&.name.to_s == klass.primary_key.to_s}
                 unless bind.value.is_a?(::ActiveRecord::StatementCache::Substitute)
                   local_id, id_shard = Shard.local_id_for(bind.value)
@@ -268,8 +274,13 @@ module Switchman
 
       # semi-private
       public
-      def transpose_predicates(predicates, source_shard, target_shard, remove_nonlocal_primary_keys = false, binds = nil)
-        predicates.map do |predicate|
+      def transpose_predicates(predicates,
+                               source_shard,
+                               target_shard,
+                               remove_nonlocal_primary_keys = false,
+                               binds: nil,
+                               dup_binds_on_mutation: false)
+        result = predicates.map do |predicate|
           next predicate unless predicate.is_a?(::Arel::Nodes::Binary)
           next predicate unless predicate.left.is_a?(::Arel::Attributes::Attribute)
           relation, column = relation_and_column(predicate.left)
@@ -312,8 +323,13 @@ module Switchman
           when ::Arel::Nodes::BindParam
             # look for a bind param with a matching column name
             if ::Rails.version >= "5"
-              binds ||= where_clause.binds + having_clause.binds
               if binds && bind = binds.detect{|b| b&.name.to_s == predicate.left.name.to_s}
+                # before we mutate, dup
+                if dup_binds_on_mutation
+                  binds = binds.map(&:dup)
+                  dup_binds_on_mutation = false
+                  bind = binds.find { |b| b&.name.to_s == predicate.left.name.to_s }
+                end
                 if bind.value.is_a?(::ActiveRecord::StatementCache::Substitute)
                   bind.value.sharded = true # mark for transposition later
                   bind.value.primary = true if type == :primary
@@ -356,6 +372,8 @@ module Switchman
             predicate.class.new(predicate.left, new_right_value)
           end
         end
+        result = [result, binds] if ::Rails.version >= '5'
+        result
       end
     end
   end

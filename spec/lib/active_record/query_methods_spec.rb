@@ -14,6 +14,14 @@ module Switchman
         @appendage3 = @user3.appendages.create!
       end
 
+      describe "#shard" do
+        it "asplodes appropriately if the relation is already loaded" do
+          scope = User.where(id: @user1)
+          scope.to_a
+          expect { scope.shard_value = @shard1 }.to raise_error(::ActiveRecord::ImmutableRelation)
+        end
+      end
+
       describe "#primary_shard" do
         it "should be the shard if it's a shard" do
           expect(User.shard(Shard.default).primary_shard).to eq Shard.default

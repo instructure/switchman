@@ -19,11 +19,11 @@ module Switchman
         @values[:shard_source]
       end
       def shard_value=(value)
-        raise ImmutableRelation if @loaded
+        raise ::ActiveRecord::ImmutableRelation if @loaded
         @values[:shard] = value
       end
       def shard_source_value=(value)
-        raise ImmutableRelation if @loaded
+        raise ::ActiveRecord::ImmutableRelation if @loaded
         @values[:shard_source] = value
       end
 

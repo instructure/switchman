@@ -3,6 +3,8 @@ module Switchman
     attr_accessor :id
 
     class << self
+      attr_accessor :creating_new_shard
+
       def all
         database_servers.values
       end
@@ -173,6 +175,7 @@ module Switchman
           shard.id = options[:id] if options[:id]
         end
         begin
+          self.class.creating_new_shard = true
           if name.nil?
             base_name = self.config[:database] % self.config
             base_name = $1 if base_name =~ /(?:.*\/)(.+)_shard_\d+(?:\.sqlite3)?$/
@@ -233,6 +236,8 @@ module Switchman
           shard.drop_database if shard.name == name rescue nil
           reset_column_information unless create_schema == false rescue nil
           raise
+        ensure
+          self.class.creating_new_shard = false
         end
       end
 

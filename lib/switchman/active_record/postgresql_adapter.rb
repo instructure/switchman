@@ -205,6 +205,12 @@ module Switchman
           ::ActiveRecord::ConnectionAdapters::ForeignKeyDefinition.new(table_name, to_table, options)
         end
       end
+
+      def add_index_options(_table_name, _column_name, _options = {})
+        index_name, index_type, index_columns, index_options, algorithm, using = super
+        algorithm = nil if DatabaseServer.creating_new_shard && algorithm == "CONCURRENTLY"
+        [index_name, index_type, index_columns, index_options, algorithm, using]
+      end
     end
   end
 end

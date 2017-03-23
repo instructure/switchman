@@ -72,6 +72,7 @@ module Switchman
         require "switchman/active_record/connection_pool"
         require "switchman/active_record/finder_methods"
         require "switchman/active_record/log_subscriber"
+        require "switchman/active_record/migration"
         require "switchman/active_record/model_schema"
         require "switchman/active_record/persistence"
         require "switchman/active_record/predicate_builder"
@@ -127,6 +128,8 @@ module Switchman
         ::ActiveRecord::ConnectionAdapters::QueryCache.send(:remove_method, :select_all) if ::Rails.version < '5.0.1'
 
         ::ActiveRecord::LogSubscriber.prepend(ActiveRecord::LogSubscriber)
+        ::ActiveRecord::Migration.prepend(ActiveRecord::Migration)
+
         ::ActiveRecord::Reflection::AbstractReflection.include(ActiveRecord::Reflection::AbstractReflection)
         ::ActiveRecord::Reflection::AssociationReflection.prepend(ActiveRecord::Reflection::AssociationScopeCache)
         ::ActiveRecord::Reflection::ThroughReflection.prepend(ActiveRecord::Reflection::AssociationScopeCache)

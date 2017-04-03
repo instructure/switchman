@@ -164,14 +164,24 @@ module Switchman
           self.use_transactional_fixtures = false
         end
 
-        it "should disconnect when switching among different database servers" do
+        it "should disconnect unshareable connections when switching among different database servers" do
+          DatabaseServer.any_instance.stubs(:shareable?).returns(false)
           User.connection
           expect(User.connected?).to eq true
           Shard.with_each_shard([Shard.default, @shard2]) {}
-          expect(User.connected?).to  eq false
+          expect(User.connected?).to eq false
         end
 
-        it "should disconnect from other environments" do
+        it "should not disconnect when connections are shareable" do
+          skip 'A "real" database"' unless Shard.default.database_server.shareable?
+          User.connection
+          expect(User.connected?).to eq true
+          Shard.with_each_shard([Shard.default, @shard2]) {}
+          expect(User.connected?).to eq true
+        end
+
+        it "should disconnect unshareable connections from other environments" do
+          DatabaseServer.any_instance.stubs(:shareable?).returns(false)
           ::Shackles.activate(:slave) do
             Shard.with_each_shard([Shard.default, @shard2]) do
               ::Shackles.activate(:master) do

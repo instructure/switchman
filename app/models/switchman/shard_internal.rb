@@ -347,8 +347,7 @@ module Switchman
         previous_shard = nil
         close_connections_if_needed = lambda do |shard|
           # prune the prior connection unless it happened to be the same
-          if previous_shard && shard != previous_shard &&
-            (shard.database_server != previous_shard.database_server || !previous_shard.database_server.shareable?)
+          if previous_shard && shard != previous_shard && !previous_shard.database_server.shareable?
             previous_shard.activate do
               ::Shackles.activated_environments.each do |env|
                 ::Shackles.activate(env) do

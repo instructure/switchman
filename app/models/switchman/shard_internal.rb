@@ -26,6 +26,7 @@ module Switchman
     validates_uniqueness_of :default, :if => lambda { |s| s.default? }
 
     after_save :clear_cache
+    after_destroy :clear_cache
 
     scope :primary, -> { where(name: nil).order(:database_server_id, :id).distinct_on(:database_server_id) }
 

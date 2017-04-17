@@ -7,6 +7,16 @@ class Appendage < ActiveRecord::Base
   scope :has_no_value, -> { where(:value => nil) }
   scope :has_value, -> { where("appendages.value IS NOT NULL") }
 
+  attr_writer :should_test_scoping
+  attr_reader :all_appendages
+  after_save :test_scoping
+
+  def test_scoping
+    if @should_test_scoping
+      @all_appendages = Appendage.all.to_a
+    end
+  end
+
   attr_writer :associated_shards
   class << self
     attr_accessor :associated_shards_map

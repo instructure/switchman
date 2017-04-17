@@ -135,6 +135,15 @@ module Switchman
           end
         end
       end
+
+      it "should not change scopes when saving STI objects" do
+        a1 = Appendage.create!
+        a2 = Appendage.create!(:type => "Arm")
+
+        a2.should_test_scoping = true
+        a2.save!
+        expect(a2.all_appendages).to include(a1)
+      end
     end
   end
 end

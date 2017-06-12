@@ -169,6 +169,12 @@ module Switchman
     end
 
     module CollectionProxy
+      def initialize(*args)
+        super
+        self.shard_value = scope.shard_value
+        self.shard_source_value = :association
+      end
+
       def shard(*args)
         scope.shard(*args)
       end

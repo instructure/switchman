@@ -111,7 +111,7 @@ module Switchman
 
         ::ActiveRecord::Associations::Association.prepend(ActiveRecord::Association)
         ::ActiveRecord::Associations::BelongsToAssociation.prepend(ActiveRecord::BelongsToAssociation)
-        ::ActiveRecord::Associations::CollectionProxy.include(ActiveRecord::CollectionProxy)
+        ::ActiveRecord::Associations::CollectionProxy.prepend(ActiveRecord::CollectionProxy)
         if ::Rails.version < '5'
           ::ActiveRecord::Associations::Builder::CollectionAssociation.include(ActiveRecord::Builder::CollectionAssociation)
         end

@@ -133,6 +133,10 @@ module Switchman
           PageView.where(request_id: '123').take
         end
 
+        it "doesn't change the shard for non-integral primary keys that look like global ids" do
+          expect(::ActiveRecord::SchemaMigration.where(version: @shard1.global_id_for(1).to_s).shard_value).to eq Shard.default
+        end
+
         it "transposes a global id to the shard the query will execute on" do
           u = @shard1.activate { User.create! }
           expect(User.shard(@shard1).where(id: u.id).take).to eq u

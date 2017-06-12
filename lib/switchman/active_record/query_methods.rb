@@ -156,6 +156,8 @@ module Switchman
       end
 
       def infer_shards_from_primary_key(predicates, binds = nil)
+        return unless klass.integral_id?
+
         primary_key = predicates.detect do |predicate|
           predicate.is_a?(::Arel::Nodes::Binary) && predicate.left.is_a?(::Arel::Attributes::Attribute) &&
             predicate.left.relation.is_a?(::Arel::Table) && predicate.left.relation.model == klass &&

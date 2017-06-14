@@ -40,10 +40,15 @@ module Switchman
           Shard.default
 
           # automatically change config to allow for sharing connections with simple config
-          ConnectionHandler.make_sharing_automagic(spec.config)
+          config = ::Rails.version < '5.1' ? spec.config : pool.spec.config
+          ConnectionHandler.make_sharing_automagic(config)
           ConnectionHandler.make_sharing_automagic(Shard.default.database_server.config)
 
-          ::ActiveRecord::Base.configurations[::Rails.env] = spec.instance_variable_get(:@config).stringify_keys
+          if ::Rails.version < '5.1'
+            ::ActiveRecord::Base.configurations[::Rails.env] = spec.instance_variable_get(:@config).stringify_keys
+          else
+            ::ActiveRecord::Base.configurations[::Rails.env] = config.stringify_keys
+          end
         end
 
         @shard_connection_pools ||= { [:master, Shard.default.database_server.shareable? ? ::Rails.env : Shard.default] => pool}
@@ -162,12 +167,13 @@ module Switchman
               # A connection was established in an ancestor process that must have
               # subsequently forked. We can't reuse the connection, but we can copy
               # the specification and establish a new connection with it.
-              pool = nil
-              if ancestor_pool.is_a?(ConnectionPoolProxy)
-                pool = establish_connection ancestor_pool.default_pool.spec
+              spec = if ancestor_pool.is_a?(ConnectionPoolProxy)
+                ancestor_pool.default_pool.spec
               else
-                pool = establish_connection ancestor_pool.spec
+                ancestor_pool.spec
               end
+              spec = spec.to_hash if ::Rails.version >= '5.1'
+              pool = establish_connection spec
               pool.instance_variable_set(:@schema_cache, ancestor_pool.schema_cache) if ancestor_pool.schema_cache
               pool
             elsif spec_name != "primary"

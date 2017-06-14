@@ -1,6 +1,7 @@
 /.bundle/
 /.byebug_history
 /gemfiles/*.gemfile.lock
+/gemfiles/.bundle/
 /log/*.log
 /pkg/
 /spec/dummy/config/database.yml

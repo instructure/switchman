@@ -71,17 +71,12 @@ module Switchman
         end
       end
 
-      it "should be able to create a new sqlite shard from a given server" do
-        db = DatabaseServer.create(adapter: 'sqlite3', database: '%{shard_name}', shard_name: ':memory:')
-        begin
-          create_shard(db)
-        ensure
-          db.destroy
-        end
-      end
-
       context "non-transactional" do
-        self.use_transactional_fixtures = ::ActiveRecord::Base.connection.supports_ddl_transactions?
+        if ::Rails.version < '5'
+          self.use_transactional_fixtures = ::ActiveRecord::Base.connection.supports_ddl_transactions?
+        else
+          self.use_transactional_tests = ::ActiveRecord::Base.connection.supports_ddl_transactions?
+        end
 
         it "should be able to create a new shard from the default db" do
           create_shard(Shard.default.database_server)

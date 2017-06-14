@@ -44,12 +44,22 @@ module Switchman
         end
       end
 
-      def generic_query_builder(connection)
-        @query_builder ||= connection.cacheable_query(@arel)
-      end
+      if ::Rails.version < '5.1'
+        def generic_query_builder(connection)
+          @query_builder ||= connection.cacheable_query(@arel)
+        end
 
-      def qualified_query_builder(shard, klass)
-        @qualified_query_builders[shard.id] ||= klass.connection.cacheable_query(@arel)
+        def qualified_query_builder(shard, klass)
+          @qualified_query_builders[shard.id] ||= klass.connection.cacheable_query(@arel)
+        end
+      else
+        def generic_query_builder(connection)
+          @query_builder ||= connection.cacheable_query(self.class, @arel)
+        end
+
+        def qualified_query_builder(shard, klass)
+          @qualified_query_builders[shard.id] ||= klass.connection.cacheable_query(self.class, @arel)
+        end
       end
 
       module BindMap

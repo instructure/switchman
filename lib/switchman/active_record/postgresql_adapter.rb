@@ -1,8 +1,10 @@
 module Switchman
   module ActiveRecord
     module PostgreSQLAdapter
-      def self.prepended(klass)
-        klass::NATIVE_DATABASE_TYPES[:primary_key] = "bigserial primary key".freeze
+      if ::Rails.version < '5'
+        def self.prepended(klass)
+          klass::NATIVE_DATABASE_TYPES[:primary_key] = "bigserial primary key".freeze
+        end
       end
 
       # copy/paste; use quote_local_table_name
@@ -137,7 +139,7 @@ module Switchman
         end.compact
       end
 
-      def index_name_exists?(table_name, index_name, default)
+      def index_name_exists?(table_name, index_name, _default = nil)
         schema = shard.name if use_qualified_names?
 
         exec_query(<<-SQL, 'SCHEMA').rows.first[0].to_i > 0

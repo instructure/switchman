@@ -80,22 +80,46 @@ module Switchman
 
       private
 
-      def cache_sql(sql, binds)
-        # have to include the shard id in the cache key because of switching dbs on the same connection
-        sql = "#{self.shard.id}::#{sql}"
-        result =
-            if query_cache[sql].key?(binds)
-              ::ActiveSupport::Notifications.instrument("sql.active_record",
-                                                      :sql => sql, :binds => binds, :name => "CACHE", :connection_id => object_id)
-              query_cache[sql][binds]
-            else
-              query_cache[sql][binds] = yield
-            end
+      if ::Rails.version < '5.1'
+        def cache_sql(sql, binds)
+          # have to include the shard id in the cache key because of switching dbs on the same connection
+          sql = "#{self.shard.id}::#{sql}"
+          result =
+              if query_cache[sql].key?(binds)
+                ::ActiveSupport::Notifications.instrument("sql.active_record",
+                                                        :sql => sql, :binds => binds, :name => "CACHE", :connection_id => object_id)
+                query_cache[sql][binds]
+              else
+                query_cache[sql][binds] = yield
+              end
 
-        if ::ActiveRecord::Result === result
-          result.dup
-        else
-          result.collect { |row| row.dup }
+          if ::ActiveRecord::Result === result
+            result.dup
+          else
+            result.collect { |row| row.dup }
+          end
+        end
+      else
+        def cache_sql(sql, name, binds)
+          # have to include the shard id in the cache key because of switching dbs on the same connection
+          sql = "#{self.shard.id}::#{sql}"
+          @lock.synchronize do
+            result =
+                if query_cache[sql].key?(binds)
+                  ::ActiveSupport::Notifications.instrument(
+                      "sql.active_record",
+                      sql: sql,
+                      binds: binds,
+                      name: name,
+                      connection_id: object_id,
+                      cached: true,
+                  )
+                  query_cache[sql][binds]
+                else
+                  query_cache[sql][binds] = yield
+                end
+            result.dup
+          end
         end
       end
     end

@@ -3,7 +3,7 @@
 source "http://rubygems.org"
 
 gem "mocha", require: false
-gem "activerecord", "~> 4.2.5"
-gem "railties", "~> 4.2.5"
+gem "activerecord", ">= 5.1", "< 5.2"
+gem "railties", ">= 5.1", "< 5.2"
 
 gemspec path: "../"

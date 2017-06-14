@@ -1,4 +1,4 @@
-class CreateDefaultShard < ActiveRecord::Migration
+class CreateDefaultShard < ActiveRecord::Migration[4.2]
   def up
     unless Switchman::Shard.default.is_a?(Switchman::Shard)
       Switchman::Shard.reset_column_information

@@ -375,6 +375,7 @@ module Switchman
         connection.stubs(:run_callbacks).returns(nil)
         connection.stubs(:_run_checkin_callbacks).returns(nil)
         connection.stubs(:owner).returns(Thread.current)
+        connection.stubs(:lock).returns(Mutex.new)
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.any_instance.stubs(:checkout).returns(connection)
         begin
           expect(shard.name).to eq 'canvas'

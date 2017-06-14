@@ -38,6 +38,14 @@ module Switchman
       ensure
         @last_query_at = Time.now
       end
+
+      private
+
+      def id_value_for_database(value)
+        return super unless value.class.sharded_primary_key?
+        # do this the Rails 4.2 way, so that if Shard.current != self.shard, the id gets transposed
+        quote(value.id)
+      end
     end
   end
 end

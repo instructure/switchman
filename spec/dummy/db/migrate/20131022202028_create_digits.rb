@@ -1,4 +1,4 @@
-class CreateDigits < ActiveRecord::Migration
+class CreateDigits < ActiveRecord::Migration[4.2]
   def change
     create_table :digits do |t|
       t.integer :appendage_id, :limit => 8

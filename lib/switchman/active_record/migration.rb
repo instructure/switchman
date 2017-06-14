@@ -1,6 +1,23 @@
 module Switchman
   module ActiveRecord
     module Migration
+      module Compatibility
+        module V5_0
+          def create_table(*args, **options)
+            unless options.key?(:id)
+              options[:id] = :bigserial
+            end
+            if block_given?
+              super do |td|
+                yield td
+              end
+            else
+              super
+            end
+          end
+        end
+      end
+
       def connection
         conn = super
         if conn.shard != ::ActiveRecord::Base.connection_pool.current_pool.shard

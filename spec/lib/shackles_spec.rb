@@ -105,7 +105,11 @@ module Switchman
     end
 
     context "non-transactional" do
-      self.use_transactional_fixtures = false
+      if ::Rails.version < '5'
+        self.use_transactional_fixtures = ::ActiveRecord::Base.connection.supports_ddl_transactions?
+      else
+        self.use_transactional_tests = ::ActiveRecord::Base.connection.supports_ddl_transactions?
+      end
 
       it "should really disconnect all envs" do
         ::ActiveRecord::Base.connection

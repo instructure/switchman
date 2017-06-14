@@ -138,7 +138,7 @@ module Switchman
       end
 
       def hash
-        self.class.sharded_primary_key? ? Shard.global_id_for(id).hash : super
+        self.class.sharded_primary_key? ? self.class.hash ^ Shard.global_id_for(id).hash : super
       end
 
       def to_param
@@ -156,7 +156,7 @@ module Switchman
         def quoted_id
           return super unless self.class.sharded_primary_key?
           # do this the Rails 4.2 way, so that if Shard.current != self.shard, the id gets transposed
-          self.class.connection.quote(id, column_for_attribute(self.class.primary_key))
+          self.class.connection.quote(id)
         end
       end
     end

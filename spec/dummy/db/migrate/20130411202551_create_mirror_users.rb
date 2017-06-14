@@ -1,4 +1,4 @@
-class CreateMirrorUsers < ActiveRecord::Migration
+class CreateMirrorUsers < ActiveRecord::Migration[4.2]
   def change
     create_table :mirror_users do |t|
       t.integer :user_id, :limit => 8

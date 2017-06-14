@@ -192,7 +192,7 @@ module Switchman
           max_procs = determine_max_procs(options.delete(:max_procs), parallel)
           if ::ActiveRecord::Relation === scope
             # still need a post-uniq, cause the default database server could be NULL or Rails.env in the db
-            database_servers = scope.reorder('database_server_id').select(:database_server_id).uniq.
+            database_servers = scope.reorder('database_server_id').select(:database_server_id).distinct.
                 map(&:database_server).compact.uniq
             parallel = [(max_procs.to_f / database_servers.count).ceil, parallel].min if max_procs
 

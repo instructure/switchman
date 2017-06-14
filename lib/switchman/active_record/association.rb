@@ -36,14 +36,17 @@ module Switchman
     end
 
     module CollectionAssociation
-      def get_records
-        shards = reflection.options[:multishard] && owner.respond_to?(:associated_shards) ? owner.associated_shards : [shard]
-        # activate both the owner and the target's shard category, so that Reflection#join_id_for,
-        # when called for the owner, will be returned relative to shard the query will execute on
-        Shard.with_each_shard(shards, [klass.shard_category, owner.class.shard_category].uniq) do
-          super
+      method = ::Rails.version < '5.1' ? :get_records : :find_target
+      module_eval <<-RUBY, __FILE__, __LINE__ + 1
+        def #{method}
+          shards = reflection.options[:multishard] && owner.respond_to?(:associated_shards) ? owner.associated_shards : [shard]
+          # activate both the owner and the target's shard category, so that Reflection#join_id_for,
+          # when called for the owner, will be returned relative to shard the query will execute on
+          Shard.with_each_shard(shards, [klass.shard_category, owner.class.shard_category].uniq) do
+            super
+          end
         end
-      end
+      RUBY
     end
 
     module BelongsToAssociation

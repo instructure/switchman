@@ -1,4 +1,4 @@
-class AddParentIdToUsers < ActiveRecord::Migration
+class AddParentIdToUsers < ActiveRecord::Migration[4.2]
   def change
     add_column :users, :parent_id, :integer, :limit => 8
   end

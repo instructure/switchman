@@ -1,4 +1,4 @@
-class CreateSwitchmanShards < ActiveRecord::Migration
+class CreateSwitchmanShards < ActiveRecord::Migration[4.2]
   def change
     create_table :switchman_shards do |t|
       t.string :name

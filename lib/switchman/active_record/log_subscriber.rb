@@ -17,13 +17,16 @@ module Switchman
         shard = "  [#{shard[:database_server_id]}:#{shard[:id]} #{shard[:env]}]" if shard
 
         unless (payload[:binds] || []).empty?
-          binds = "  " + payload[:binds].map { |col,v|
-            if col
-              [col.name, v]
-            else
-              [nil, v]
-            end
-          }.inspect
+          if ::Rails.version < '5'
+            binds = "  " + payload[:binds].map { |col,v|
+              render_bind(col, v)
+            }.inspect
+          else
+            casted_params = type_casted_binds(payload[:binds], payload[:type_casted_binds])
+            binds = "  " + payload[:binds].zip(casted_params).map { |attr, value|
+              render_bind(attr, value)
+            }.inspect
+          end
         end
 
         if ::Rails.version >= '5'

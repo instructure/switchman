@@ -1,3 +1,3 @@
 module Switchman
-  VERSION = "1.9.12"
+  VERSION = "1.10.0"
 end

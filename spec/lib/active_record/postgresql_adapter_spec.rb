@@ -26,6 +26,8 @@ module Switchman
 
       context "table aliases" do
         it "qualifies tables, but not aliases or columns" do
+          # preload schema metadata
+          User.primary_key
           shard = mock()
           shard.stubs(:name).returns('bob')
           ::ActiveRecord::Base.connection.stubs(:use_qualified_names?).returns(true)

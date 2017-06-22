@@ -31,6 +31,12 @@ module Switchman
         end
       end
 
+      def find_some_ordered(ids)
+        current_shard = Shard.current(klass.shard_category)
+        ids = ids.map{|id| Shard.relative_id_for(id, current_shard, current_shard)}
+        super(ids)
+      end
+
       def find_or_instantiator_by_attributes(match, attributes, *args)
         primary_shard.activate { super }
       end

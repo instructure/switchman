@@ -69,6 +69,14 @@ module Switchman
         end
       end
 
+      describe "#find_some" do
+        it "should find multiple objects by global id" do
+          user = User.create!
+          user2 = @shard2.activate { User.create! }
+          expect(User.find([user.global_id, user2.global_id]).sort_by(&:id)).to eq [user, user2].sort_by(&:id)
+        end
+      end
+
       describe "#find_or_initialize" do
         it "should initialize with the shard from the scope" do
           @user.destroy

@@ -79,7 +79,13 @@ module Switchman
         def define_method_original_attribute(attr_name)
           if sharded_column?(attr_name)
             reflection = reflection_for_integer_attribute(attr_name)
-            generated_attribute_methods.module_eval <<-RUBY, __FILE__, __LINE__ + 1
+            if attr_name == "id" && ::Rails.version >= '5.1.2'
+              return if self.method_defined?(:original_id)
+              owner = self
+            else
+              owner = generated_attribute_methods
+            end
+            owner.module_eval <<-RUBY, __FILE__, __LINE__ + 1
               # rename the original method to original_
               alias_method 'original_#{attr_name}', '#{attr_name}'
               # and replace with one that transposes the id
@@ -117,7 +123,7 @@ module Switchman
         klass.extend(ClassMethods)
         klass.attribute_method_prefix "global_", "local_", "original_"
       end
-      
+
       # ensure that we're using the sharded attribute method
       # and not the silly one in AR::AttributeMethods::PrimaryKey
       def id

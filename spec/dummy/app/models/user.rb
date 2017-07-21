@@ -15,6 +15,8 @@ class User < ActiveRecord::Base
 
   has_one :face
 
+  has_many :arms, -> { where(:type => "Arm") }, :class_name => "Appendage"
+
   attr_writer :associated_shards
   class << self
     attr_accessor :associated_shards_map

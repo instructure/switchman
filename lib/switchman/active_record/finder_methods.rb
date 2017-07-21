@@ -58,7 +58,7 @@ module Switchman
         end
 
         relation.activate do |shard_rel|
-          return true if connection.select_value(shard_rel, "#{name} Exists", shard_rel.bind_values)
+          return true if connection.select_value(shard_rel, "#{name} Exists", shard_rel.bound_attributes)
         end
         false
       end

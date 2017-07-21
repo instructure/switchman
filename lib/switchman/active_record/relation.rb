@@ -46,19 +46,16 @@ module Switchman
         self.activate { |relation| relation.call_super(:explain, Relation) }
       end
 
-      to_a_method = ::Rails.version >= '5' ? :records : :to_a
-      class_eval <<-RUBY, __FILE__, __LINE__ + 1
-        def #{to_a_method}
-          return @records if loaded?
-          results = self.activate { |relation| relation.call_super(#{to_a_method.inspect}, Relation) }
-          case shard_value
-          when Array, ::ActiveRecord::Relation, ::ActiveRecord::Base
-            @records = results
-            @loaded = true
-          end
-          results
+      def records
+        return @records if loaded?
+        results = self.activate { |relation| relation.call_super(:records, Relation) }
+        case shard_value
+        when Array, ::ActiveRecord::Relation, ::ActiveRecord::Base
+          @records = results
+          @loaded = true
         end
-      RUBY
+        results
+      end
 
       %I{update_all delete_all}.each do |method|
         class_eval <<-RUBY, __FILE__, __LINE__ + 1

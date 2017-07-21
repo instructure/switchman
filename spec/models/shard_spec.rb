@@ -158,11 +158,7 @@ module Switchman
       end
 
       context "non-transactional" do
-        if ::Rails.version >= '5.0'
-          self.use_transactional_tests = false
-        else
-          self.use_transactional_fixtures = false
-        end
+        self.use_transactional_tests = false
 
         it "should disconnect unshareable connections when switching among different database servers" do
           DatabaseServer.any_instance.stubs(:shareable?).returns(false)

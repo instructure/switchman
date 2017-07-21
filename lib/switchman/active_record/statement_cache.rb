@@ -5,8 +5,7 @@ module Switchman
         def create(connection, block = Proc.new)
           relation = block.call ::ActiveRecord::StatementCache::Params.new
 
-          binds = ::Rails.version >= '5' ? relation.bound_attributes : relation.bind_values
-          bind_map = ::ActiveRecord::StatementCache::BindMap.new(binds)
+          bind_map = ::ActiveRecord::StatementCache::BindMap.new(relation.bound_attributes )
           new relation.arel, bind_map
         end
       end
@@ -65,44 +64,25 @@ module Switchman
       module BindMap
         # performs id transposition here instead of query_methods.rb
         def bind(values, current_shard, target_shard)
-          if ::Rails.version >= '5'
-            bas = @bound_attributes.dup
-            @indexes.each_with_index do |offset,i|
-              ba = bas[offset]
-              if ba.is_a?(::ActiveRecord::Relation::QueryAttribute) && ba.value.sharded
-                new_value = Shard.relative_id_for(values[i], current_shard, target_shard || current_shard)
-              else
-                new_value = values[i]
-              end
-              bas[offset] = ba.with_cast_value(new_value)
+          bas = @bound_attributes.dup
+          @indexes.each_with_index do |offset,i|
+            ba = bas[offset]
+            if ba.is_a?(::ActiveRecord::Relation::QueryAttribute) && ba.value.sharded
+              new_value = Shard.relative_id_for(values[i], current_shard, target_shard || current_shard)
+            else
+              new_value = values[i]
             end
-            bas
-          else
-            bvs = @bind_values.map { |pair| pair.dup }
-            @indexes.each_with_index do |offset,i|
-              bv = bvs[offset]
-              if bv[1].sharded
-                bv[1] = Shard.relative_id_for(values[i], current_shard, target_shard || current_shard)
-              else
-                bv[1] = values[i]
-              end
-            end
-            bvs
+            bas[offset] = ba.with_cast_value(new_value)
           end
+          bas
         end
 
         def primary_value_index
-          if ::Rails.version >= '5'
-            primary_ba_index = @bound_attributes.index do |ba|
-              ba.is_a?(::ActiveRecord::Relation::QueryAttribute) && ba.value.primary
-            end
-            if primary_ba_index
-              @indexes.index(primary_ba_index)
-            end
-          else
-            if primary_bv_index = @bind_values.index{|col, sub| sub.primary}
-              @indexes.index(primary_bv_index)
-            end
+          primary_ba_index = @bound_attributes.index do |ba|
+            ba.is_a?(::ActiveRecord::Relation::QueryAttribute) && ba.value.primary
+          end
+          if primary_ba_index
+            @indexes.index(primary_ba_index)
           end
         end
       end

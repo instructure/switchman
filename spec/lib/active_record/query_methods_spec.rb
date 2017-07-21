@@ -213,14 +213,6 @@ module Switchman
 
           attribute = predicates(relation).first.left
           expect(attribute.name.to_s).to eq 'parent_id'
-          unless ::Rails.version >= '5'
-            # apparently rails 5 doesn't use table aliases here anymore
-            expect(attribute.relation.class).to eq ::Arel::Nodes::TableAlias
-
-            rel, column = relation.send(:relation_and_column, attribute)
-            expect(relation.send(:sharded_primary_key?, rel, column)).to eq false
-            expect(relation.send(:sharded_foreign_key?, rel, column)).to eq true
-          end
 
           expect(@user1.grandchildren).to eq [grandchild]
         end

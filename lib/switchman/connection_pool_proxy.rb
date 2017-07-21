@@ -123,7 +123,7 @@ module Switchman
         end
       end
       args = [config, "#{config[:adapter]}_connection"]
-      args.unshift(pool_key.join("/")) if ::Rails.version >= '5' # seems as good a name as any
+      args.unshift(pool_key.join("/"))
       spec = ::ActiveRecord::ConnectionAdapters::ConnectionSpecification.new(*args)
       # unfortunately the AR code that does this require logic can't really be
       # called in isolation

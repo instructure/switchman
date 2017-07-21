@@ -159,7 +159,7 @@ module Switchman
               'count', opts[:distinct]).as('count')
         end
 
-        haves = ::Rails.version >= "5" ? having_clause.send(:predicates) : having_values
+        haves = having_clause.send(:predicates)
         select_values += select_values unless haves.empty?
         select_values.concat opts[:group_fields].zip(opts[:group_aliases]).map { |field,aliaz|
           if field.respond_to?(:as)

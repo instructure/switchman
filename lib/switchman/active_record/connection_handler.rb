@@ -22,9 +22,8 @@ module Switchman
         end
       end
 
-      def establish_connection(*args)
+      def establish_connection(spec)
         pool = super
-        owner, spec = ::Rails.version < '5' ? args : [nil, args.first]
 
         # this is the first place that the adapter would have been required; but now we
         # need this addition ASAP since it will be called when loading the default shard below
@@ -53,16 +52,11 @@ module Switchman
 
         @shard_connection_pools ||= { [:master, Shard.default.database_server.shareable? ? ::Rails.env : Shard.default] => pool}
 
-        category = ::Rails.version < '5' ? owner.shard_category : pool.spec.name.to_sym
+        category = pool.spec.name.to_sym
         proxy = ConnectionPoolProxy.new(category,
                                         pool,
                                         @shard_connection_pools)
-        if ::Rails.version < '5'
-          owner_to_pool[owner.name] = proxy
-          class_to_pool.clear
-        else
-          owner_to_pool[pool.spec.name] = proxy
-        end
+        owner_to_pool[pool.spec.name] = proxy
 
         if first_time
           if Shard.default.database_server.config[:prefer_slave]
@@ -107,96 +101,46 @@ module Switchman
         proxy
       end
 
-      if ::Rails.version < '5'
-        def remove_connection(model)
-          uninitialize_ar(model) if owner_to_pool[model.name].is_a?(ConnectionPoolProxy)
-          result = super
-          initialize_categories
-          result
-        end
+      def remove_connection(spec_name)
+        pool = owner_to_pool[spec_name]
+        owner_to_pool[spec_name] = pool.default_pool if pool.is_a?(ConnectionPoolProxy)
+        super
+      end
 
-        def pool_for(owner)
-          # copypasted from AR#ConnectionHandler other than proxy handling
-
-          owner_to_pool.fetch(owner.name) {
-            if ancestor_pool = pool_from_any_process_for(owner)
-              # A connection was established in an ancestor process that must have
-              # subsequently forked. We can't reuse the connection, but we can copy
-              # the specification and establish a new connection with it.
-              if ancestor_pool.is_a?(ConnectionPoolProxy)
-                establish_connection owner, ancestor_pool.default_pool.spec
-              else
-                establish_connection owner, ancestor_pool.spec
-              end
+      def retrieve_connection_pool(spec_name)
+        owner_to_pool.fetch(spec_name) do
+          if ancestor_pool = pool_from_any_process_for(spec_name)
+            # A connection was established in an ancestor process that must have
+            # subsequently forked. We can't reuse the connection, but we can copy
+            # the specification and establish a new connection with it.
+            spec = if ancestor_pool.is_a?(ConnectionPoolProxy)
+              ancestor_pool.default_pool.spec
             else
-              owner_to_pool[owner.name] = nil
+              ancestor_pool.spec
             end
-          }
-        end
-
-        def retrieve_connection_pool(klass)
-          class_to_pool[klass.name] ||= begin
-            original_klass = klass
-            until pool = pool_for(klass)
-              klass = klass.superclass
-              break unless klass <= Base
-            end
-
-            if pool.is_a?(ConnectionPoolProxy) && pool.category != original_klass.shard_category
-              default_pool = pool.default_pool
-              pool = nil
-              class_to_pool.each_value { |p| pool = p if p.is_a?(ConnectionPoolProxy) &&
-                  p.category == original_klass.shard_category &&
-                  p.default_pool == default_pool }
-              pool ||= ConnectionPoolProxy.new(original_klass.shard_category, default_pool, @shard_connection_pools)
-            end
-
-            class_to_pool[original_klass.name] = pool
-          end
-        end
-      else
-        def remove_connection(spec_name)
-          pool = owner_to_pool[spec_name]
-          owner_to_pool[spec_name] = pool.default_pool if pool.is_a?(ConnectionPoolProxy)
-          super
-        end
-
-        def retrieve_connection_pool(spec_name)
-          owner_to_pool.fetch(spec_name) do
-            if ancestor_pool = pool_from_any_process_for(spec_name)
-              # A connection was established in an ancestor process that must have
-              # subsequently forked. We can't reuse the connection, but we can copy
-              # the specification and establish a new connection with it.
-              spec = if ancestor_pool.is_a?(ConnectionPoolProxy)
-                ancestor_pool.default_pool.spec
-              else
-                ancestor_pool.spec
-              end
-              spec = spec.to_hash if ::Rails.version >= '5.1'
-              pool = establish_connection spec
-              pool.instance_variable_set(:@schema_cache, ancestor_pool.schema_cache) if ancestor_pool.schema_cache
-              pool
-            elsif spec_name != "primary"
-              primary_pool = retrieve_connection_pool("primary")
-              if primary_pool.is_a?(ConnectionPoolProxy)
-                ConnectionPoolProxy.new(spec_name.to_sym, primary_pool.default_pool, @shard_connection_pools)
-              else
-                primary_pool
-              end
+            spec = spec.to_hash if ::Rails.version >= '5.1'
+            pool = establish_connection spec
+            pool.instance_variable_set(:@schema_cache, ancestor_pool.schema_cache) if ancestor_pool.schema_cache
+            pool
+          elsif spec_name != "primary"
+            primary_pool = retrieve_connection_pool("primary")
+            if primary_pool.is_a?(ConnectionPoolProxy)
+              ConnectionPoolProxy.new(spec_name.to_sym, primary_pool.default_pool, @shard_connection_pools)
             else
-              owner_to_pool[spec_name] = nil
+              primary_pool
             end
+          else
+            owner_to_pool[spec_name] = nil
           end
         end
       end
 
       def clear_idle_connections!(since_when)
-        # TODO in rails 4.2+ s/connection_pools.values/connection_pool_list/
-        connection_pools.values.each{ |pool| pool.clear_idle_connections!(since_when) }
+        connection_pool_list.each{ |pool| pool.clear_idle_connections!(since_when) }
       end
 
       def switchman_connection_pool_proxies
-        (::Rails.version < '5' ? class_to_pool : owner_to_pool).values.uniq.select{|p| p.is_a?(ConnectionPoolProxy)}
+        owner_to_pool.values.uniq.select{|p| p.is_a?(ConnectionPoolProxy)}
       end
 
       private

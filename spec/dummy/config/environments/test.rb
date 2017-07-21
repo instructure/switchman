@@ -6,7 +6,7 @@ Dummy::Application.configure do
   # your test database is "scratch space" for the test suite and is wiped
   # and recreated between test runs. Don't rely on the data there!
 
-  config.enable_dependency_loading = true if Rails.version >= '5'
+  config.enable_dependency_loading = true
 
   # Configure static asset server for tests with Cache-Control for performance
   config.serve_static_files = true

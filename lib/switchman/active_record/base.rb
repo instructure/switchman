@@ -4,14 +4,8 @@ module Switchman
       module ClassMethods
         delegate :shard, to: :all
 
-        if ::Rails.version < '5'
-          def shard_category
-            @shard_category || (self.superclass < ::ActiveRecord::Base && self.superclass.shard_category) || :primary
-          end
-        else
-          def shard_category
-            connection_specification_name.to_sym
-          end
+        def shard_category
+          connection_specification_name.to_sym
         end
 
         def shard_category=(category)
@@ -22,13 +16,7 @@ module Switchman
           end
           categories[category] ||= []
           categories[category] << self
-          if ::Rails.version < '5'
-            connection_handler.uninitialize_ar(self)
-            @shard_category = category
-            connection_handler.initialize_categories(superclass)
-          else
-            self.connection_specification_name = category.to_s
-          end
+          self.connection_specification_name = category.to_s
         end
 
         def integral_id?
@@ -104,22 +92,18 @@ module Switchman
         end
       end
 
-      def scope_class
-        ::Rails.version >= '5' ? self.class : self.class.base_class
-      end
-
       def save(*args)
         @shard_set_in_stone = true
-        scope_class.shard(shard, :implicit).scoping { super }
+        self.class.shard(shard, :implicit).scoping { super }
       end
 
       def save!(*args)
         @shard_set_in_stone = true
-        scope_class.shard(shard, :implicit).scoping { super }
+        self.class.shard(shard, :implicit).scoping { super }
       end
 
       def destroy
-        scope_class.shard(shard, :implicit).scoping { super }
+        self.class.shard(shard, :implicit).scoping { super }
       end
 
       def clone
@@ -152,12 +136,10 @@ module Switchman
         copy
       end
 
-      if ::Rails.version >= '5'
-        def quoted_id
-          return super unless self.class.sharded_primary_key?
-          # do this the Rails 4.2 way, so that if Shard.current != self.shard, the id gets transposed
-          self.class.connection.quote(id)
-        end
+      def quoted_id
+        return super unless self.class.sharded_primary_key?
+        # do this the Rails 4.2 way, so that if Shard.current != self.shard, the id gets transposed
+        self.class.connection.quote(id)
       end
     end
   end

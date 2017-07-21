@@ -118,8 +118,7 @@ module Switchman
       klass.before do
         raise "Sharding did not set up correctly" if @@sharding_failed
         Shard.clear_cache
-        if ::Rails.version >= '5.1' ? use_transactional_tests :
-          (::Rails.version >= '5' && use_transactional_tests) || use_transactional_fixtures
+        if ::Rails.version >= '5.1' ? use_transactional_tests : (use_transactional_tests || use_transactional_fixtures)
           Shard.default(true)
           @shard1 = Shard.find(@shard1.id)
           @shard2 = Shard.find(@shard2.id)
@@ -135,8 +134,7 @@ module Switchman
 
       klass.after do
         next if @@sharding_failed
-        if ::Rails.version >= '5.1' ? use_transactional_tests :
-           (::Rails.version >= '5' && use_transactional_tests) || use_transactional_fixtures
+        if ::Rails.version >= '5.1' ? use_transactional_tests : (use_transactional_tests || use_transactional_fixtures)
           shards = [@shard2]
           shards << @shard1 unless @shard1.database_server == Shard.default.database_server
           shards.each do |shard|

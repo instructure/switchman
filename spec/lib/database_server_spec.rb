@@ -72,11 +72,7 @@ module Switchman
       end
 
       context "non-transactional" do
-        if ::Rails.version < '5'
-          self.use_transactional_fixtures = ::ActiveRecord::Base.connection.supports_ddl_transactions?
-        else
-          self.use_transactional_tests = ::ActiveRecord::Base.connection.supports_ddl_transactions?
-        end
+        self.use_transactional_tests = ::ActiveRecord::Base.connection.supports_ddl_transactions?
 
         it "should be able to create a new shard from the default db" do
           create_shard(Shard.default.database_server)

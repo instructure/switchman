@@ -17,11 +17,7 @@ module Switchman
         shard = "  [#{shard[:database_server_id]}:#{shard[:id]} #{shard[:env]}]" if shard
 
         unless (payload[:binds] || []).empty?
-          if ::Rails.version < '5'
-            binds = "  " + payload[:binds].map { |col,v|
-              render_bind(col, v)
-            }.inspect
-          elsif ::Rails.version < '5.0.3'
+          if ::Rails.version < '5.0.3'
             binds = "  " + payload[:binds].map { |attr| render_bind(attr) }.inspect
           else
             casted_params = type_casted_binds(payload[:binds], payload[:type_casted_binds])
@@ -31,17 +27,8 @@ module Switchman
           end
         end
 
-        if ::Rails.version >= '5'
-          name = colorize_payload_name(name, payload[:name])
-          sql  = color(sql, sql_color(sql), true)
-        else
-          if odd?
-            name = color(name, self.class::CYAN, true)
-            sql  = color(sql, nil, true)
-          else
-            name = color(name, self.class::MAGENTA, true)
-          end
-        end
+        name = colorize_payload_name(name, payload[:name])
+        sql  = color(sql, sql_color(sql), true)
 
         debug "  #{name}  #{sql}#{binds}#{shard}"
       end

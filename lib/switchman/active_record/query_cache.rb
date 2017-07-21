@@ -52,17 +52,9 @@ module Switchman
           if self.query_cache_enabled && !locked?(arel)
             arel, binds = binds_from_relation(arel, binds)
             sql = to_sql(arel, binds)
-            if ::Rails.version >= '5'
-              cache_sql(sql, binds) { super(sql, name, binds, preparable: preparable) }
-            else
-              cache_sql(sql, binds) { super(sql, name, binds) }
-            end
+            cache_sql(sql, binds) { super(sql, name, binds, preparable: preparable) }
           else
-            if ::Rails.version >= '5'
-              super
-            else
-              super(arel, name, binds)
-            end
+            super
           end
         end
 

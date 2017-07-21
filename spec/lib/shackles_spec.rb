@@ -23,11 +23,11 @@ module Switchman
     end
 
     it "should correctly set up pools for sharding categories" do
-      models = ::ActiveRecord::Base.connection_handler.send(::Rails.version < '5' ? :class_to_pool : :owner_to_pool)
+      models = ::ActiveRecord::Base.connection_handler.send(:owner_to_pool)
       default_pools = {}
       models.each_pair { |k, v| default_pools[k] = v.current_pool }
       ::Shackles.activate(:slave_that_no_one_else_uses) do
-        models = ::ActiveRecord::Base.connection_handler.send(::Rails.version < '5' ? :class_to_pool : :owner_to_pool)
+        models = ::ActiveRecord::Base.connection_handler.send(:owner_to_pool)
         pools = {}
         models.each_pair { |k, v| pools[k] = v.current_pool }
         expect(default_pools.keys.sort).to eq pools.keys.sort
@@ -105,11 +105,7 @@ module Switchman
     end
 
     context "non-transactional" do
-      if ::Rails.version < '5'
-        self.use_transactional_fixtures = ::ActiveRecord::Base.connection.supports_ddl_transactions?
-      else
-        self.use_transactional_tests = ::ActiveRecord::Base.connection.supports_ddl_transactions?
-      end
+      self.use_transactional_tests = ::ActiveRecord::Base.connection.supports_ddl_transactions?
 
       it "should really disconnect all envs" do
         ::ActiveRecord::Base.connection
@@ -156,7 +152,7 @@ module Switchman
       end
 
       def actual_connection_count
-        ::ActiveRecord::Base.connection_pool.current_pool.instance_variable_get(::Rails.version >= '5' ? :@thread_cached_conns : :@reserved_connections).size
+        ::ActiveRecord::Base.connection_pool.current_pool.instance_variable_get(:@thread_cached_conns).size
       end
 
       it "should really return active connections to the pool in all envs" do

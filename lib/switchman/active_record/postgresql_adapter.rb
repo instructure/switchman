@@ -1,12 +1,6 @@
 module Switchman
   module ActiveRecord
     module PostgreSQLAdapter
-      if ::Rails.version < '5'
-        def self.prepended(klass)
-          klass::NATIVE_DATABASE_TYPES[:primary_key] = "bigserial primary key".freeze
-        end
-      end
-
       # copy/paste; use quote_local_table_name
       def create_database(name, options = {})
         options = { encoding: 'utf8' }.merge!(options.symbolize_keys)
@@ -58,9 +52,16 @@ module Switchman
         SQL
       end
 
-      method_name = ::Rails.version >= '5' ? :data_source_exists? : :table_exists?
-      class_eval <<-RUBY, __FILE__, __LINE__ + 1
-        def #{method_name}(name)
+      if ::Rails.version >= '5.1'
+        def extract_schema_qualified_name(string)
+          name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(string.to_s)
+          if string && !name.schema && use_qualified_names?
+            name.instance_variable_set(:@schema, shard.name)
+          end
+          [name.schema, name.identifier]
+        end
+      else
+        def data_source_exists?(name)
           name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)
           return false unless name.identifier
           if !name.schema && use_qualified_names?
@@ -72,11 +73,11 @@ module Switchman
             FROM pg_class c
             LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
             WHERE c.relkind IN ('r','v','m') -- (r)elation/table, (v)iew, (m)aterialized view
-            AND c.relname = '\#{name.identifier}'
-            AND n.nspname = \#{name.schema ? "'\#{name.schema}'" : 'ANY (current_schemas(false))'}
+            AND c.relname = '#{name.identifier}'
+            AND n.nspname = #{name.schema ? "'#{name.schema}'" : 'ANY (current_schemas(false))'}
           SQL
         end
-      RUBY
+      end
 
       def view_exists?(name)
         name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)

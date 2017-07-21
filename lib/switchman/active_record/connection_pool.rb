@@ -39,12 +39,7 @@ module Switchman
         conn
       end
 
-      def release_connection(with_id = nil)
-        with_id ||= if ::Rails.version >= '5'
-                      Thread.current
-                    else
-                      current_connection_id
-                    end
+      def release_connection(with_id = Thread.current)
         super(with_id)
 
         if spec.config[:idle_timeout]

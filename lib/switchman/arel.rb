@@ -2,11 +2,7 @@ module Switchman
   module Arel
     module Table
       def model
-        if ::Rails.version >= '5'
-          type_caster.model
-        else
-          engine
-        end
+        type_caster.model
       end
     end
     module Visitors

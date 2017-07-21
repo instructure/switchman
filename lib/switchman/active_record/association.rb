@@ -69,26 +69,16 @@ module Switchman
       end
     end
 
-    if ::Rails.version >= '5'
-      module Extension
-        def self.build(_model, _reflection)
-        end
-
-        def self.valid_options
-          [:multishard]
-        end
+    module Extension
+      def self.build(_model, _reflection)
       end
 
-      ::ActiveRecord::Associations::Builder::Association.extensions << Extension
-    else
-      module Builder
-        module CollectionAssociation
-          def valid_options
-            super + [:multishard]
-          end
-        end
+      def self.valid_options
+        [:multishard]
       end
     end
+
+    ::ActiveRecord::Associations::Builder::Association.extensions << Extension
 
     module Preloader
       module Association

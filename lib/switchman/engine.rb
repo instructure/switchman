@@ -112,9 +112,6 @@ module Switchman
         ::ActiveRecord::Associations::Association.prepend(ActiveRecord::Association)
         ::ActiveRecord::Associations::BelongsToAssociation.prepend(ActiveRecord::BelongsToAssociation)
         ::ActiveRecord::Associations::CollectionProxy.include(ActiveRecord::CollectionProxy)
-        if ::Rails.version < '5'
-          ::ActiveRecord::Associations::Builder::CollectionAssociation.include(ActiveRecord::Builder::CollectionAssociation)
-        end
 
         ::ActiveRecord::Associations::Preloader::Association.prepend(ActiveRecord::Preloader::Association)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::AbstractAdapter)
@@ -129,9 +126,7 @@ module Switchman
 
         ::ActiveRecord::LogSubscriber.prepend(ActiveRecord::LogSubscriber)
         ::ActiveRecord::Migration.prepend(ActiveRecord::Migration)
-        if ::Rails.version >= '5'
-          ::ActiveRecord::Migration::Compatibility::V5_0.prepend(ActiveRecord::Migration::Compatibility::V5_0)
-        end
+        ::ActiveRecord::Migration::Compatibility::V5_0.prepend(ActiveRecord::Migration::Compatibility::V5_0)
         ::ActiveRecord::Migrator.prepend(ActiveRecord::Migrator)
 
         ::ActiveRecord::Reflection::AbstractReflection.include(ActiveRecord::Reflection::AbstractReflection)
@@ -147,12 +142,10 @@ module Switchman
         ::ActiveRecord::Relation.include(ActiveRecord::SpawnMethods)
         ::ActiveRecord::Relation.include(CallSuper)
 
-        if ::Rails.version >= '5'
-          ::ActiveRecord::Relation::WhereClauseFactory.prepend(ActiveRecord::WhereClauseFactory)
-          ::ActiveRecord::PredicateBuilder::AssociationQueryValue.prepend(ActiveRecord::PredicateBuilder::AssociationQueryValue)
-          ::ActiveRecord::TypeCaster::Map.include(ActiveRecord::TypeCaster::Map)
-          ::ActiveRecord::TypeCaster::Connection.include(ActiveRecord::TypeCaster::Connection)
-        end
+        ::ActiveRecord::Relation::WhereClauseFactory.prepend(ActiveRecord::WhereClauseFactory)
+        ::ActiveRecord::PredicateBuilder::AssociationQueryValue.prepend(ActiveRecord::PredicateBuilder::AssociationQueryValue)
+        ::ActiveRecord::TypeCaster::Map.include(ActiveRecord::TypeCaster::Map)
+        ::ActiveRecord::TypeCaster::Connection.include(ActiveRecord::TypeCaster::Connection)
 
         ::Rails.singleton_class.prepend(Rails::ClassMethods)
 

@@ -200,9 +200,10 @@ end
 module Switchman
   module ActiveRecord
     module PostgreSQLDatabaseTasks
-      def structure_dump(filename)
+      def structure_dump(filename, extra_flags=nil)
         set_psql_env
         args = ['-s', '-x', '-O', '-f', filename]
+        args.concat(Array(extra_flags)) if extra_flags
         search_path = configuration['schema_search_path']
         if configuration['use_qualified_names']
           shard = Shard.current.name

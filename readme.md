@@ -262,3 +262,37 @@ In this case, the subquery was serialized at the `where` call, and not
 delayed until actual query execution. The solution to both of these
 problems is you must be careful around such queries, to ensure the
 serialization happens on the correct shard.
+
+## A Note on Shard Naming
+
+When using Postgres, it may be tempting to have your default shard (or even
+other shards on other database servers) be named 'public'. In fact, this
+is likely to happen silently if you just start using switchman in a new
+database, because Postgres defaults the schema_search_path to
+"${user},public", and creates a public schema, but likely not a schema
+corresponding to the username you're using to connect to the database with.
+This is fine for development and testing, as it is a low-friction means
+of getting going with switchman, and switchman does its best to support
+this (or any other legacy infrastructure) by creating a default shard
+with NULL name, and detecting the schema it connected to (based on
+the settings in database.yml, and the current database structure).
+
+However, in a production environment, this is potentially dangerous. This
+is due to potential confusion by including public in your search path
+anyway. For example, say you have a shard named "shard2", and a default
+shard named "public". Your search path will likely end up being
+"shard2,public". This means that if for some reason shard2 becomes
+inaccessible (permission issues most likely), switchman will not be
+aware that the tables that it is seeing are actually coming from the
+public schema -- the default shard! Your app will just happily go on
+corrupting data because two logical shards are being serviced by a
+single underlying schema.
+
+Another small tip is to prefer to uniquely name your shards.
+Switchman tries to do this automatically by naming a shard with the
+ID as part of the name, but you're more than welcome to override this.
+The problem is that if you have the same schema name on multiple
+database servers (say "myapp"), and later decide to move them around
+to rebalance load, you'll have the additional headache of needing to
+rename the shards and schemas so that you don't end up with multiple
+shards of the same name on the same database server.

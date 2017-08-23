@@ -213,6 +213,28 @@ module Switchman
         algorithm = nil if DatabaseServer.creating_new_shard && algorithm == "CONCURRENTLY"
         [index_name, index_type, index_columns, index_options, algorithm, using]
       end
+
+      def rename_table(table_name, new_name)
+        clear_cache!
+        execute "ALTER TABLE #{quote_table_name(table_name)} RENAME TO #{quote_local_table_name(new_name)}"
+        pk, seq = pk_and_sequence_for(new_name)
+        if pk
+          idx = "#{table_name}_pkey"
+          new_idx = "#{new_name}_pkey"
+          execute "ALTER INDEX #{quote_table_name(idx)} RENAME TO #{quote_local_table_name(new_idx)}"
+          if seq && seq.identifier == "#{table_name}_#{pk}_seq"
+            new_seq = "#{new_name}_#{pk}_seq"
+            execute "ALTER TABLE #{seq.quoted} RENAME TO #{quote_local_table_name(new_seq)}"
+          end
+        end
+        rename_table_indexes(table_name, new_name)
+      end
+
+      def rename_index(table_name, old_name, new_name)
+        validate_index_length!(table_name, new_name)
+
+        execute "ALTER INDEX #{quote_column_name(old_name)} RENAME TO #{quote_local_table_name(new_name)}"
+      end
     end
   end
 end

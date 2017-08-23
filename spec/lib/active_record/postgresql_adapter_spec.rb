@@ -61,6 +61,21 @@ module Switchman
           end
         end
       end
+
+      describe '#rename_table' do
+        it "doesn't have problems with qualified names" do
+          conn = ::ActiveRecord::Base.connection
+          conn.stubs(:use_qualified_names?).returns(true)
+
+          conn.create_table :rename_table_test do |t|
+            t.integer :bob
+            t.integer :joe
+          end
+          conn.add_index :rename_table_test, [:bob, :joe]
+
+          conn.rename_table(:rename_table_test, :rename_table_test2)
+        end
+      end
     end
   end
 end

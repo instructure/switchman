@@ -11,10 +11,6 @@ module Switchman
       end
 
       describe "#exec_queries" do
-        it "should activate the correct shard for the query" do
-          expect(User.shard(@shard1).where(:id => @user2.local_id).first).to eq @user2
-        end
-
         it "should activate multiple shards if necessary" do
           expect(User.where(:id => [@user1.id, @user2.id]).sort_by(&:id)).to eq [@user1, @user2].sort_by(&:id)
         end
@@ -24,6 +20,8 @@ module Switchman
         it "should activate the correct shard for the query" do
           User.shard(@shard1).where(:id => @user2.local_id).update_all(:name => 'a')
           expect(@user1.reload.name).to eq 'user1'
+          expect(@user2.reload.name).to eq 'user2'
+          User.shard(@shard1).where(:id => @user2.global_id).update_all(:name => 'a')
           expect(@user2.reload.name).to eq 'a'
         end
 

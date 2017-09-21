@@ -154,9 +154,10 @@ module Switchman
           expect(User.shard(@shard1).where(id: u.id).take).to eq u
         end
 
-        it "interprets a local id as relative to a relation's explicit shard" do
+        it "doesn't interpret a local id as relative to a relation's explicit shard" do
           u = @shard1.activate { User.create! }
-          expect(User.shard(@shard1).where(id: u.local_id).take).to eq u
+          expect(User.shard(@shard1).where(id: u.local_id).take).to eq nil
+          expect(User.shard(@shard1).where(id: u.global_id).take).to eq u
         end
       end
 

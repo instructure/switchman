@@ -236,8 +236,6 @@ module Switchman
           current_source_shard =
               if source_shard
                 source_shard
-              elsif shard_source_value == :explicit && !shard_value.is_a?(Array) && !shard_value.is_a?(::ActiveRecord::Relation)
-                primary_shard
               elsif type == :primary
                 Shard.current(klass.shard_category)
               elsif type == :foreign

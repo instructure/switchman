@@ -129,6 +129,18 @@ module Switchman
           User.where.not(id: u).shard([Shard.default, @shard1]).to_a
         end
 
+        it "properly transposes ids when applying conditions after a setting a shard value" do
+          @u = User.create!
+          @shard1.activate { @a = Appendage.create!(:user => @u) }
+          expect(User.shard([@shard1, Shard.default]).where(id: @u).first).to eq @u
+          expect(Appendage.shard([@shard1, Shard.default]).where(user_id: @u).first).to eq @a
+
+          @shard1.activate do
+            @u2 = User.create!
+            expect(User.shard(Shard.all).where(id: @u2).first).to eq @u2
+          end
+        end
+
         it "doesn't choke on non-integral primary keys that look like integers" do
           PageView.where(request_id: '123').take
         end

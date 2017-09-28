@@ -13,12 +13,6 @@ module Switchman
         self.shard.activate { super }
       end
 
-      def association_scope
-        if klass
-          shard.activate(klass.shard_category) { super }
-        end
-      end
-
       def scope
         shard_value = @reflection.options[:multishard] ? @owner : self.shard
         @owner.shard.activate { super.shard(shard_value, :association) }

@@ -460,6 +460,12 @@ module Switchman
             expect(feature.owner_type).to eq "User"
           end
 
+          it "should work without statement cache" do
+            ::ActiveRecord::Associations::Association.any_instance.stubs(:skip_statement_cache?).returns(true)
+            f = Feature.create!(:owner => @user1)
+            expect(f.reload.owner).to eq @user1
+          end
+
           it "should work with multi-shard associations" do
             @shard1.activate{ Feature.create!(:owner => @user1, :value => 1) }
             @shard2.activate{ Feature.create!(:owner => @user1, :value => 2) }

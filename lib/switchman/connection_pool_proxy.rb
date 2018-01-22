@@ -43,7 +43,7 @@ module Switchman
     end
 
     def connections
-      @connection_pools.values.map(&:connections).inject([], &:+)
+      connection_pools.map(&:connections).inject([], &:+)
     end
 
     def connection
@@ -77,22 +77,26 @@ module Switchman
        clear_stale_cached_connections!
        enable_query_cache!
        disable_query_cache! }.each do |method|
-      class_eval(<<-EOS)
+      class_eval(<<-RUBY, __FILE__, __LINE__ + 1)
           def #{method}
-            @connection_pools.values.each(&:#{method})
+            connection_pools.each(&:#{method})
           end
-      EOS
+      RUBY
     end
 
     def automatic_reconnect=(value)
-      @connection_pools.values.each { |pool| pool.automatic_reconnect = value }
+      connection_pools.each { |pool| pool.automatic_reconnect = value }
     end
 
     def clear_idle_connections!(since_when)
-      @connection_pools.values.each { |pool| pool.clear_idle_connections!(since_when) }
+      connection_pools.each { |pool| pool.clear_idle_connections!(since_when) }
     end
 
     protected
+
+    def connection_pools
+      (@connection_pools.values + [default_pool]).uniq
+    end
 
     def pool_key
       [active_shackles_environment,

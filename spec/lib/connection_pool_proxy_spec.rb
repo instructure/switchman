@@ -41,5 +41,18 @@ module Switchman
         expect(conn1.schema_cache.connection).to be conn2
       end
     end
+
+    context "non-transactional" do
+      self.use_transactional_tests = false
+
+      describe "#release_connection" do
+        it "applies to the default pool too" do
+          User.connection
+          expect(User.connection_pool.active_connection?).to be_truthy
+          User.connection_pool.release_connection
+          expect(User.connection_pool.active_connection?).to be_falsey
+        end
+      end
+    end
   end
 end

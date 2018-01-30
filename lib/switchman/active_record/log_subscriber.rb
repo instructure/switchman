@@ -8,9 +8,10 @@ module Switchman
 
         payload = event.payload
 
-        return if 'SCHEMA'.freeze == payload[:name]
+        return if ::ActiveRecord::LogSubscriber::IGNORE_PAYLOAD_NAMES.include?(payload[:name])
 
-        name  = '%s (%.1fms)'.freeze % [payload[:name], event.duration]
+        name  = "#{payload[:name]} (#{event.duration.round(1)}ms)"
+        name  = "CACHE #{name}" if payload[:cached]
         sql   = payload[:sql].squeeze(' '.freeze)
         binds = nil
         shard = payload[:shard]

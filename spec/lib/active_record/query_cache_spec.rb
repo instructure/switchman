@@ -27,6 +27,14 @@ module Switchman
           @shard1.activate { User.connection.expects(:select).never }
           expect(@shard1.activate { User.all.to_a }).not_to eq @shard3.activate { User.all.to_a }
         end
+
+        it "doesn't break logging with binds" do
+          ::Rails.logger.expects(:error).never
+          User.connection.cache do
+            User.where(id: 1).take
+            User.where(id: 1).take
+          end
+        end
       else
         # call with two blocks. the first will run on a new thread, pausing at
         # the site of a "cc.call". the second will run on the original thread

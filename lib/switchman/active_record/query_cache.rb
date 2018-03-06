@@ -98,13 +98,17 @@ module Switchman
           @lock.synchronize do
             result =
                 if query_cache[sql].key?(binds)
+                  args = {
+                    sql: sql,
+                    binds: binds,
+                    name: name,
+                    connection_id: object_id,
+                    cached: true
+                  }
+                  args[:type_casted_binds] = -> { type_casted_binds(binds) } if ::Rails.version >= '5.1.5'
                   ::ActiveSupport::Notifications.instrument(
                       "sql.active_record",
-                      sql: sql,
-                      binds: binds,
-                      name: name,
-                      connection_id: object_id,
-                      cached: true,
+                      args
                   )
                   query_cache[sql][binds]
                 else

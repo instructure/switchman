@@ -1,5 +1,16 @@
 # This file is copied to spec/ when you run 'rails generate rspec:install'
 ENV["RAILS_ENV"] ||= 'test'
+
+require 'simplecov'
+SimpleCov.start do
+  add_filter 'db'
+  add_filter 'lib/switchman/version.rb'
+  add_filter 'lib/tasks'
+  add_filter 'spec'
+  track_files 'lib/**/*.rb'
+end
+SimpleCov.minimum_coverage(85)
+
 require File.expand_path("../dummy/config/environment", __FILE__)
 require 'byebug'
 require 'rspec/rails'

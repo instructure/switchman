@@ -1,0 +1,24 @@
+version: '2'
+
+services:
+
+  app:
+    volumes:
+      - .:/app
+      # Disable the rest of these volumes if the container can safely write to
+      # your host filesystem mount named above. You might want to use the rest
+      # of these unless you're using dinghy on OSX (usually needed for linux).
+      - bundle:/app/.bundle
+      - coverage:/app/coverage
+      - dummy-log:/app/spec/dummy/log
+      - dummy-tmp:/app/spec/dummy/tmp
+      - gemfiles-bundle:/app/gemfiles/.bundle
+      - log:/app/log
+
+volumes:
+  bundle: {}
+  coverage: {}
+  dummy-log: {}
+  dummy-tmp: {}
+  gemfiles-bundle: {}
+  log: {}

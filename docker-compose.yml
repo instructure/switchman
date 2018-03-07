@@ -1,0 +1,33 @@
+version: '2'
+
+services:
+
+  app:
+    build: .
+    environment:
+      DB_HOST: postgres
+      RAILS_ENV: test
+    links:
+      - postgres
+    logging: &LOG
+      options:
+        max-file: '5'
+        max-size: 1m
+    volumes:
+      - gems:/home/docker/.rvm/gems
+
+  postgres:
+    image: postgres:9.3
+    logging: *LOG
+    volumes:
+      - data:/var/lib/postgresql/data
+
+  pgweb:
+    image: sosedoff/pgweb
+    command: [/usr/bin/pgweb, --bind=0.0.0.0, --ssl=disable, --host=postgres, --db=test, --user=postgres]
+    links: [postgres]
+    logging: *LOG
+
+volumes:
+  data: {}
+  gems: {}

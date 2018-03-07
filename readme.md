@@ -22,9 +22,14 @@ include:
  * Primarily supports PostgreSQL, but MySQL should work. Please report any bugs
    on MySQL!
 
+## Requirements
+
+* Ruby 2.3+
+* Rails 5.0+
+
 ## Installation
 
-1. Add `gem 'switchman'` to your Gemfile (requires Rails >= 4.2 only)
+1. Add `gem 'switchman'` to your Gemfile
 2. Run `bundle install` from your project's root
 3. Run `rake switchman:install:migrations` to copy over the migration files
    from Switchman to your application

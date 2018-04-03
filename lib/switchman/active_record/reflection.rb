@@ -26,21 +26,21 @@ module Switchman
         # this technically belongs on AssociationReflection, but we put it on
         # ThroughReflection as well, instead of delegating to its internal
         # HasManyAssociation, losing its proper `klass`
-        def association_scope_cache(conn, owner)
+        def association_scope_cache(conn, owner, &block)
           key = conn.prepared_statements
           if polymorphic?
             key = [key, owner._read_attribute(@foreign_type)]
           end
           key = [key, shard(owner).id].flatten
           @association_scope_cache[key] ||= @scope_lock.synchronize {
-            @association_scope_cache[key] ||= yield
+            @association_scope_cache[key] ||= (::Rails.version >= "5.2" ? ::ActiveRecord::StatementCache.create(conn, &block) : block.call)
           }
         end
       end
 
       module AssociationReflection
         def join_id_for(owner)
-          owner.send(active_record_primary_key) # use sharded id values in association binds
+          owner.send(::Rails.version >= "5.2" ? join_foreign_key : active_record_primary_key) # use sharded id values in association binds
         end
       end
     end

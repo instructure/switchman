@@ -5,14 +5,21 @@ module Switchman
         def create(connection, block = Proc.new)
           relation = block.call ::ActiveRecord::StatementCache::Params.new
 
-          bind_map = ::ActiveRecord::StatementCache::BindMap.new(relation.bound_attributes )
-          new relation.arel, bind_map
+          if ::Rails.version >= "5.2"
+            query_builder, binds = connection.cacheable_query(self, relation.arel)
+            bind_map = ::ActiveRecord::StatementCache::BindMap.new(binds)
+            new(relation.arel, bind_map, relation.klass)
+          else
+            bind_map = ::ActiveRecord::StatementCache::BindMap.new(relation.bound_attributes)
+            new relation.arel, bind_map
+          end
         end
       end
 
-      def initialize(arel, bind_map)
+      def initialize(arel, bind_map, klass=nil)
         @arel = arel
         @bind_map = bind_map
+        @klass = klass
         @qualified_query_builders = {}
       end
 
@@ -21,7 +28,13 @@ module Switchman
       # we can make some assumptions about the shard source
       # (e.g. infer from the primary key or use the current shard)
 
-      def execute(params, klass, connection)
+      def execute(*args)
+        if ::Rails.version >= '5.2'
+          params, connection = args
+          klass = @klass
+        else
+          params, klass, connection = args
+        end
         target_shard = nil
         if primary_index = bind_map.primary_value_index
           primary_value = params[primary_index]
@@ -51,13 +64,21 @@ module Switchman
         def qualified_query_builder(shard, klass)
           @qualified_query_builders[shard.id] ||= klass.connection.cacheable_query(@arel)
         end
-      else
+      elsif ::Rails.version < '5.2'
         def generic_query_builder(connection)
           @query_builder ||= connection.cacheable_query(self.class, @arel)
         end
 
         def qualified_query_builder(shard, klass)
           @qualified_query_builders[shard.id] ||= klass.connection.cacheable_query(self.class, @arel)
+        end
+      else
+        def generic_query_builder(connection)
+          @query_builder ||= connection.cacheable_query(self.class, @arel).first
+        end
+
+        def qualified_query_builder(shard, klass)
+          @qualified_query_builders[shard.id] ||= klass.connection.cacheable_query(self.class, @arel).first
         end
       end
 

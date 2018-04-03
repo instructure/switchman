@@ -71,7 +71,9 @@ module Switchman
       end
     end
 
-    %w{release_connection disconnect!
+    %w{release_connection
+       disconnect!
+       flush!
        clear_reloadable_connections!
        verify_active_connections!
        clear_stale_cached_connections!
@@ -82,6 +84,10 @@ module Switchman
             connection_pools.each(&:#{method})
           end
       RUBY
+    end
+
+    def discard!
+      # this breaks everything if i try to pass it onto the pools and i'm not sure why
     end
 
     def automatic_reconnect=(value)

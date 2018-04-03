@@ -21,7 +21,8 @@ module Switchman
           if ::Rails.version < '5.0.3'
             binds = "  " + payload[:binds].map { |attr| render_bind(attr) }.inspect
           else
-            args = ::Rails.version < '5.1.5' ?
+            use_old_format = (::Rails.version < '5.1') ? (::Rails.version < '5.0.7') : (::Rails.version < '5.1.5')
+            args = use_old_format ?
               [payload[:binds], payload[:type_casted_binds]] :
               [payload[:type_casted_binds]]
             casted_params = type_casted_binds(*args)

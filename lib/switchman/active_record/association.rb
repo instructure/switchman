@@ -76,6 +76,15 @@ module Switchman
 
     module Preloader
       module Association
+        if ::Rails.version >= "5.2"
+          def run(preloader)
+            # TODO - can move associated_records_by_owner into this after 5.1 is gonzo
+            associated_records_by_owner(preloader).each do |owner, records|
+              associate_records_to_owner(owner, records)
+            end
+          end
+        end
+
         def associated_records_by_owner(preloader = nil)
           owners_map = owners_by_key
 

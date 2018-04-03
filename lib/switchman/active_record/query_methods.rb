@@ -78,26 +78,45 @@ module Switchman
 
       private
 
-      [:where, :having].each do |type|
-        class_eval <<-RUBY, __FILE__, __LINE__ + 1
-          def transpose_#{type}_clauses(source_shard, target_shard, remove_nonlocal_primary_keys)            
+      if ::Rails.version >= '5.2'
+        [:where, :having].each do |type|
+          class_eval <<-RUBY, __FILE__, __LINE__ + 1
+          def transpose_#{type}_clauses(source_shard, target_shard, remove_nonlocal_primary_keys)
             unless (predicates = #{type}_clause.send(:predicates)).empty?
-              new_predicates, new_binds = transpose_predicates(predicates, source_shard,
-                                                               target_shard, remove_nonlocal_primary_keys,
-                                                               binds: #{type}_clause.binds,
-                                                               dup_binds_on_mutation: true)
-              if new_predicates != predicates || !new_binds.equal?(#{type}_clause.binds)
+              new_predicates, _binds = transpose_predicates(predicates, source_shard,
+                                                               target_shard, remove_nonlocal_primary_keys)
+              if new_predicates != predicates
                 self.#{type}_clause = #{type}_clause.dup
                 if new_predicates != predicates
                   #{type}_clause.instance_variable_set(:@predicates, new_predicates)
                 end
-                if !new_binds.equal?(#{type}_clause.binds)
-                  #{type}_clause.instance_variable_set(:@binds, new_binds)
+              end
+            end
+          end
+          RUBY
+        end
+      else
+        [:where, :having].each do |type|
+          class_eval <<-RUBY, __FILE__, __LINE__ + 1
+            def transpose_#{type}_clauses(source_shard, target_shard, remove_nonlocal_primary_keys)
+              unless (predicates = #{type}_clause.send(:predicates)).empty?
+                new_predicates, new_binds = transpose_predicates(predicates, source_shard,
+                                                                 target_shard, remove_nonlocal_primary_keys,
+                                                                 binds: #{type}_clause.binds,
+                                                                 dup_binds_on_mutation: true)
+                if new_predicates != predicates || !new_binds.equal?(#{type}_clause.binds)
+                  self.#{type}_clause = #{type}_clause.dup
+                  if new_predicates != predicates
+                    #{type}_clause.instance_variable_set(:@predicates, new_predicates)
+                  end
+                  if !new_binds.equal?(#{type}_clause.binds)
+                    #{type}_clause.instance_variable_set(:@binds, new_binds)
+                  end
                 end
               end
-            end            
-          end
-        RUBY
+            end
+          RUBY
+        end
       end
 
       def transpose_clauses(source_shard, target_shard, remove_nonlocal_primary_keys = false)
@@ -138,17 +157,23 @@ module Switchman
               return
             end
           when ::Arel::Nodes::BindParam
-            # look for a bind param with a matching column name
-            if binds && bind = binds.detect{|b| b&.name.to_s == klass.primary_key.to_s}
-              unless bind.value.is_a?(::ActiveRecord::StatementCache::Substitute)
-                local_id, id_shard = Shard.local_id_for(bind.value)
-                id_shard ||= Shard.current(klass.shard_category) if local_id
+            if ::Rails.version >= "5.2"
+              local_id, id_shard = Shard.local_id_for(primary_key.right.value.value_before_type_cast)
+              id_shard ||= Shard.current(klass.shard_category) if local_id
+            else
+              # look for a bind param with a matching column name
+              if binds && bind = binds.detect{|b| b&.name.to_s == klass.primary_key.to_s}
+                unless bind.value.is_a?(::ActiveRecord::StatementCache::Substitute)
+                  local_id, id_shard = Shard.local_id_for(bind.value)
+                  id_shard ||= Shard.current(klass.shard_category) if local_id
+                end
               end
             end
           else
             local_id, id_shard = Shard.local_id_for(primary_key.right)
             id_shard ||= Shard.current(klass.shard_category) if local_id
           end
+
           return if !id_shard || id_shard == primary_shard
           transpose_clauses(primary_shard, id_shard)
           self.shard_value = id_shard
@@ -242,50 +267,59 @@ module Switchman
                 source_shard_for_foreign_key(relation, column)
               end
 
-          new_right_value = case predicate.right
-          when Array
-            local_ids = []
-            predicate.right.each do |value|
-              local_id = Shard.relative_id_for(value, current_source_shard, target_shard)
-              next unless local_id
-              unless remove && local_id > Shard::IDS_PER_SHARD
-                if value.is_a?(::Arel::Nodes::Casted)
-                  if local_id == value.val
-                    local_id = value
-                  elsif local_id != value
-                    local_id = value.class.new(local_id, value.attribute)
-                  end
-                end
-                local_ids << local_id
-              end
-            end
-            local_ids
-          when ::Arel::Nodes::BindParam
-            # look for a bind param with a matching column name
-            if binds && bind = binds.detect{|b| b&.name.to_s == predicate.left.name.to_s}
-              # before we mutate, dup
-              if dup_binds_on_mutation
-                binds = binds.map(&:dup)
-                dup_binds_on_mutation = false
-                bind = binds.find { |b| b&.name.to_s == predicate.left.name.to_s }
-              end
-              if bind.value.is_a?(::ActiveRecord::StatementCache::Substitute)
-                bind.value.sharded = true # mark for transposition later
-                bind.value.primary = true if type == :primary
+          if ::Rails.version >= "5.2"
+            new_right_value =
+              case predicate.right
+              when Array
+                predicate.right.map {|val| transpose_predicate_value(val, current_source_shard, target_shard, type, remove) }
               else
-                local_id = Shard.relative_id_for(bind.value, current_source_shard, target_shard)
-                local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
-                bind.instance_variable_set(:@value, local_id)
-                bind.instance_variable_set(:@value_for_database, nil)
+                transpose_predicate_value(predicate.right, current_source_shard, target_shard, type, remove)
               end
-            end
-            predicate.right
           else
-            local_id = Shard.relative_id_for(predicate.right, current_source_shard, target_shard) || predicate.right
-            local_id = [] if remove && local_id.is_a?(Fixnum) && local_id > Shard::IDS_PER_SHARD
-            local_id
+            new_right_value = case predicate.right
+            when Array
+              local_ids = []
+              predicate.right.each do |value|
+                local_id = Shard.relative_id_for(value, current_source_shard, target_shard)
+                next unless local_id
+                unless remove && local_id > Shard::IDS_PER_SHARD
+                  if value.is_a?(::Arel::Nodes::Casted)
+                    if local_id == value.val
+                      local_id = value
+                    elsif local_id != value
+                      local_id = value.class.new(local_id, value.attribute)
+                    end
+                  end
+                  local_ids << local_id
+                end
+              end
+              local_ids
+            when ::Arel::Nodes::BindParam
+              # look for a bind param with a matching column name
+              if binds && bind = binds.detect{|b| b&.name.to_s == predicate.left.name.to_s}
+                # before we mutate, dup
+                if dup_binds_on_mutation
+                  binds = binds.map(&:dup)
+                  dup_binds_on_mutation = false
+                  bind = binds.find { |b| b&.name.to_s == predicate.left.name.to_s }
+                end
+                if bind.value.is_a?(::ActiveRecord::StatementCache::Substitute)
+                  bind.value.sharded = true # mark for transposition later
+                  bind.value.primary = true if type == :primary
+                else
+                  local_id = Shard.relative_id_for(bind.value, current_source_shard, target_shard)
+                  local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
+                  bind.instance_variable_set(:@value, local_id)
+                  bind.instance_variable_set(:@value_for_database, nil)
+                end
+              end
+              predicate.right
+            else
+              local_id = Shard.relative_id_for(predicate.right, current_source_shard, target_shard) || predicate.right
+              local_id = [] if remove && local_id.is_a?(Fixnum) && local_id > Shard::IDS_PER_SHARD
+              local_id
+            end
           end
-
           if new_right_value == predicate.right
             predicate
           elsif predicate.right.is_a?(::Arel::Nodes::Casted)
@@ -300,6 +334,31 @@ module Switchman
         end
         result = [result, binds]
         result
+      end
+
+      def transpose_predicate_value(value, current_shard, target_shard, attribute_type, remove_non_local_ids)
+        if value.is_a?(::Arel::Nodes::BindParam)
+          query_att = value.value
+          current_id = query_att.value_before_type_cast
+          if current_id.is_a?(::ActiveRecord::StatementCache::Substitute)
+            current_id.sharded = true # mark for transposition later
+            current_id.primary = true if attribute_type == :primary
+            value
+          else
+            local_id = Shard.relative_id_for(current_id, current_shard, target_shard) || current_id
+            local_id = [] if remove_non_local_ids && local_id.is_a?(Fixnum) && local_id > Shard::IDS_PER_SHARD
+            if current_id != local_id
+              # make a new bind param
+              ::Arel::Nodes::BindParam.new(query_att.class.new(query_att.name, local_id, query_att.type))
+            else
+              value
+            end
+          end
+        else
+          local_id = Shard.relative_id_for(value, current_shard, target_shard) || value
+          local_id = [] if remove_non_local_ids && local_id.is_a?(Fixnum) && local_id > Shard::IDS_PER_SHARD
+          local_id
+        end
       end
     end
   end

@@ -135,7 +135,11 @@ module Switchman
             where = inddef.scan(/WHERE (.+)$/).flatten[0]
             using = inddef.scan(/USING (.+?) /).flatten[0].to_sym
 
-            ::ActiveRecord::ConnectionAdapters::IndexDefinition.new(table_name, index_name, unique, column_names, [], orders, where, nil, using)
+            if ::Rails.version >= "5.2"
+              ::ActiveRecord::ConnectionAdapters::IndexDefinition.new(table_name, index_name, unique, column_names, orders: orders, where: where, using: using)
+            else
+              ::ActiveRecord::ConnectionAdapters::IndexDefinition.new(table_name, index_name, unique, column_names, [], orders, where, nil, using)
+            end
           end
         end.compact
       end

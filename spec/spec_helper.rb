@@ -9,7 +9,7 @@ SimpleCov.start do
   add_filter 'spec'
   track_files 'lib/**/*.rb'
 end
-SimpleCov.minimum_coverage(85)
+SimpleCov.minimum_coverage(80)
 
 require File.expand_path("../dummy/config/environment", __FILE__)
 require 'byebug'
@@ -49,6 +49,10 @@ def where_value(value)
   case value
   when ::Arel::Nodes::Casted
     value.val
+  when ::Arel::Nodes::BindParam
+    where_value(value.value)
+  when ::ActiveRecord::Relation::QueryAttribute
+    value.value_before_type_cast
   when Array
     value.map{|v| where_value(v)}
   else
@@ -61,5 +65,9 @@ def predicates(relation)
 end
 
 def bind_values(relation)
-  relation.where_clause.binds.map(&:value)
+  if ::Rails.version >= "5.2"
+    predicates(relation).map{|p| where_value(p.right)}.flatten
+  else
+    relation.where_clause.binds.map(&:value)
+  end
 end

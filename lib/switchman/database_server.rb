@@ -214,7 +214,10 @@ module Switchman
 
                 unless create_schema == false
                   reset_column_information
-                  migrate = -> { ::ActiveRecord::Migrator.migrate(::ActiveRecord::Migrator.migrations_paths) }
+
+                  migrate = ::Rails.version >= '5.2' ?
+                    -> { ::ActiveRecord::Base.connection.migration_context.migrate } :
+                    -> { ::ActiveRecord::Migrator.migrate(::ActiveRecord::Migrator.migrations_paths) }
                   if ::ActiveRecord::Base.connection.supports_ddl_transactions?
                     ::ActiveRecord::Base.connection.transaction(requires_new: true, &migrate)
                   else

@@ -78,8 +78,9 @@ module Switchman
           sql = "#{self.shard.id}::#{sql}"
           result =
               if query_cache[sql].key?(binds)
-                ::ActiveSupport::Notifications.instrument("sql.active_record",
-                                                        :sql => sql, :binds => binds, :name => "CACHE", :connection_id => object_id)
+                args = {:sql => sql, :binds => binds, :name => "CACHE", :connection_id => object_id}
+                args[:type_casted_binds] = -> { type_casted_binds(binds) } if ::Rails.version >= '5.0.7'
+                ::ActiveSupport::Notifications.instrument("sql.active_record", args)
                 query_cache[sql][binds]
               else
                 query_cache[sql][binds] = yield

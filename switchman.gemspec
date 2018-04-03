@@ -16,8 +16,8 @@ Gem::Specification.new do |s|
 
   s.required_ruby_version = '>= 2.3'
 
-  s.add_dependency "railties", ">= 5.0", "< 5.2"
-  s.add_dependency "activerecord", ">= 5.0", "< 5.2"
+  s.add_dependency "railties", ">= 5.0", "< 5.3"
+  s.add_dependency "activerecord", ">= 5.0", "< 5.3"
   s.add_dependency "shackles", "~> 1.3"
   s.add_dependency 'open4', "~> 1.3.0"
 

@@ -19,9 +19,10 @@ module Switchman
           super
         when Hash, ::Arel::Nodes::Node
           where_clause = super
+          binds = ::Rails.version >= "5.2" ? nil : where_clause.binds
           predicates = where_clause.send(:predicates)
-          @scope.send(:infer_shards_from_primary_key, predicates, where_clause.binds) if @scope.shard_source_value == :implicit && @scope.shard_value.is_a?(Shard)
-          predicates, _new_binds = @scope.transpose_predicates(predicates, nil, @scope.primary_shard, false, binds: where_clause.binds)
+          @scope.send(:infer_shards_from_primary_key, predicates, binds) if @scope.shard_source_value == :implicit && @scope.shard_value.is_a?(Shard)
+          predicates, _new_binds = @scope.transpose_predicates(predicates, nil, @scope.primary_shard, false, binds: binds)
           where_clause.instance_variable_set(:@predicates, predicates)
           where_clause
         else

@@ -185,7 +185,7 @@ module Switchman
 
         scope ||= Shard.all
         if ::ActiveRecord::Relation === scope && scope.order_values.empty?
-          scope = scope.order("database_server_id IS NOT NULL, database_server_id, id")
+          scope = scope.order(::Arel.sql("database_server_id IS NOT NULL, database_server_id, id"))
         end
 
         if parallel > 0

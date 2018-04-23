@@ -26,7 +26,7 @@ module Switchman
 
       servers = filter_database_servers_chain.call(servers)
 
-      scope = base_scope.order("database_server_id IS NOT NULL, database_server_id, id")
+      scope = base_scope.order(::Arel.sql("database_server_id IS NOT NULL, database_server_id, id"))
       if servers != DatabaseServer.all
         conditions = ["database_server_id IN (?)", servers.map(&:id)]
         conditions.first << " OR database_server_id IS NULL" if servers.include?(Shard.default.database_server)

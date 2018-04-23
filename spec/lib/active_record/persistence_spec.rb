@@ -19,6 +19,16 @@ module Switchman
           expect(user.reload.updated_at.to_i).to_not eq old_time.to_i
         end
       end
+
+      describe "#update_columns" do
+        it "should update on the correct shard" do
+          user = @shard1.activate { User.create! }
+
+          new_time = 1.day.from_now
+          expect(user.update_columns(:updated_at => new_time)).to eq true
+          expect(user.reload.updated_at.to_i).to eq new_time.to_i
+        end
+      end
     end
   end
 end

@@ -128,6 +128,7 @@ module Switchman
               attributes.each do |attr, value|
                 shard.send(:"#{attr}=", value)
               end
+              shard.clear_changes_information
               shard.instance_variable_set(:@new_record, false)
               # connection info doesn't exist in database.yml;
               # pretend the shard doesn't exist either

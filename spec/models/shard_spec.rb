@@ -33,6 +33,13 @@ module Switchman
         expect(Shard.where(id: shard.id)).to be_empty
       end
 
+      it "works on looked-up shards" do
+        server = DatabaseServer.create(Shard.default.database_server.config)
+        shard = server.create_new_shard
+        expect{ Shard.lookup(shard.id).destroy }.to_not raise_error
+        expect(Shard.where(id: shard.id)).to be_empty
+      end
+
       it "fails on the default shard" do
         shard = Shard.default
         expect{ shard.destroy }.to raise_error("Cannot destroy the default shard")

@@ -1,3 +1,5 @@
+require "securerandom"
+
 module Switchman
   class DatabaseServer
     attr_accessor :id
@@ -136,27 +138,14 @@ module Switchman
       create_schema = options[:schema]
       # look for another shard associated with this db
       other_shard = self.shards.where("name<>':memory:' OR name IS NULL").order(:id).first
-      temp_name = other_shard&.name unless id == ::Rails.env
-      temp_name = Shard.default.name if id == ::Rails.env
 
       case config[:adapter]
         when 'postgresql'
-          temp_name ||= 'public'
           create_statement = lambda { "CREATE SCHEMA #{name}" }
           password = " PASSWORD #{::ActiveRecord::Base.connection.quote(config[:password])}" if config[:password]
         when 'sqlite3'
-          if name
-            # Try to create a db on-disk even if the only shards for sqlite are in-memory
-            temp_name = nil if temp_name == ':memory:'
-            # Put it in the db directory if there are no other sqlite shards
-            temp_name ||= 'db/dummy'
-            temp_name = File.join(File.dirname(temp_name), "#{name}.sqlite3")
-            # If they really asked for :memory:, give them :memory:
-            temp_name = name if name == ':memory:'
-            name = temp_name
-          end
+          # no create_statement
         else
-          temp_name ||= self.config[:database] % self.config
           create_statement = lambda { "CREATE DATABASE #{name}" }
       end
       sharding_config = Switchman.config
@@ -170,27 +159,35 @@ module Switchman
       end
 
       create_shard = lambda do
-        shard = Shard.create!(:name => temp_name,
-                            :database_server => self) do |shard|
-          shard.id = options[:id] if options[:id]
+        shard_id = options.fetch(:id) do
+          case config[:adapter]
+            when 'postgresql'
+              id_seq = Shard.connection.quote(Shard.connection.quote_table_name('switchman_shards_id_seq'))
+              next_id = Shard.connection.select_value("SELECT nextval(#{id_seq})")
+              next_id.to_i
+            else
+              nil
+          end
         end
+
+        if name.nil?
+          base_name = self.config[:database].to_s % self.config
+          base_name = $1 if base_name =~ /(?:.*\/)(.+)_shard_\d+(?:\.sqlite3)?$/
+          base_name = nil if base_name == ':memory:'
+          base_name << '_' if base_name
+          base_id = shard_id || SecureRandom.uuid
+          name = "#{base_name}shard_#{base_id}"
+          if config[:adapter] == 'sqlite3'
+            name = File.join('db', "#{name}.sqlite3")
+          end
+        end
+
+        shard = Shard.create!(:id => shard_id,
+                              :name => name,
+                              :database_server => self)
+
         begin
           self.class.creating_new_shard = true
-          if name.nil?
-            base_name = self.config[:database] % self.config
-            base_name = $1 if base_name =~ /(?:.*\/)(.+)_shard_\d+(?:\.sqlite3)?$/
-            base_name = nil if base_name == ':memory:'
-            base_name << '_' if base_name
-            name = "#{base_name}shard_#{shard.id}"
-            if config[:adapter] == 'sqlite3'
-              # Try to create a db on-disk even if the only shards for sqlite are in-memory
-              temp_name = nil if temp_name == ':memory:'
-              # Put it in the db directory if there are no other sqlite shards
-              temp_name ||= 'db/dummy'
-              name = File.join(File.dirname(temp_name), "#{name}.sqlite3")
-              shard.name = name
-            end
-          end
           shard.activate(*Shard.categories) do
             ::Shackles.activate(:deploy) do
               begin
@@ -199,14 +196,11 @@ module Switchman
                     ::ActiveRecord::Base.connection.execute(stmt)
                   end
                   # have to disconnect and reconnect to the correct db
-                  shard.name = name
                   if self.shareable? && other_shard
                     other_shard.activate { ::ActiveRecord::Base.connection }
                   else
                     ::ActiveRecord::Base.connection_pool.current_pool.disconnect!
                   end
-                else
-                  shard.name = name
                 end
                 old_proc = ::ActiveRecord::Base.connection.raw_connection.set_notice_processor {} if config[:adapter] == 'postgresql'
                 old_verbose = ::ActiveRecord::Migration.verbose
@@ -232,11 +226,10 @@ module Switchman
               end
             end
           end
-          shard.save!
           shard
         rescue
           shard.destroy
-          shard.drop_database if shard.name == name rescue nil
+          shard.drop_database rescue nil
           reset_column_information unless create_schema == false rescue nil
           raise
         ensure

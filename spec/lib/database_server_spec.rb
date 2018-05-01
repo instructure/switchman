@@ -51,7 +51,7 @@ module Switchman
       def create_shard(server)
         new_shard = server.create_new_shard
         expect(new_shard).not_to be_new_record
-        expect(new_shard.name).to match /shard_#{new_shard.id}/
+        expect(new_shard.name).to match /shard_\d+/
         # They should share a connection pool
         if server == Shard.default.database_server
           expect(User.connection_pool.current_pool).to eq new_shard.activate { User.connection_pool.current_pool }
@@ -97,10 +97,14 @@ module Switchman
       end
 
       class MyException < Exception; end
-      it "should use the connection's db name as temp db name" do
+      it "should not use a temp name" do
         db = DatabaseServer.new(nil, adapter: 'postgresql')
-        Shard.expects(:create!).with(:name => Shard.default.name, :database_server => db).raises(MyException.new)
-        expect { db.create_new_shard }.to raise_error(MyException)
+        Shard.expects(:create!).with { |hash|
+          hash[:name] == "new_shard" &&
+            hash[:database_server] == db &&
+            !hash[:id].nil?
+        }.raises(MyException.new)
+        expect { db.create_new_shard(name: "new_shard") }.to raise_error(MyException)
       end
     end
 

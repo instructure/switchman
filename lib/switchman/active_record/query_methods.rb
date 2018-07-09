@@ -316,7 +316,7 @@ module Switchman
               predicate.right
             else
               local_id = Shard.relative_id_for(predicate.right, current_source_shard, target_shard) || predicate.right
-              local_id = [] if remove && local_id.is_a?(Fixnum) && local_id > Shard::IDS_PER_SHARD
+              local_id = [] if remove && local_id.is_a?(Integer) && local_id > Shard::IDS_PER_SHARD
               local_id
             end
           end
@@ -346,7 +346,7 @@ module Switchman
             value
           else
             local_id = Shard.relative_id_for(current_id, current_shard, target_shard) || current_id
-            local_id = [] if remove_non_local_ids && local_id.is_a?(Fixnum) && local_id > Shard::IDS_PER_SHARD
+            local_id = [] if remove_non_local_ids && local_id.is_a?(Integer) && local_id > Shard::IDS_PER_SHARD
             if current_id != local_id
               # make a new bind param
               ::Arel::Nodes::BindParam.new(query_att.class.new(query_att.name, local_id, query_att.type))
@@ -356,7 +356,7 @@ module Switchman
           end
         else
           local_id = Shard.relative_id_for(value, current_shard, target_shard) || value
-          local_id = [] if remove_non_local_ids && local_id.is_a?(Fixnum) && local_id > Shard::IDS_PER_SHARD
+          local_id = [] if remove_non_local_ids && local_id.is_a?(Integer) && local_id > Shard::IDS_PER_SHARD
           local_id
         end
       end

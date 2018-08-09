@@ -224,7 +224,7 @@ module Switchman
       end
 
       def arel_columns(columns)
-        columns.map do |field|
+        columns.flat_map do |field|
           if (Symbol === field || String === field) && (klass.has_attribute?(field) || klass.attribute_alias?(field)) && !from_clause.value
             klass.arel_attribute(field, table)
           elsif (Symbol === field || String === field) && columns_hash.key?(field.to_s) && !from_value
@@ -233,6 +233,8 @@ module Switchman
             # the rest of this is pulled from AR - the only change is from quote_table_name to quote_column_name here
             # otherwise qualified names will add the schema to a column
             connection.quote_column_name(field.to_s)
+          elsif Proc === field
+            field.call
           else
             field
           end

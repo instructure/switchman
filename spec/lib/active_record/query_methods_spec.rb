@@ -238,6 +238,10 @@ module Switchman
         expect(sql).not_to be_include(Shard.default.name)
         expect(sql.scan(@shard1.name).length).to eq 2
       end
+
+      it "should be able to construct eager_load queries" do
+        expect(User.eager_load(:appendages).first.association(:appendages).loaded?).to eq true
+      end
     end
   end
 end

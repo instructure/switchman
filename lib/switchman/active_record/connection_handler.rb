@@ -3,13 +3,14 @@ require 'switchman/connection_pool_proxy'
 module Switchman
   module ActiveRecord
     module ConnectionHandler
-      def self.make_sharing_automagic(config)
+      def self.make_sharing_automagic(config, shard = Shard.current)
         key = config[:adapter] == 'postgresql' ? :schema_search_path : :database
 
         # only load the shard name from the db if we have to
-        if config[key] || !config[:shard_name]
+        if !config[:shard_name]
           # we may not be able to connect to this shard yet, cause it might be an empty database server
-          shard_name = Shard.current.name rescue nil
+          shard = shard.call if shard.is_a?(Proc)
+          shard_name = shard.name rescue nil
           return unless shard_name
 
           config[:shard_name] ||= shard_name
@@ -84,12 +85,15 @@ module Switchman
           if Shard.default.is_a?(Shard)
             DatabaseServer.all.each do |server|
               next if server == Shard.default.database_server
-              shard = server.shards.where(:name => nil).first
-              shard ||= Shard.new(:database_server => server)
-              shard.activate do
-                ConnectionHandler.make_sharing_automagic(server.config)
-                ConnectionHandler.make_sharing_automagic(proxy.current_pool.spec.config)
+
+              shard = nil
+              shard_proc = -> do
+                shard ||= server.shards.where(:name => nil).first
+                shard ||= Shard.new(:database_server => server)
+                shard
               end
+              ConnectionHandler.make_sharing_automagic(server.config, shard_proc)
+              ConnectionHandler.make_sharing_automagic(proxy.current_pool.spec.config, shard_proc)
             end
           end
           # we may have established some connections above trying to infer the shard's name.

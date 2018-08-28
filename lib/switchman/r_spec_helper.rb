@@ -36,6 +36,7 @@ module Switchman
 
         puts "Setting up sharding for all specs..."
         Shard.delete_all
+        Switchman.cache.delete("default_shard")
 
         @@shard1, @@shard2 = TestHelper.recreate_persistent_test_shards
         @@default_shard = Shard.default
@@ -71,6 +72,7 @@ module Switchman
         # we'll re-persist in the group's `before :all`; we don't want them to exist
         # in the db before then
         Shard.delete_all
+        Switchman.cache.delete("default_shard")
         Shard.default(true)
         puts "Done!"
 
@@ -99,6 +101,7 @@ module Switchman
         dup = @@default_shard.dup
         dup.id = @@default_shard.id
         dup.save!
+        Switchman.cache.delete("default_shard")
         Shard.default(true)
         dup = @@shard1.dup
         dup.id = @@shard1.id
@@ -147,6 +150,7 @@ module Switchman
 
       klass.after(:all) do
         Shard.delete_all
+        Switchman.cache.delete("default_shard")
         Shard.default(true)
       end
     end

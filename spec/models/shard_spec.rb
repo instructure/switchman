@@ -586,6 +586,7 @@ module Switchman
           non_default = Shard.where(default: false).first
           actual_default = Shard.where(default:true).first
           Shard.instance_variable_set(:@default, non_default)
+          Switchman.cache.clear
           Shard.stubs(:where).with(default: true).raises(PG::UnableToSend)
           new_default = Shard.default(reload: true, with_fallback: false)
           expect(new_default).to eq(DefaultShard.instance)
@@ -594,6 +595,7 @@ module Switchman
         it "falls back to existing default shard if replacement query fails" do
           non_default = Shard.where(default: false).first
           Shard.instance_variable_set(:@default, non_default)
+          Switchman.cache.clear
           Shard.stubs(:where).with(default: true).raises(PG::UnableToSend)
           new_default = Shard.default(reload: true, with_fallback: true)
           expect(new_default).to eq(non_default)

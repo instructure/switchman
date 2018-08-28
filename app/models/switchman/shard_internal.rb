@@ -56,7 +56,7 @@ module Switchman
 
           # Now find the actual record, if it exists; rescue the fake default if the table doesn't exist
           @default = begin
-            Shard.where(default: true).first || default
+            find_cached("default_shard") { Shard.where(default: true).take } || default
           rescue
             default
           end
@@ -111,30 +111,7 @@ module Switchman
 
         unless cached_shards.has_key?(id)
           cached_shards[id] = Shard.default.activate do
-            # can't simply cache the AR object since Shard has a custom serializer
-            # that calls this method
-            attributes = Switchman.cache.fetch(['shard', id].join('/')) do
-              shard = find_by_id(id)
-              if shard
-                shard.attributes
-              else
-                :nil
-              end
-            end
-            if attributes == :nil
-              nil
-            else
-              shard = Shard.new
-              attributes.each do |attr, value|
-                shard.send(:"#{attr}=", value)
-              end
-              shard.clear_changes_information
-              shard.instance_variable_set(:@new_record, false)
-              # connection info doesn't exist in database.yml;
-              # pretend the shard doesn't exist either
-              shard = nil unless shard.database_server
-              shard
-            end
+            find_cached(['shard', id]) { find_by(id: id) }
           end
         end
         cached_shards[id]
@@ -540,6 +517,24 @@ module Switchman
         cached_shards.delete(shard.id)
       end
 
+      def find_cached(key)
+        # can't simply cache the AR object since Shard has a custom serializer
+        # that calls this method
+        attributes = Switchman.cache.fetch(key) { yield&.attributes }
+        return nil unless attributes
+
+        shard = Shard.new
+        attributes.each do |attr, value|
+          shard.send(:"#{attr}=", value)
+        end
+        shard.clear_changes_information
+        shard.instance_variable_set(:@new_record, false)
+        # connection info doesn't exist in database.yml;
+        # pretend the shard doesn't exist either
+        shard = nil unless shard.database_server
+        shard
+      end
+
       def active_shards
         Thread.current[:active_shards] ||= {}.compare_by_identity
       end
@@ -673,6 +668,7 @@ module Switchman
     def clear_cache
       Shard.default.activate do
         Switchman.cache.delete(['shard', id].join('/'))
+        Switchman.cache.delete("default_shard") if default?
       end
     end
 

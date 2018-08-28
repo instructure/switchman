@@ -22,4 +22,6 @@ Dummy::Application.configure do
   config.active_support.deprecation = :stderr
 
   config.eager_load = true
+
+  config.active_record.sqlite3.represent_boolean_as_integer = true if Rails.version >= '5.2'
 end

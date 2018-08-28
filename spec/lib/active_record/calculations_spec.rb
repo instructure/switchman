@@ -273,7 +273,7 @@ module Switchman
             @user1.appendages.create!
             user2 = User.create!
             user2.appendages.create!
-            expect(Appendage.group(:user_id).order("COUNT(*) DESC").limit(1).count).to eq({ @user1.id => 2 })
+            expect(Appendage.group(:user_id).order(::Arel.sql("COUNT(*) DESC")).limit(1).count).to eq({ @user1.id => 2 })
           end
         end
 

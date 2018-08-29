@@ -11,6 +11,7 @@ function cleanup() {
 }
 trap cleanup INT TERM EXIT
 
+cp spec/dummy/config/database.yml.docker spec/dummy/config/database.yml
 docker-compose pull postgres
 docker-compose up -d postgres
 docker-compose build --pull app

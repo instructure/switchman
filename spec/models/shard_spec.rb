@@ -127,6 +127,19 @@ module Switchman
       end
     end
 
+    describe ".find_cached" do
+      it "doesn't choke when it encounters columns it doesn't know about" do
+        attrs = Shard.default.attributes
+        # add an extra attribute
+        attrs[:dummy_column] = 1
+        shard_to_cache = mock("shard", attributes: attrs)
+        cached_default_shard = Shard.send(:find_cached, "cache_key") { shard_to_cache }
+        # logically equivalent, but a different instance
+        expect(cached_default_shard).to eq Shard.default
+        expect(cached_default_shard.object_id).not_to eq Shard.default.object_id
+      end
+    end
+
     describe ".with_each_shard" do
       describe ":exception" do
         it "should default to :raise" do

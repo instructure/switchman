@@ -525,7 +525,7 @@ module Switchman
 
         shard = Shard.new
         attributes.each do |attr, value|
-          shard.send(:"#{attr}=", value)
+          shard.send(:"#{attr}=", value) if shard.respond_to?(:"#{attr}=")
         end
         shard.clear_changes_information
         shard.instance_variable_set(:@new_record, false)

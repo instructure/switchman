@@ -238,7 +238,7 @@ module Switchman
       def rename_index(table_name, old_name, new_name)
         validate_index_length!(table_name, new_name)
 
-        execute "ALTER INDEX #{quote_column_name(old_name)} RENAME TO #{quote_local_table_name(new_name)}"
+        execute "ALTER INDEX #{quote_table_name(old_name)} RENAME TO #{quote_local_table_name(new_name)}"
       end
     end
   end

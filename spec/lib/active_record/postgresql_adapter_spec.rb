@@ -47,6 +47,18 @@ module Switchman
 
           expect(::ActiveRecord::Base.connection.indexes(:users).length).not_to eq 0
         end
+
+        it "identifies unique indexes" do
+          conn = ::ActiveRecord::Base.connection
+
+          conn.create_table :unique_index_test do |t|
+            t.string :foo
+          end
+          conn.add_index :unique_index_test, [:foo], unique: true
+
+          index = ::ActiveRecord::Base.connection.indexes(:unique_index_test).first
+          expect(index.unique).to be(true)
+        end
       end
 
       describe 'foreign_keys' do

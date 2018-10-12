@@ -4,11 +4,11 @@ module Switchman
   module ActiveRecord
     module ConnectionPool
       def shard
-        Thread.current["#{object_id}_shard".to_sym] || Shard.default
+        Thread.current[tls_key] || Shard.default
       end
 
       def shard=(value)
-        Thread.current["#{object_id}_shard".to_sym] = value
+        Thread.current[tls_key] = value
       end
 
       def default_schema
@@ -83,6 +83,12 @@ module Switchman
             raise("Cannot switch databases on same DatabaseServer with adapter type: #{conn.adapter_name}. Limit one Shard per DatabaseServer.")
         end
         conn.shard = shard
+      end
+
+      private
+
+      def tls_key
+        "#{object_id}_shard".to_sym
       end
     end
   end

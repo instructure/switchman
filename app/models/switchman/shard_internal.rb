@@ -28,6 +28,8 @@ module Switchman
     after_save :clear_cache
     after_destroy :clear_cache
 
+    after_rollback :on_rollback
+
     scope :primary, -> { where(name: nil).order(:database_server_id, :id).distinct_on(:database_server_id) }
 
     class << self
@@ -674,6 +676,18 @@ module Switchman
 
     def default_name
       database_server.shard_name(self)
+    end
+
+    def on_rollback
+      # make sure all connection pool proxies are referencing valid pools
+      ::ActiveRecord::Base.connection_handler.connection_pools.each do |pool|
+        next unless pool.is_a?(ConnectionPoolProxy)
+        ::Shackles.activated_environments.each do |env|
+          ::Shackles.activate(env) do
+            pool.current_pool
+          end
+        end
+      end
     end
 
     def hashify_categories(categories)

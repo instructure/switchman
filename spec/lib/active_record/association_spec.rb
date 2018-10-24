@@ -125,6 +125,13 @@ module Switchman
         expect(@user1.digits.find(shadow_digit.id)).to eq shadow_digit
       end
 
+      it "should set the inverse association when preloading" do
+        @user1.children.create!
+        preloaded_child = User.where(:id => @user1).preload(:children).first.children.first
+        expect(preloaded_child.association(:parent).loaded?).to eq true
+        expect(preloaded_child.parent).to eq @user1
+      end
+
       it "should resolve include? correctly for a has_many :through" do
         @shard1.activate do
           child = @user1.children.create!

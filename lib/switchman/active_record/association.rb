@@ -144,6 +144,7 @@ module Switchman
             owner_key = Shard.global_id_for(owner_key, record.shard) if owner_key && record.class.sharded_column?(association_key_name)
 
             owners_map[owner_key.to_s].each do |owner|
+              owner.association(reflection.name).set_inverse_instance(record)
               records_by_owner[owner] << record
             end
           end

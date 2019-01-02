@@ -129,7 +129,9 @@ module Switchman
           elsif spec_name != "primary"
             primary_pool = retrieve_connection_pool("primary")
             if primary_pool.is_a?(ConnectionPoolProxy)
-              ConnectionPoolProxy.new(spec_name.to_sym, primary_pool.default_pool, @shard_connection_pools)
+              pool = ConnectionPoolProxy.new(spec_name.to_sym, primary_pool.default_pool, @shard_connection_pools)
+              pool.instance_variable_set(:@schema_cache, primary_pool.schema_cache)
+              pool
             else
               primary_pool
             end

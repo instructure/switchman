@@ -474,7 +474,7 @@ module Switchman
         end
 
         it "should work even for shards that don't exist" do
-          shard = Shard.create!
+          shard = Shard.create!(name: 'unique')
           shard.destroy
           global_id = shard.global_id_for(1)
           expect(Shard.integral_id_for(global_id)).to eq global_id
@@ -497,7 +497,7 @@ module Switchman
         end
 
         it "should return nil for shards that don't exist" do
-          shard = Shard.create!
+          shard = Shard.create!(name: 'unique')
           shard.destroy
           expect(Shard.local_id_for(shard.global_id_for(1))).to eq [nil, nil]
         end

@@ -6,8 +6,8 @@ module Switchman
 
     it "should not share connections for sqlite shards on the same db" do
       @db = DatabaseServer.create(adapter: 'sqlite3', database: ':memory:')
-      @sqlite_shard1 = @db.shards.create!
-      @sqlite_shard2 = @db.shards.create!
+      @sqlite_shard1 = @db.shards.create!(name: 'shard1')
+      @sqlite_shard2 = @db.shards.create!(name: 'shard2')
       expect(::ActiveRecord::Base.connection).not_to eq @sqlite_shard2.activate { ::ActiveRecord::Base.connection }
       expect(@sqlite_shard1.activate { ::ActiveRecord::Base.connection }).not_to eq @sqlite_shard2.activate { ::ActiveRecord::Base.connection }
     end

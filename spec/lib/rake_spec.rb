@@ -69,9 +69,9 @@ module Switchman
       end
 
       it "supports fractions" do
-        s4 = Shard.default.database_server.shards.create!
-        hole = Shard.default.database_server.shards.create!
-        s5 = Shard.default.database_server.shards.create!
+        s4 = Shard.default.database_server.shards.create!(name: 's4')
+        hole = Shard.default.database_server.shards.create!(name: 'hole')
+        s5 = Shard.default.database_server.shards.create!(name: 's5')
         hole.destroy
 
         expect(shard_scope("1/3").to_a).to eq [@s1, @s2]

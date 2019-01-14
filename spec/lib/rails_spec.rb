@@ -1,3 +1,4 @@
+
 require "spec_helper"
 
 module Switchman
@@ -6,8 +7,8 @@ module Switchman
       cache = ::ActiveSupport::Cache.lookup_store(:memory_store)
       ::Rails.stubs(:cache).returns(cache)
       db = DatabaseServer.create(adapter: 'sqlite3')
-      s1 = db.shards.create!
-      s2 = db.shards.create!
+      s1 = db.shards.create!(name: 'shard1')
+      s2 = db.shards.create!(name: 'shard2')
 
       expect(s1.activate { ::Rails.cache }).to eq s2.activate { ::Rails.cache }
 

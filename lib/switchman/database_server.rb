@@ -116,7 +116,7 @@ module Switchman
         config = config.first if config.is_a?(Array)
         username = config[:username]
       end
-      @shareable = self.config[:adapter] != 'sqlite3' && username !~ /%?\{[a-zA-Z0-9_]+\}/
+      @shareable = username !~ /%?\{[a-zA-Z0-9_]+\}/
     end
 
     def shards
@@ -143,8 +143,6 @@ module Switchman
         when 'postgresql'
           create_statement = lambda { "CREATE SCHEMA #{name}" }
           password = " PASSWORD #{::ActiveRecord::Base.connection.quote(config[:password])}" if config[:password]
-        when 'sqlite3'
-          # no create_statement
         else
           create_statement = lambda { "CREATE DATABASE #{name}" }
       end
@@ -172,14 +170,10 @@ module Switchman
 
         if name.nil?
           base_name = self.config[:database].to_s % self.config
-          base_name = $1 if base_name =~ /(?:.*\/)(.+)_shard_\d+(?:\.sqlite3)?$/
           base_name = nil if base_name == ':memory:'
           base_name << '_' if base_name
           base_id = shard_id || SecureRandom.uuid
           name = "#{base_name}shard_#{base_id}"
-          if config[:adapter] == 'sqlite3'
-            name = File.join('db', "#{name}.sqlite3")
-          end
         end
 
         shard = Shard.create!(:id => shard_id,

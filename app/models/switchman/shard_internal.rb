@@ -641,8 +641,6 @@ module Switchman
                 end
               end
             end
-          when 'sqlite3'
-            File.delete(self.name) unless self.name == ':memory:'
         end
       rescue
         logger.info "Drop failed: #{$!}"

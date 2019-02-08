@@ -8,7 +8,6 @@
 /pkg/
 /spec/dummy/config/database.yml
 /spec/dummy/db/schema.rb
-/spec/dummy/db/*.sqlite3
 /spec/dummy/log/
 /spec/dummy/tmp/
 /spec/dummy/.sass-cache

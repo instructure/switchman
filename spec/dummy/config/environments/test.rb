@@ -24,6 +24,4 @@ Dummy::Application.configure do
   config.cache_store = :memory_store
 
   config.eager_load = true
-
-  config.active_record.sqlite3.represent_boolean_as_integer = true if Rails.version >= '5.2'
 end

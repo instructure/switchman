@@ -3,11 +3,6 @@ require "spec_helper"
 module Switchman
   describe DatabaseServer do
     describe "shareable?" do
-      it "should be false for sqlite" do
-        db = DatabaseServer.new(nil, adapter: 'sqlite3', database: '%{shard_name}')
-        expect(db.shareable?).to eq false
-      end
-
       it "should be true for mysql" do
         db = DatabaseServer.new(nil, adapter: 'mysql')
         expect(db.shareable?).to eq true
@@ -71,18 +66,7 @@ module Switchman
         end
       end
 
-      context "non-transactional" do
-        self.use_transactional_tests = ::ActiveRecord::Base.connection.supports_ddl_transactions?
-
-        it "should be able to create a new shard from the default db" do
-          create_shard(Shard.default.database_server)
-        end
-      end
-
       it "should be able to create a new shard from a db server that doesn't have any shards" do
-        # otherwise it's a repeat of the sqlite spec above
-        skip 'A "real" database"' unless %w{MySQL Mysql2 PostgreSQL}.include?(adapter)
-
         # So, it's really the same server, but we want separate connections
         db = DatabaseServer.create(Shard.default.database_server.config)
         begin

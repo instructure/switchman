@@ -4,6 +4,11 @@ module Switchman
       module ClassMethods
         delegate :shard, to: :all
 
+        def find_ids_in_ranges(opts={}, &block)
+          opts.reverse_merge!(:loose => true)
+          all.find_ids_in_ranges(opts, &block)
+        end
+
         def shard_category
           connection_specification_name.to_sym
         end

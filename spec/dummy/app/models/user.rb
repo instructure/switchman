@@ -1,4 +1,6 @@
 class User < ActiveRecord::Base
+  scope :active, -> { all }
+
   has_many :appendages, :multishard => true
   has_many :digits, :through => :appendages, :multishard => true
   has_many :renamed_digits, through: :appendages, source: :digits

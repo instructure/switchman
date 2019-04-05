@@ -93,6 +93,10 @@ module Switchman
           expect(relation.to_a).to eq [@user1]
         end
 
+        it "doesn't burn when plucking out of something with a FROM clause" do
+          all_ids = User.from("(select * from users) as users").pluck(:id);
+        end
+
         it "should infer the correct shard from an array of 1" do
           relation = User.where(:id => [@user2])
           # execute on @shard1, with id local to that shard

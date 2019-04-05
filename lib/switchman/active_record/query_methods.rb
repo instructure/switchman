@@ -227,8 +227,6 @@ module Switchman
         columns.flat_map do |field|
           if (Symbol === field || String === field) && (klass.has_attribute?(field) || klass.attribute_alias?(field)) && !from_clause.value
             klass.arel_attribute(field, table)
-          elsif (Symbol === field || String === field) && columns_hash.key?(field.to_s) && !from_value
-            arel_table[field]
           elsif Symbol === field
             # the rest of this is pulled from AR - the only change is from quote_table_name to quote_column_name here
             # otherwise qualified names will add the schema to a column

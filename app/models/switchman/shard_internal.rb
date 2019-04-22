@@ -254,7 +254,21 @@ module Switchman
               pid, io_in, io_out, io_err = Open4.pfork4(lambda do
                 begin
                   Switchman.config[:on_fork_proc]&.call
-                  $0 = [$0, ARGV, name].flatten.join(' ')
+
+                  # set a pretty name for the process title, up to 128 characters
+                  # (we don't actually know the limit, depending on how the process
+                  # was started)
+                  # first, simplify the binary name by stripping directories,
+                  # then truncate arguments as necessary
+                  bin = File.basename(Process.argv0)
+                  max_length = 128 - bin.length - name.length - 3
+                  args = ARGV.join(" ")
+                  if max_length >= 0
+                    args = args[0..max_length]
+                  end
+                  new_title = [bin, args, name].join(" ")
+                  Process.setproctitle(new_title)
+
                   with_each_shard(subscope, categories, options) { yield }
                   exception_pipe.last.close
                 rescue => e

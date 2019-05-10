@@ -94,7 +94,16 @@ module Switchman
         end
 
         it "doesn't burn when plucking out of something with a FROM clause" do
-          all_ids = User.from("(select * from users) as users").pluck(:id);
+          all_ids = User.from("(select * from users) as users").pluck(:id)
+        end
+
+        it "doesn't burn when plucking out of a complex query with a FROM clause" do
+          all_ids = User.joins(:appendages).from("(select * from users) as users").pluck(:id)
+        end
+
+        it "doesn't burn when plucking out of a complex query with a FROM clause with `use_qualified_names`" do
+          ::ActiveRecord::Base.connection.stubs(:use_qualified_names?).returns(true)
+          all_ids = User.joins(:appendages).from("(select * from users) as \"users\"").pluck(:id)
         end
 
         it "should infer the correct shard from an array of 1" do

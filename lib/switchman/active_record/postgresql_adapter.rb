@@ -161,17 +161,25 @@ module Switchman
 
       def quote_local_table_name(name)
         # postgres quotes tables and columns the same; just pass through
-        # (differs from quote_table_name below by no logic to explicitly
-        # qualify the table)
+        # (differs from quote_table_name_with_shard below by no logic to
+        # explicitly qualify the table)
         quote_column_name(name)
       end
 
-      def quote_table_name name
+      def quote_table_name(name)
+        return quote_local_table_name(name) if @use_local_table_name
         name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)
         if !name.schema && use_qualified_names?
           name.instance_variable_set(:@schema, shard.name)
         end
         name.quoted
+      end
+
+      def with_local_table_name
+        @use_local_table_name = true
+        yield
+      ensure
+        @use_local_table_name = false
       end
 
       def foreign_keys(table_name)

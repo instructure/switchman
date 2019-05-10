@@ -22,6 +22,13 @@ module Switchman
         it 'should not add schema if already included' do
           expect(::ActiveRecord::Base.connection.quote_table_name('schema.table')).to eq '"schema"."table"'
         end
+
+        it 'should not add schema under with_local_table_name' do
+          ::ActiveRecord::Base.connection.with_local_table_name do
+            expect(::ActiveRecord::Base.connection.quote_table_name('table')).to eq '"table"'
+          end
+          expect(::ActiveRecord::Base.connection.quote_table_name('table')).to eq '"bob"."table"'
+        end
       end
 
       context "table aliases" do

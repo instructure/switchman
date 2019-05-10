@@ -9,6 +9,13 @@ appraise "activerecord-5.1" do
 end
 
 appraise "activerecord-5.2" do
-  gem 'activerecord', '>= 5.2', '< 5.3'
-  gem 'railties', '>= 5.2', '< 5.3'
+  gem 'activerecord', '>= 5.2', '< 5.2.3'
+  gem 'railties', '>= 5.2', '< 5.2.3'
+end
+
+# This is necessary because of
+# https://github.com/rails/rails/commit/e9b1b8d2f0cd3899067174b433121344e87eb878
+appraise "activerecord-5.2.3" do
+  gem 'activerecord', '5.2.3'
+  gem 'railties', '5.2.3'
 end

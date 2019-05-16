@@ -106,6 +106,11 @@ module Switchman
           all_ids = User.joins(:appendages).from("(select * from users) as \"users\"").pluck(:id)
         end
 
+        it "doesn't burn in the ORDER BY clause", :focus do
+          ::ActiveRecord::Base.connection.stubs(:use_qualified_names?).returns(true)
+          all_digits = Digit.from("(select * from digits) as \"digits\"").order(value: :desc).to_a
+        end
+
         it "should infer the correct shard from an array of 1" do
           relation = User.where(:id => [@user2])
           # execute on @shard1, with id local to that shard

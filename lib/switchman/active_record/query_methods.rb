@@ -227,6 +227,10 @@ module Switchman
         connection.with_local_table_name { super }
       end
 
+      def arel_column(columns)
+        connection.with_local_table_name { super }
+      end
+
       # semi-private
       public
       def transpose_predicates(predicates,

@@ -260,7 +260,7 @@ module Switchman
                   # was started)
                   # first, simplify the binary name by stripping directories,
                   # then truncate arguments as necessary
-                  bin = File.basename(Process.argv0)
+                  bin = File.basename($0)  # Process.argv0 doesn't work on Ruby 2.5 (https://bugs.ruby-lang.org/issues/15887)
                   max_length = 128 - bin.length - name.length - 3
                   args = ARGV.join(" ")
                   if max_length >= 0

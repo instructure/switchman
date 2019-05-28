@@ -28,5 +28,6 @@ function test_ruby_version() {
   docker cp $(docker ps --latest --quiet):/app/coverage .
 }
 
-test_ruby_version "2.3"
 test_ruby_version "2.4"
+test_ruby_version "2.5"
+test_ruby_version "2.6"

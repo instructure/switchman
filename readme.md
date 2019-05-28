@@ -24,7 +24,7 @@ include:
 
 ## Requirements
 
-* Ruby 2.3+
+* Ruby 2.4+
 * Rails 5.0+
 
 ## Installation

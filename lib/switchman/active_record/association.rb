@@ -76,12 +76,27 @@ module Switchman
 
     module Preloader
       module Association
-        if ::Rails.version >= "5.2"
+        if ::Rails.version >= "5.2" and ::Rails.version < "6.0"
           def run(preloader)
-            # TODO - can move associated_records_by_owner into this after 5.1 is gonzo
             associated_records_by_owner(preloader).each do |owner, records|
               associate_records_to_owner(owner, records)
             end
+          end
+        end
+
+        if ::Rails.version >= "6.0"
+          # Copypasta from Activerecord but with added global_id_for goodness.
+          def records_for(ids)
+            scope.where(association_key_name => ids).load do |record|
+              global_key = Shard.global_id_for(record[association_key_name], record.shard)
+              owner = owners_by_key[global_key.to_s].first
+              association = owner.association(reflection.name)
+              association.set_inverse_instance(record)
+            end
+          end
+
+          def records_by_owner
+            associated_records_by_owner
           end
         end
 

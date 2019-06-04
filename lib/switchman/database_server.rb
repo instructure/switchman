@@ -40,8 +40,14 @@ module Switchman
       def database_servers
         unless @database_servers
           @database_servers = {}.with_indifferent_access
-          ::ActiveRecord::Base.configurations.each do |(id, config)|
-            @database_servers[id] = DatabaseServer.new(id, config)
+          if ::Rails.version >= '6.0'
+            ::ActiveRecord::Base.configurations.configurations.each do |config|
+              @database_servers[config.env_name] = DatabaseServer.new(config.env_name, config.config)
+            end
+          else
+            ::ActiveRecord::Base.configurations.each do |(id, config)|
+              @database_servers[id] = DatabaseServer.new(id, config)
+            end
           end
         end
         @database_servers

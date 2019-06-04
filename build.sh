@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 
 function cleanup() {
   exit_code=$?
@@ -17,17 +17,30 @@ docker-compose up -d postgres
 docker-compose build --pull app
 
 function test_ruby_version() {
+  # test_ruby_version ruby_version appraisals
+  # or just test_ruby_version ruby_version for all
+  ruby_version=$1
+  shift
   docker-compose run --rm app /bin/bash -lc \
-    "rvm-exec $1 bundle install --jobs 5"
+    "rvm-exec $ruby_version bundle install --jobs 5"
   docker-compose run --rm app /bin/bash -lc \
-    "rvm-exec $1 bundle exec appraisal install --jobs 5"
-  docker-compose run --rm app /bin/bash -lc \
-    "rvm-exec $1 bundle exec rake db:drop db:create db:migrate"
-  docker-compose run app /bin/bash -lc \
-    "rvm-exec $1 bundle exec appraisal rspec --format doc"
+    "rvm-exec $ruby_version bundle exec rake db:drop db:create db:migrate"
+  if [ $# == 0 ] ; then
+    docker-compose run --rm app /bin/bash -lc \
+      "rvm-exec $ruby_version bundle exec appraisal bundle install --jobs 5"
+    docker-compose run app /bin/bash -lc \
+        "rvm-exec $ruby_version bundle exec appraisal rspec --format doc"
+  else
+    for appraisal_version in $* ; do
+      docker-compose run --rm app /bin/bash -lc \
+        "rvm-exec $ruby_version bundle exec appraisal $appraisal_version bundle install --jobs 5"
+      docker-compose run app /bin/bash -lc \
+        "rvm-exec $ruby_version bundle exec appraisal $appraisal_version rspec --format doc"
+    done
+  fi
   docker cp $(docker ps --latest --quiet):/app/coverage .
 }
 
-test_ruby_version "2.4"
-test_ruby_version "2.5"
-test_ruby_version "2.6"
+test_ruby_version 2.4 activerecord-5.0 activerecord-5.1 activerecord-5.2 activerecord-5.2.3
+test_ruby_version 2.5
+test_ruby_version 2.6

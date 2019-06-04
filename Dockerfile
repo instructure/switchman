@@ -17,6 +17,3 @@ RUN mkdir -p .bundle coverage log \
 
 RUN /bin/bash -lc "cd /app && rvm-exec 2.4 bundle install --jobs 5"
 COPY --chown=docker:docker . /app
-
-RUN /bin/bash -lc "cd /app && rvm-exec 2.4 bundle exec appraisal install --jobs 5"
-CMD /bin/bash -lc "rvm-exec 2.4 bundle exec appraisal rspec"

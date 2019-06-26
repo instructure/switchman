@@ -95,6 +95,21 @@ module Switchman
           conn.rename_table(:rename_table_test, :rename_table_test2)
         end
       end
+
+      describe '#columns' do
+        it "properly quotes, even when nested within a with_local_table_names call" do
+          begin
+            search_path = User.connection.schema_search_path
+            User.connection.schema_search_path = "''"
+            ::ActiveRecord::Base.connection.stubs(:use_qualified_names?).returns(true)
+            User.connection.with_local_table_name do
+              expect { User.connection.columns('users') }.to_not raise_error
+            end
+          ensure
+            User.connection.schema_search_path = search_path
+          end
+        end
+      end
     end
   end
 end

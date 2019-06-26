@@ -175,11 +175,12 @@ module Switchman
         name.quoted
       end
 
-      def with_local_table_name
-        @use_local_table_name = true
+      def with_local_table_name(enable = true)
+        old_value = @use_local_table_name
+        @use_local_table_name = enable
         yield
       ensure
-        @use_local_table_name = false
+        @use_local_table_name = old_value
       end
 
       def foreign_keys(table_name)
@@ -247,6 +248,10 @@ module Switchman
         validate_index_length!(table_name, new_name)
 
         execute "ALTER INDEX #{quote_table_name(old_name)} RENAME TO #{quote_local_table_name(new_name)}"
+      end
+
+      def columns(*)
+        with_local_table_name(false) { super }
       end
     end
   end

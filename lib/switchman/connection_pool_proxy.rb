@@ -53,10 +53,10 @@ module Switchman
       connection_pools.map(&:connections).inject([], &:+)
     end
 
-    def connection
+    def connection(switch_shard: true)
       pool = current_pool
       begin
-        connection = pool.connection
+        connection = pool.connection(switch_shard: switch_shard)
         connection.instance_variable_set(:@schema_cache, @schema_cache) unless ::Rails.version >= '6'
         connection
       rescue ConnectionError

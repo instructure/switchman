@@ -68,6 +68,14 @@ module Switchman
             result
           end
         end
+
+        def clear_query_caches_for_current_thread
+          ::ActiveRecord::Base.connection_handlers.each_value do |handler|
+            handler.connection_pool_list.each do |pool|
+              pool.connection(switch_shard: false).clear_query_cache if pool.active_connection?
+            end
+          end
+        end
       end
 
       def self.included(klass)

@@ -10,6 +10,23 @@ module Switchman
           ::ActiveRecord::Base.connection_pool.disable_query_cache!
         end
 
+        it "Works when doing updates with a shard activated" do
+          ::ActiveRecord::Base.connection_pool.enable_query_cache!
+          @shard1.activate do
+            @user1 = User.create!
+          end
+          @shard2.activate do
+            @user2 = User.create!
+          end
+
+          root = Root.create!(user: @user1)
+          users = @shard1.activate do
+            root.update_attributes(user: @user2)
+            User.all.includes(:roots).to_a
+          end
+          expect(users[0].roots).to match_array([])
+        end
+
         it "should isolate queries to multiple shards on the same server" do
           expect(::ActiveRecord::Base.connection_pool.query_cache_enabled).to eq false
           ::ActiveRecord::Base.connection_pool.enable_query_cache!

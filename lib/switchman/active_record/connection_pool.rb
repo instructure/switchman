@@ -32,10 +32,10 @@ module Switchman
         conn
       end
 
-      def connection
-        conn = super
+      def connection(switch_shard: true)
+        conn = super()
         raise NonExistentShardError if shard.new_record?
-        switch_database(conn) if conn.shard != self.shard
+        switch_database(conn) if conn.shard != self.shard && switch_shard
         conn
       end
 

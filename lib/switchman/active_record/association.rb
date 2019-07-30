@@ -198,6 +198,13 @@ module Switchman
           (record.has_attribute?(reflection.foreign_key) && record.send(reflection.foreign_key) != key) || # have to use send instead of [] because sharding
           record.attribute_changed?(reflection.foreign_key)
       end
+
+      def save_belongs_to_association(reflection)
+        # this seems counter-intuitive, but the autosave code will assign to attribute bypassing switchman,
+        # after reading the id attribute _without_ bypassing switchman. So we need Shard.current for the
+        # category of the associated record to match Shard.current for the category of self
+        shard.activate(shard_category_for_reflection(reflection)) { super }
+      end
     end
   end
 end

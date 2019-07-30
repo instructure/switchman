@@ -61,6 +61,9 @@ module Switchman
           end
         end
 
+        # see also Base#shard_category_for_reflection
+        # the difference being this will output static strings for the common cases, making them
+        # more performant
         def shard_category_code_for_reflection(reflection)
           if reflection
             if reflection.options[:polymorphic]

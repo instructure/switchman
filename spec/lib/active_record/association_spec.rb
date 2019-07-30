@@ -496,6 +496,16 @@ module Switchman
         face.reload
         expect(face.user_id).to eq @user1.id # shouldn't change face's id to be @user1's local id in rails 4.2
       end
+
+      it "shouldn't break cross-shard, cross-category belongs_to associations when autosaving" do
+        mirror = MirrorUser.new
+        @shard1.activate do
+          user = User.create!
+          mirror.belongs_to_user = user
+          mirror.save!
+          expect(mirror.belongs_to_user_id).to eq user.id
+        end
+      end
     end
   end
 end

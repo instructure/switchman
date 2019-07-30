@@ -146,6 +146,24 @@ module Switchman
         # do this the Rails 4.2 way, so that if Shard.current != self.shard, the id gets transposed
         self.class.connection.quote(id)
       end
+
+      protected
+
+      # see also AttributeMethods#shard_category_code_for_reflection
+      def shard_category_for_reflection(reflection)
+        if reflection
+          if reflection.options[:polymorphic]
+            # a polymorphic association has to be discovered at runtime. This code ends up being something like
+            # context_type.&.constantize&.shard_category || :primary
+            read_attribute(reflection.foreign_type)&.constantize&.shard_category || :primary
+          else
+            # otherwise we can just return a symbol for the statically known type of the association
+            reflection.klass.shard_category
+          end
+        else
+          shard_category
+        end
+      end
     end
   end
 end

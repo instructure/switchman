@@ -75,6 +75,11 @@ module Switchman
           if @default.database_server.instance_variable_defined?(:@primary_shard)
             @default.database_server.remove_instance_variable(:@primary_shard)
           end
+
+          # and finally, check for cached references to the default shard on the existing connection
+          if ::ActiveRecord::Base.connected? && ::ActiveRecord::Base.connection.shard.default?
+            ::ActiveRecord::Base.connection.shard = @default
+          end
         end
         @default
       end

@@ -158,6 +158,14 @@ module Switchman
           end
         end
 
+        it "calculates an expression with uppercase values across shards" do
+          @shard1.activate do
+            result = Appendage.group("(created_at::TIMESTAMPTZ AT TIME ZONE 'UTC')::DATE").count
+            expect(result.keys.length).to eq 1
+            expect(result.keys.first).not_to eq nil
+          end
+        end
+
         it "should calculate average across shards" do
           expect(Appendage.shard([@shard1, @shard2]).group("appendages.user_id").average(:value)).to eq(
               {@user1.global_id => 1.5, @user2.global_id => 4}

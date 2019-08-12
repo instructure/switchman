@@ -121,9 +121,8 @@ module Switchman
           group_fields = group_attrs
         end
 
-        # .clone below corrects for what I consider a Rails bug. column_alias_for modifies the string in place.
         # to_s is because Rails 5 returns a string but Rails 6 returns a symbol.
-        group_aliases = group_fields.map { |field| column_alias_for(field.clone).to_s }
+        group_aliases = group_fields.map { |field| column_alias_for(field.downcase).to_s }
         group_columns = group_aliases.zip(group_fields).map { |aliaz, field|
           [aliaz, type_for(field), column_name_for(field)]
         }

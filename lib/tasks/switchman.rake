@@ -195,9 +195,7 @@ module Switchman
       @filter_database_servers_chain ||= ->(servers) { servers }
     end
   end
-end
 
-module Switchman
   module ActiveRecord
     module PostgreSQLDatabaseTasks
       def structure_dump(filename, extra_flags=nil)

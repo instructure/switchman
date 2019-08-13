@@ -49,6 +49,9 @@ module Switchman
           else
             ::ActiveRecord::Base.configurations[::Rails.env] = config.stringify_keys
           end
+        else
+          # this is probably wrong now
+          Shard.default.remove_instance_variable(:@name) if Shard.default.instance_variable_defined?(:@name)
         end
 
         @shard_connection_pools ||= { [:master, Shard.default.database_server.shareable? ? ::Rails.env : Shard.default] => pool}

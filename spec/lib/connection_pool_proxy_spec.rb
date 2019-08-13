@@ -14,7 +14,7 @@ module Switchman
     it "should handle an array of slaves when creating a pool" do
       spec = Object.new
       spec.instance_variable_set(:@config, adapter: Shard.connection_pool.spec.config[:adapter], database: 'master', slave: [ { database: 'slave1' }, { database: 'slave2' }])
-      default_pool = stub(spec: spec)
+      default_pool = stub(spec: spec, get_schema_cache: nil, set_schema_cache: nil)
       cache = {}
       proxy = ConnectionPoolProxy.new(:unsharded, default_pool, cache)
       proxy.stubs(:active_shackles_environment).returns(:slave)
@@ -26,8 +26,8 @@ module Switchman
       conn1 = User.connection
       conn2 = @shard2.activate { User.connection }
       expect(conn1).to_not be conn2
-      expect(conn1.schema_cache).to be_a(Switchman::SchemaCache)
-      expect(conn1.schema_cache).to be conn2.schema_cache
+      expect(conn1.schema_cache).to be_a(Switchman::SchemaCache) unless ::Rails.version >= '6'
+      expect(conn1.schema_cache.object_id).to eql conn2.schema_cache.object_id
       expect(conn1.schema_cache.connection).to be conn1
       @shard2.activate do
         expect(conn1.schema_cache.connection).to be conn2

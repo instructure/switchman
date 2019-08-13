@@ -23,7 +23,14 @@ module Switchman
       @category = category
       @default_pool = default_pool
       @connection_pools = shard_connection_pools
-      @schema_cache = SchemaCache.new(self)
+      @schema_cache = default_pool.get_schema_cache(nil) if ::Rails.version >= '6'
+      @schema_cache = SchemaCache.new(self) unless @schema_cache.is_a?(SchemaCache)
+      if ::Rails.version >= '6'
+        @default_pool.set_schema_cache(@schema_cache)
+        @connection_pools.each_value do |pool|
+          pool.set_schema_cache(@schema_cache)
+        end
+      end
     end
 
     def active_shard
@@ -50,7 +57,7 @@ module Switchman
       pool = current_pool
       begin
         connection = pool.connection
-        connection.instance_variable_set(:@schema_cache, @schema_cache)
+        connection.instance_variable_set(:@schema_cache, @schema_cache) unless ::Rails.version >= '6'
         connection
       rescue ConnectionError
         raise if active_shard.database_server == Shard.default.database_server && active_shackles_environment == :master
@@ -60,7 +67,7 @@ module Switchman
           pool = create_pool(config.dup)
           begin
             connection = pool.connection
-            connection.instance_variable_set(:@schema_cache, @schema_cache)
+            connection.instance_variable_set(:@schema_cache, @schema_cache) unless ::Rails.version >= '6'
           rescue ConnectionError
             raise if idx == configs.length - 1
             next
@@ -69,6 +76,10 @@ module Switchman
           break connection
         end
       end
+    end
+
+    def get_schema_cache(_connection)
+      @schema_cache
     end
 
     %w{release_connection
@@ -136,15 +147,18 @@ module Switchman
           end
         end
       end
-      args = [config, "#{config[:adapter]}_connection"]
-      args.unshift(pool_key.join("/"))
-      spec = ::ActiveRecord::ConnectionAdapters::ConnectionSpecification.new(*args)
+      spec = ::ActiveRecord::ConnectionAdapters::ConnectionSpecification.new(
+        category,
+        config,
+        "#{config[:adapter]}_connection"
+      )
       # unfortunately the AR code that does this require logic can't really be
       # called in isolation
       require "active_record/connection_adapters/#{config[:adapter]}_adapter"
 
       ::ActiveRecord::ConnectionAdapters::ConnectionPool.new(spec).tap do |pool|
         pool.shard = shard
+        pool.set_schema_cache(@schema_cache) if ::Rails.version >= '6'
         if ::Rails.version >= '5.0.1'
           pool.enable_query_cache! if !@connection_pools.empty? && @connection_pools.first.last.query_cache_enabled
         end

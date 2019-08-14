@@ -177,6 +177,10 @@ module Switchman
         Shard.with_each_shard(scope) {}
       end
 
+      it "doesn't choke if no shards, and parallel" do
+        Shard.with_each_shard(Shard.none, parallel: 2) {}
+      end
+
       context "non-transactional" do
         self.use_transactional_tests = false
 

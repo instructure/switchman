@@ -179,6 +179,8 @@ module Switchman
             # still need a post-uniq, cause the default database server could be NULL or Rails.env in the db
             database_servers = scope.reorder('database_server_id').select(:database_server_id).distinct.
                 map(&:database_server).compact.uniq
+            # nothing to do
+            return if database_servers.count == 0
             parallel = [(max_procs.to_f / database_servers.count).ceil, parallel].min if max_procs
 
             scopes = Hash[database_servers.map do |server|

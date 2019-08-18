@@ -47,6 +47,20 @@ module Switchman
         end
       end
 
+      def remove_shard!(shard)
+        synchronize do
+          # The shard might be currently active, so we need to update our own shard
+          if self.shard == shard
+            self.shard = Shard.default
+          end
+          # Update out any connections that may be using this shard
+          @connections.each do |conn|
+            # This will also update the connection's shard to the default shard
+            switch_database(conn) if conn.shard == shard
+          end
+        end
+      end
+
       def clear_idle_connections!(since_when)
         synchronize do
           @connections.reject! do |conn|

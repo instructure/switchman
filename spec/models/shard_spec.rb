@@ -709,9 +709,19 @@ module Switchman
   describe 'Failed shard creation' do
     include RSpecHelper
 
-    it "should end in a consistent state" do
+    it "should end in a consistent state on default shard database server" do
       ::ActiveRecord::Base.transaction do
         Shard.default.database_server.create_new_shard(name: "bad_shard")
+        raise ::ActiveRecord::Rollback
+      end
+
+      # Simulate activesupport connection teardown
+      ::ActiveRecord::Base.connection_pool.disable_query_cache!
+    end
+
+    it "should end in a consistent state on non-default shard database server" do
+      ::ActiveRecord::Base.transaction do
+        Shard.third.database_server.create_new_shard(name: "bad_shard")
         raise ::ActiveRecord::Rollback
       end
 

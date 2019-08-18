@@ -701,11 +701,8 @@ module Switchman
       # make sure all connection pool proxies are referencing valid pools
       ::ActiveRecord::Base.connection_handler.connection_pools.each do |pool|
         next unless pool.is_a?(ConnectionPoolProxy)
-        ::Shackles.activated_environments.each do |env|
-          ::Shackles.activate(env) do
-            pool.current_pool
-          end
-        end
+
+        pool.remove_shard!(self)
       end
     end
 

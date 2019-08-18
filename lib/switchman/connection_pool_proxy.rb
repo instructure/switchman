@@ -98,6 +98,10 @@ module Switchman
       connection_pools.each { |pool| pool.clear_idle_connections!(since_when) }
     end
 
+    def remove_shard!(shard)
+      connection_pools.each { |pool| pool.remove_shard!(shard) }
+    end
+
     protected
 
     def connection_pools

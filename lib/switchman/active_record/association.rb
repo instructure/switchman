@@ -88,7 +88,11 @@ module Switchman
           # Copypasta from Activerecord but with added global_id_for goodness.
           def records_for(ids)
             scope.where(association_key_name => ids).load do |record|
-              global_key = Shard.global_id_for(record[association_key_name], record.shard)
+              global_key = if record.class.shard_category == :unsharded
+                             convert_key(record[association_key_name])
+                           else
+                             Shard.global_id_for(record[association_key_name], record.shard)
+                           end
               owner = owners_by_key[global_key.to_s].first
               association = owner.association(reflection.name)
               association.set_inverse_instance(record)

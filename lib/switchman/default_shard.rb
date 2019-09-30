@@ -3,6 +3,7 @@ require 'switchman/database_server'
 module Switchman
   class DefaultShard
     def id; 'default'; end
+    alias cache_key id
     def activate(*categories); yield; end
     def activate!(*categories); end
     def default?; true; end

@@ -64,7 +64,7 @@ module Switchman
           end
 
           # rebuild current shard activations - it might have "another" default shard serialized there
-          active_shards.replace(active_shards.map do |category, shard|
+          active_shards.replace(active_shards.dup.map do |category, shard|
             shard = Shard.lookup((!shard || shard.default?) ? 'default' : shard.id)
             [category, shard]
           end.to_h)

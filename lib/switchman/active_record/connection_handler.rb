@@ -46,8 +46,15 @@ module Switchman
 
           if ::Rails.version < '5.1'
             ::ActiveRecord::Base.configurations[::Rails.env] = spec.instance_variable_get(:@config).stringify_keys
-          else
+          elsif ::Rails.version < '6.0'
             ::ActiveRecord::Base.configurations[::Rails.env] = config.stringify_keys
+          else
+            # Adopted from the deprecated code that currently lives in rails proper
+            remaining_configs = ::ActiveRecord::Base.configurations.configurations.reject { |db_config| db_config.env_name == ::Rails.env }
+            new_config = ::ActiveRecord::DatabaseConfigurations.new(::Rails.env => config.stringify_keys).configurations
+            new_configs = remaining_configs + new_config
+
+            ::ActiveRecord::Base.configurations = new_configs
           end
         else
           # this is probably wrong now

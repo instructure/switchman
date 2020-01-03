@@ -21,7 +21,7 @@ module Switchman
 
           root = Root.create!(user: @user1)
           users = @shard1.activate do
-            root.update_attributes(user: @user2)
+            root.update(user: @user2)
             User.all.includes(:roots).to_a
           end
           expect(users[0].roots).to match_array([])

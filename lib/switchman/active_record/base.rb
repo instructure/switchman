@@ -107,12 +107,12 @@ module Switchman
 
       def save(*args)
         @shard_set_in_stone = true
-        self.class.shard(shard, :implicit).scoping { super }
+        (self.class.current_scope || self.class.default_scoped).shard(shard, :implicit).scoping { super }
       end
 
       def save!(*args)
         @shard_set_in_stone = true
-        self.class.shard(shard, :implicit).scoping { super }
+        (self.class.current_scope || self.class.default_scoped).shard(shard, :implicit).scoping { super }
       end
 
       def destroy

@@ -185,6 +185,7 @@ module Switchman
         shard = Shard.create!(:id => shard_id,
                               :name => name,
                               :database_server => self)
+        schema_already_existed = false
 
         begin
           self.class.creating_new_shard = true
@@ -192,6 +193,10 @@ module Switchman
             ::Shackles.activate(:deploy) do
               begin
                 if create_statement
+                  if (::ActiveRecord::Base.connection.select_value("SELECT 1 FROM pg_namespace WHERE nspname=#{::ActiveRecord::Base.connection.quote(name)}"))
+                    schema_already_existed = true
+                    raise "This schema already exists; cannot overwrite"
+                  end
                   Array(create_statement.call).each do |stmt|
                     ::ActiveRecord::Base.connection.execute(stmt)
                   end
@@ -229,7 +234,9 @@ module Switchman
           shard
         rescue
           shard.destroy
-          shard.drop_database rescue nil
+          unless schema_already_existed
+            shard.drop_database rescue nil
+          end
           reset_column_information unless create_schema == false rescue nil
           raise
         ensure

@@ -39,14 +39,12 @@ module Switchman
           # to sharding will recurse onto itself trying to access column information
           Shard.default
 
+          config = pool.spec.config
           # automatically change config to allow for sharing connections with simple config
-          config = ::Rails.version < '5.1' ? spec.config : pool.spec.config
           ConnectionHandler.make_sharing_automagic(config)
           ConnectionHandler.make_sharing_automagic(Shard.default.database_server.config)
 
-          if ::Rails.version < '5.1'
-            ::ActiveRecord::Base.configurations[::Rails.env] = spec.instance_variable_get(:@config).stringify_keys
-          elsif ::Rails.version < '6.0'
+          if ::Rails.version < '6.0'
             ::ActiveRecord::Base.configurations[::Rails.env] = config.stringify_keys
           else
             # Adopted from the deprecated code that currently lives in rails proper
@@ -132,8 +130,7 @@ module Switchman
             else
               ancestor_pool.spec
             end
-            spec = spec.to_hash if ::Rails.version >= '5.1'
-            pool = establish_connection spec
+            pool = establish_connection(spec.to_hash)
             pool.instance_variable_set(:@schema_cache, ancestor_pool.schema_cache) if ancestor_pool.schema_cache
             pool
           elsif spec_name != "primary"

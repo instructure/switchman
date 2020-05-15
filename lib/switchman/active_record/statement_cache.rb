@@ -56,15 +56,7 @@ module Switchman
         end
       end
 
-      if ::Rails.version < '5.1'
-        def generic_query_builder(connection)
-          @query_builder ||= connection.cacheable_query(@arel)
-        end
-
-        def qualified_query_builder(shard, klass)
-          @qualified_query_builders[shard.id] ||= klass.connection.cacheable_query(@arel)
-        end
-      elsif ::Rails.version < '5.2'
+      if ::Rails.version < '5.2'
         def generic_query_builder(connection)
           @query_builder ||= connection.cacheable_query(self.class, @arel)
         end

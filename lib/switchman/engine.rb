@@ -118,11 +118,6 @@ module Switchman
         ::ActiveRecord::ConnectionAdapters::ConnectionHandler.prepend(ActiveRecord::ConnectionHandler)
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.prepend(ActiveRecord::ConnectionPool)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::QueryCache)
-        # when we call super in Switchman::ActiveRecord::QueryCache#select_all,
-        # we want it to find the definition from
-        # ActiveRecord::ConnectionAdapters::DatabaseStatements, not
-        # ActiveRecord::ConnectionAdapters::QueryCache
-        ::ActiveRecord::ConnectionAdapters::QueryCache.send(:remove_method, :select_all) if ::Rails.version < '5.0.1'
 
         ::ActiveRecord::LogSubscriber.prepend(ActiveRecord::LogSubscriber)
         ::ActiveRecord::Migration.prepend(ActiveRecord::Migration)

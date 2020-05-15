@@ -8,7 +8,7 @@ module Switchman
       describe "hash" do
         it "should work with unsharded models" do
           root = Root.create!
-          expected = ::Rails.version < '5.1' ? root.id.hash : Root.hash ^ root.id.hash
+          expected = Root.hash ^ root.id.hash
           expect(root.hash).to eq expected
         end
       end

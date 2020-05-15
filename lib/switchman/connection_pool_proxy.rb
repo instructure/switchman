@@ -159,9 +159,7 @@ module Switchman
       ::ActiveRecord::ConnectionAdapters::ConnectionPool.new(spec).tap do |pool|
         pool.shard = shard
         pool.set_schema_cache(@schema_cache) if ::Rails.version >= '6'
-        if ::Rails.version >= '5.0.1'
-          pool.enable_query_cache! if !@connection_pools.empty? && @connection_pools.first.last.query_cache_enabled
-        end
+        pool.enable_query_cache! if !@connection_pools.empty? && @connection_pools.first.last.query_cache_enabled
       end
     end
   end

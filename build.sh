@@ -41,6 +41,6 @@ function test_ruby_version() {
   docker cp $(docker ps --latest --quiet):/app/coverage .
 }
 
-test_ruby_version 2.4 activerecord-5.0 activerecord-5.1 activerecord-5.2 activerecord-5.2.3
+test_ruby_version 2.4 activerecord-5.1 activerecord-5.2 activerecord-5.2.3
 test_ruby_version 2.5
 test_ruby_version 2.6

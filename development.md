@@ -42,8 +42,9 @@ regular docker volumes:
 
 ```bash
 touch Gemfile.lock \
-      gemfiles/activerecord_5.0.gemfile.lock \
-      gemfiles/activerecord_5.1.gemfile.lock
+      gemfiles/activerecord_5.1.gemfile.lock \
+      gemfiles/activerecord_5.2.gemfile.lock \
+      gemfiles/activerecord_6.0.gemfile.lock
 chmod a+w Gemfile.lock gemfiles/*.lock
 ```
 

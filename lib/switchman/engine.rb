@@ -88,7 +88,7 @@ module Switchman
         require "switchman/call_super"
         require "switchman/rails"
         require "switchman/shackles/relation"
-        require_dependency "switchman/shard_internal"
+        require_dependency "switchman/shard"
         require "switchman/standard_error"
 
         ::StandardError.include(StandardError)
@@ -167,6 +167,12 @@ module Switchman
         if defined?(::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter)
           require "switchman/active_record/postgresql_adapter"
           ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(ActiveRecord::PostgreSQLAdapter)
+        end
+
+        # If Switchman::Shard wasn't loaded as of when ActiveRecord::Base initialized
+        # establish a connection here instead
+        if !Shard.instance_variable_get(:@default)
+          ::ActiveRecord::Base.establish_connection
         end
       end
     end

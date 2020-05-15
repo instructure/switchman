@@ -24,6 +24,10 @@ module Switchman
       end
 
       def establish_connection(spec)
+        # Just skip establishing a sharded connection if sharding isn't loaded; we'll do it again later
+        # This only can happen when loading ActiveRecord::Base; after everything is loaded Shard will
+        # be defined and this will actually establish a connection
+        return unless defined?(Shard)
         pool = super
 
         # this is the first place that the adapter would have been required; but now we

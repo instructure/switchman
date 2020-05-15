@@ -1,5 +1,5 @@
 class Appendage < ActiveRecord::Base
-  belongs_to :user
+  belongs_to :user, :required => false
   has_many :digits
 
   has_many :features, :as => :owner

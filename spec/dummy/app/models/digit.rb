@@ -1,5 +1,5 @@
 class Digit < ActiveRecord::Base
-  belongs_to :appendage
+  belongs_to :appendage, :required => false
   has_one :user, :through => :appendage
 
   scope :has_no_value, -> { where(:value => nil) }

@@ -425,6 +425,19 @@ module Switchman
         end
       end
 
+      # it's tedious to hold onto this same
+      # kind of sign state and transform the
+      # result in multiple places, so
+      # here we can operate on the absolute value
+      # in a provided block and trust the sign will
+      # stay as provided.  This assumes no consumer
+      # will return a nil value from the block.
+      def signed_id_operation(input_id)
+        sign = input_id < 0 ? -1 : 1
+        output = yield input_id.abs
+        output * sign
+      end
+
       # converts an AR object, integral id, string id, or string short-global-id to a
       # integral id. nil if it can't be interpreted
       def integral_id_for(any_id)
@@ -437,12 +450,13 @@ module Switchman
         case any_id
         when ::ActiveRecord::Base
           any_id.id
-        when /^(\d+)~(\d+)$/
+        when /^(\d+)~(-?\d+)$/
           local_id = $2.to_i
-          # doesn't make sense to have a double-global id
-          return nil if local_id > IDS_PER_SHARD
-          $1.to_i * IDS_PER_SHARD + local_id
-        when Integer, /^\d+$/
+          signed_id_operation(local_id) do |id|
+            return nil if id > IDS_PER_SHARD
+            $1.to_i * IDS_PER_SHARD + id
+          end
+        when Integer, /^-?\d+$/
           any_id.to_i
         else
           nil
@@ -457,13 +471,17 @@ module Switchman
       def local_id_for(any_id)
         id = integral_id_for(any_id)
         return NIL_NIL_ID unless id
-        if id < IDS_PER_SHARD
-          [id, nil]
-        elsif shard = lookup(id / IDS_PER_SHARD)
-          [id % IDS_PER_SHARD, shard]
-        else
-          NIL_NIL_ID
+        return_shard = nil
+        local_id = signed_id_operation(id) do |abs_id|
+          if abs_id < IDS_PER_SHARD
+            abs_id
+          elsif return_shard = lookup(abs_id / IDS_PER_SHARD)
+            abs_id % IDS_PER_SHARD
+          else
+            return NIL_NIL_ID
+          end
         end
+        [local_id, return_shard]
       end
 
       # takes an id-ish, and returns an integral id relative to
@@ -494,11 +512,13 @@ module Switchman
       def global_id_for(any_id, source_shard = nil)
         id = integral_id_for(any_id)
         return any_id unless id
-        if id >= IDS_PER_SHARD
-          id
-        else
-          source_shard ||= Shard.current
-          source_shard.global_id_for(id)
+        signed_id_operation(id) do |abs_id|
+          if abs_id >= IDS_PER_SHARD
+            abs_id
+          else
+            source_shard ||= Shard.current
+            source_shard.global_id_for(abs_id)
+          end
         end
       end
 
@@ -671,7 +691,9 @@ module Switchman
     # takes an id local to this shard, and returns a global id
     def global_id_for(local_id)
       return nil unless local_id
-      local_id + self.id * IDS_PER_SHARD
+      self.class.signed_id_operation(local_id) do |abs_id|
+        abs_id + self.id * IDS_PER_SHARD
+      end
     end
 
     # skip global_id.hash

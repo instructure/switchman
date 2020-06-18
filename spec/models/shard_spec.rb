@@ -477,6 +477,9 @@ module Switchman
           expect(Shard.integral_id_for(@global_id)).to eq @global_id
           expect(Shard.integral_id_for(@global_id.to_s)).to eq @global_id
           expect(Shard.integral_id_for("#{@shard1.id}~#{@local_id}")).to eq @global_id
+          expect(Shard.integral_id_for("-#{@local_id}")).to eq(-1 * @local_id)
+          expect(Shard.integral_id_for("-#{@global_id}")).to eq(-1 * @global_id)
+          expect(Shard.integral_id_for("#{@shard1.id}~-#{@local_id}")).to eq(@global_id * -1)
         end
 
         it "should work even for shards that don't exist" do
@@ -511,6 +514,13 @@ module Switchman
         it "should return nil for unrecognized ids" do
           expect(Shard.local_id_for('not an id')).to eq [nil, nil]
         end
+
+        it "handles negative IDs" do
+          negative_local_id = @local_id * -1
+          negative_global_id = @global_id * -1
+          expect(Shard.local_id_for(negative_local_id)).to eq [negative_local_id, nil]
+          expect(Shard.local_id_for(negative_global_id)).to eq [negative_local_id, @shard1]
+        end
       end
 
       describe ".relative_id_for" do
@@ -519,6 +529,15 @@ module Switchman
           expect(Shard.relative_id_for(@local_id, @shard2, @shard2)).to eq @local_id
           expect(Shard.relative_id_for(@global_id, @shard1, @shard2)).to eq @global_id
           expect(Shard.relative_id_for(@global_id, @shard2, @shard2)).to eq @global_id
+        end
+
+        it "processes negative ids" do
+          negative_local_id = @local_id * -1
+          negative_global_id = @global_id * -1
+          expect(Shard.relative_id_for(negative_local_id, @shard1, @shard2)).to eq negative_global_id
+          expect(Shard.relative_id_for(negative_local_id, @shard2, @shard2)).to eq negative_local_id
+          expect(Shard.relative_id_for(negative_global_id, @shard1, @shard2)).to eq negative_global_id
+          expect(Shard.relative_id_for(negative_global_id, @shard2, @shard2)).to eq negative_global_id
         end
 
         it "should return the nil for unrecognized ids" do
@@ -540,6 +559,14 @@ module Switchman
         it "should return the original id for unrecognized ids" do
           expect(Shard.short_id_for('not an id')).to eq 'not an id'
         end
+
+        it "maintains sign of input" do
+          negative_local_id = @local_id * -1
+          negative_global_id = @global_id * -1
+          expect(Shard.short_id_for(negative_local_id)).to eq negative_local_id
+          expect(Shard.short_id_for("#{negative_local_id}")).to eq negative_local_id
+          expect(Shard.short_id_for(negative_global_id)).to eq "#{@shard1.id}~#{negative_local_id}"
+        end
       end
 
       describe ".global_id_for" do
@@ -557,6 +584,13 @@ module Switchman
             next if Shard.current == Shard.default
             expect(Shard.shard_for(Shard.global_id_for(local_id))).to eq Shard.current
           end
+        end
+
+        it "globalizes with sign intact" do
+          local_id = -5
+          global_id = (Shard::IDS_PER_SHARD * @shard1.id * -1) + local_id
+          expect(Shard.global_id_for(local_id, @shard1)).to eq global_id
+          expect(Shard.global_id_for(global_id, @shard1)).to eq global_id
         end
       end
     end

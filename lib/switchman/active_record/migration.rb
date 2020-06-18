@@ -33,5 +33,14 @@ module Switchman
         ::ActiveRecord::Migrator::MIGRATOR_SALT * shard_name_hash
       end
     end
+
+    module MigrationContext
+      def migrations
+        return @migrations if instance_variable_defined?(:@migrations)
+        migrations_cache = Thread.current[:migrations_cache] ||= {}
+        key = Digest::MD5.hexdigest(migration_files.sort.join(','))
+        @migrations = migrations_cache[key] ||= super
+      end
+    end
   end
 end

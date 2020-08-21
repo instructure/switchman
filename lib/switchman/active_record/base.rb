@@ -155,6 +155,15 @@ module Switchman
         self.class.connection.quote(id)
       end
 
+      def update_columns(*)
+        db = Shard.current(self.class.shard_category).database_server
+        if ::Shackles.environment != db.shackles_environment
+          return db.unshackle { super }
+        else
+          super
+        end
+      end
+
       protected
 
       # see also AttributeMethods#shard_category_code_for_reflection

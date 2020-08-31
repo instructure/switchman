@@ -38,23 +38,17 @@ module Switchman
         select_values("SELECT * FROM unnest(current_schemas(false))")
       end
 
-      def use_qualified_names?
-        @config[:use_qualified_names]
-      end
-
       def tables(name = nil)
-        schema = shard.name if use_qualified_names?
-
         query(<<-SQL, 'SCHEMA').map { |row| row[0] }
           SELECT tablename
           FROM pg_tables
-          WHERE schemaname = #{schema ? "'#{schema}'" : 'ANY (current_schemas(false))'}
+          WHERE schemaname = '#{shard.name}'
         SQL
       end
 
       def extract_schema_qualified_name(string)
         name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(string.to_s)
-        if string && !name.schema && use_qualified_names?
+        if string && !name.schema
           name.instance_variable_set(:@schema, shard.name)
         end
         [name.schema, name.identifier]
@@ -63,7 +57,7 @@ module Switchman
       def view_exists?(name)
         name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)
         return false unless name.identifier
-        if !name.schema && use_qualified_names?
+        if !name.schema
           name.instance_variable_set(:@schema, shard.name)
         end
 
@@ -73,13 +67,11 @@ module Switchman
           LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
           WHERE c.relkind IN ('v','m') -- (v)iew, (m)aterialized view
           AND c.relname = '#{name.identifier}'
-          AND n.nspname = #{name.schema ? "'#{name.schema}'" : 'ANY (current_schemas(false))'}
+          AND n.nspname = '#{shard.name}'
         SQL
       end
 
       def indexes(table_name)
-        schema = shard.name if use_qualified_names?
-
         result = query(<<-SQL, 'SCHEMA')
            SELECT distinct i.relname, d.indisunique, d.indkey, pg_get_indexdef(d.indexrelid), t.oid
            FROM pg_class t
@@ -88,7 +80,7 @@ module Switchman
            WHERE i.relkind = 'i'
              AND d.indisprimary = 'f'
              AND t.relname = '#{table_name}'
-             AND i.relnamespace IN (SELECT oid FROM pg_namespace WHERE nspname = #{schema ? "'#{schema}'" : 'ANY (current_schemas(false))'} )
+             AND i.relnamespace IN (SELECT oid FROM pg_namespace WHERE nspname = '#{shard.name}' )
           ORDER BY i.relname
         SQL
 
@@ -126,8 +118,6 @@ module Switchman
       end
 
       def index_name_exists?(table_name, index_name, _default = nil)
-        schema = shard.name if use_qualified_names?
-
         exec_query(<<-SQL, 'SCHEMA').rows.first[0].to_i > 0
             SELECT COUNT(*)
             FROM pg_class t
@@ -136,7 +126,7 @@ module Switchman
             WHERE i.relkind = 'i'
               AND i.relname = '#{index_name}'
               AND t.relname = '#{table_name}'
-              AND i.relnamespace IN (SELECT oid FROM pg_namespace WHERE nspname = #{schema ? "'#{schema}'" : 'ANY (current_schemas(false))'} )
+              AND i.relnamespace IN (SELECT oid FROM pg_namespace WHERE nspname = '#{shard.name}' )
         SQL
       end
 
@@ -150,7 +140,7 @@ module Switchman
       def quote_table_name(name)
         return quote_local_table_name(name) if @use_local_table_name
         name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)
-        if !name.schema && use_qualified_names?
+        if !name.schema
           name.instance_variable_set(:@schema, shard.name)
         end
         name.quoted
@@ -165,7 +155,6 @@ module Switchman
       end
 
       def foreign_keys(table_name)
-        schema = shard.name if use_qualified_names?
 
         # mostly copy-pasted from AR - only change is to the nspname condition for qualified names support
         fk_info = select_all <<-SQL.strip_heredoc
@@ -178,7 +167,7 @@ module Switchman
           JOIN pg_namespace t3 ON c.connamespace = t3.oid
           WHERE c.contype = 'f'
             AND t1.relname = #{quote(table_name)}
-            AND t3.nspname = #{schema ? "'#{schema}'" : 'ANY (current_schemas(false))'}
+            AND t3.nspname = '#{shard.name}'
           ORDER BY c.conname
         SQL
 
@@ -195,7 +184,7 @@ module Switchman
           # strip the schema name from to_table if it matches
           to_table = row['to_table']
           to_table_qualified_name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(to_table)
-          if use_qualified_names? && to_table_qualified_name.schema == shard.name
+          if to_table_qualified_name.schema == shard.name
             to_table = to_table_qualified_name.identifier
           end
 

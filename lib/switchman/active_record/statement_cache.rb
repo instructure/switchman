@@ -46,29 +46,16 @@ module Switchman
         bind_values = bind_map.bind(params, current_shard, target_shard)
 
         target_shard.activate(klass.shard_category) do
-          if connection.use_qualified_names?
-            sql = qualified_query_builder(target_shard, klass).sql_for(bind_values, connection)
-            klass.find_by_sql(sql, bind_values)
-          else
-            sql = generic_query_builder(connection).sql_for(bind_values, connection)
-            klass.find_by_sql(sql, bind_values)
-          end
+          sql = qualified_query_builder(target_shard, klass).sql_for(bind_values, connection)
+          klass.find_by_sql(sql, bind_values)
         end
       end
 
       if ::Rails.version < '5.2'
-        def generic_query_builder(connection)
-          @query_builder ||= connection.cacheable_query(self.class, @arel)
-        end
-
         def qualified_query_builder(shard, klass)
           @qualified_query_builders[shard.id] ||= klass.connection.cacheable_query(self.class, @arel)
         end
       else
-        def generic_query_builder(connection)
-          @query_builder ||= connection.cacheable_query(self.class, @arel).first
-        end
-
         def qualified_query_builder(shard, klass)
           @qualified_query_builders[shard.id] ||= klass.connection.cacheable_query(self.class, @arel).first
         end

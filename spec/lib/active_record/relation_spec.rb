@@ -52,8 +52,6 @@ module Switchman
 
       describe "#to_sql" do
         it "activates the primary shard for qualified name purposes" do
-          User.connection.stubs(:use_qualified_names?).returns(true)
-          @shard1.activate { User.connection.stubs(:use_qualified_names?).returns(true) }
           sql = User.shard(@shard1).to_sql
           expect(sql).to be_include(@shard1.name)
           expect(sql).not_to be_include(Shard.default.name)

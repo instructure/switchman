@@ -195,28 +195,9 @@ used as the cache store for all database servers.
 
 ## Connection Pooling
 
-In a common Postgres situation, Switchman will switch between shards
-(which are implemented as Postgres schemas/namespaces) on the same database
-server by issuing a `SET search_path TO ` command prior to executing a query
-against a different shard. Unfortunately, if you use pgbouncer, this means
-that you cannot use transaction pooling, and must use session pooling.
-There exist two workarounds to this:
-
-### Connection Per Shard
-
-By adding setting `username: %{shard_name},public` to database.yml,
-Switchman will know that the username will vary per shard, and will establish
-a new connection to the database for each shard, instead of sharing a single
-connection among all shards on the same server. This will allow pgbouncer
-to be set up for transaction pooling, at the cost of pgbouncer not being
-able to pool connections among shards (and causing connection churn when
-you start to hit pgbouncer's per-database connection limits when you
-have several very active shards).
-
 ### Qualified Names
 
-If instead you add `use_qualified_names: true` to database.yml, Switchman
-will automatically prefix all table names in FROM clauses with the schema
+Switchman will automatically prefix all table names in FROM clauses with the schema
 name, like so:
 
 ```SQL

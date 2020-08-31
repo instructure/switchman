@@ -4,8 +4,6 @@ module Switchman
   module ActiveRecord
     module ConnectionHandler
       def self.make_sharing_automagic(config, shard = Shard.current)
-        key = config[:adapter] == 'postgresql' ? :schema_search_path : :database
-
         # only load the shard name from the db if we have to
         if !config[:shard_name]
           # we may not be able to connect to this shard yet, cause it might be an empty database server
@@ -14,12 +12,6 @@ module Switchman
           return unless shard_name
 
           config[:shard_name] ||= shard_name
-        end
-
-        if !config[key] || config[key] == shard_name
-          # this may truncate the schema_search_path if it was not specified in database.yml
-          # but that's what our old behavior was anyway, so I guess it's okay
-          config[key] = '%{shard_name}'
         end
       end
 

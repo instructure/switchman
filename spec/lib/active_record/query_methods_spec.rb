@@ -98,16 +98,10 @@ module Switchman
         end
 
         it "doesn't burn when plucking out of a complex query with a FROM clause" do
-          all_ids = User.joins(:appendages).from("(select * from users) as users").pluck(:id)
-        end
-
-        it "doesn't burn when plucking out of a complex query with a FROM clause with `use_qualified_names`" do
-          ::ActiveRecord::Base.connection.stubs(:use_qualified_names?).returns(true)
           all_ids = User.joins(:appendages).from("(select * from users) as \"users\"").pluck(:id)
         end
 
         it "doesn't burn in the ORDER BY clause", :focus do
-          ::ActiveRecord::Base.connection.stubs(:use_qualified_names?).returns(true)
           all_digits = Digit.from("(select * from digits) as \"digits\"").order(value: :desc).to_a
         end
 
@@ -251,7 +245,6 @@ module Switchman
 
       it "serializes subqueries relative to the relation's shard" do
         skip "can't detect which shard it serialized against" if Shard.default.name.include?(@shard1.name)
-        User.connection.stubs(:use_qualified_names?).returns(true)
         sql = User.shard(@shard1).where("EXISTS (?)", User.all).to_sql
         expect(sql).not_to be_include(Shard.default.name)
         expect(sql.scan(@shard1.name).length).to eq 2

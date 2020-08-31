@@ -27,10 +27,6 @@ module Switchman
         quote_table_name(name)
       end
 
-      def use_qualified_names?
-        false
-      end
-
       protected
 
       def log(*args, &block)

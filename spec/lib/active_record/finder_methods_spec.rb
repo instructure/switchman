@@ -22,8 +22,6 @@ module Switchman
         end
 
         it "should be able to find by global id with qualified names" do
-          User.connection.stubs(:use_qualified_names?).returns(true)
-
           other_user = User.create!
           expect(User.find(other_user.id)).to eq other_user # make sure we're not caching a statement from the wrong shard
 
@@ -49,8 +47,6 @@ module Switchman
 
       context "#find_last" do
         it "should work across shards with qualified names" do
-          User.connection.stubs(:use_qualified_names?).returns(true)
-
           @shard1.activate do
             User.create!
             @user = User.create!

@@ -218,16 +218,9 @@ module Switchman
         args = ['-s', '-x', '-O', '-f', filename]
         args.concat(Array(extra_flags)) if extra_flags
         search_path = configuration['schema_search_path']
-        if configuration['use_qualified_names']
-          shard = Shard.current.name
-          serialized_search_path = shard
-          args << "--schema=#{Shellwords.escape(shard)}"
-        elsif !search_path.blank?
-          args << search_path.split(',').map do |part|
-            "--schema=#{part.strip}"
-          end.join(' ')
-          serialized_search_path = connection.schema_search_path
-        end
+        shard = Shard.current.name
+        serialized_search_path = shard
+        args << "--schema=#{Shellwords.escape(shard)}"
 
         args << configuration['database']
         run_cmd('pg_dump', args, 'dumping')

@@ -389,8 +389,6 @@ module Switchman
         connection = mock()
         connection.stubs(:open_transactions).returns(0)
         connection.expects(:current_schemas).returns(['canvas', 'public']).once
-        connection.expects(:schema_search_path).returns('canvas,public').once
-        connection.expects(:schema_search_path=).with(nil).once
         connection.stubs(:shard).returns(Shard.default)
         connection.expects(:shard=).with(shard)
         connection.stubs(:adapter_name).returns('PostgreSQL')

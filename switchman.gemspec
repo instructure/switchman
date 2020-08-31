@@ -23,6 +23,7 @@ Gem::Specification.new do |s|
 
   s.add_development_dependency "appraisal", "~> 2.1"
   s.add_development_dependency "byebug"
+  s.add_development_dependency "pry"
   s.add_development_dependency "pg", "~> 0"
   s.add_development_dependency "rspec-rails", "3.5.2"
   s.add_development_dependency "simplecov", "~> 0.15"

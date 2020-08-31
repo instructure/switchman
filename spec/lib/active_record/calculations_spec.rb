@@ -286,8 +286,6 @@ module Switchman
         end
 
         it "should be able to group by joined columns with qualified names" do
-          Appendage.connection.stubs(:use_qualified_names?).returns(true)
-
           user = User.create!
           user.appendages.create!
 

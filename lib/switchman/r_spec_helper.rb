@@ -65,7 +65,7 @@ module Switchman
             (@@shard3.drop_database if @@shard3) rescue nil
             @@shard1 = @@shard2 = @@shard3 = nil
             Shard.delete_all
-            Shard.default(true)
+            Shard.default(reload: true)
             next
           end
         end
@@ -73,7 +73,7 @@ module Switchman
         # in the db before then
         Shard.delete_all
         Switchman.cache.delete("default_shard")
-        Shard.default(true)
+        Shard.default(reload: true)
         puts "Done!"
 
         at_exit do
@@ -102,7 +102,7 @@ module Switchman
         dup.id = @@default_shard.id
         dup.save!
         Switchman.cache.delete("default_shard")
-        Shard.default(true)
+        Shard.default(reload: true)
         dup = @@shard1.dup
         dup.id = @@shard1.id
         dup.save!
@@ -122,7 +122,7 @@ module Switchman
         raise "Sharding did not set up correctly" if @@sharding_failed
         Shard.clear_cache
         if use_transactional_tests
-          Shard.default(true)
+          Shard.default(reload: true)
           @shard1 = Shard.find(@shard1.id)
           @shard2 = Shard.find(@shard2.id)
           shards = [@shard2]
@@ -151,7 +151,7 @@ module Switchman
       klass.after(:all) do
         Shard.connection.update("TRUNCATE #{Shard.quoted_table_name} CASCADE")
         Switchman.cache.delete("default_shard")
-        Shard.default(true)
+        Shard.default(reload: true)
       end
     end
   end

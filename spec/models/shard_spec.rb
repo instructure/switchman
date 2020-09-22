@@ -613,7 +613,7 @@ module Switchman
 
       it "reloads the default shard even when it's set when the reload arg present" do
         Shard.instance_variable_set(:@default, DefaultShard.instance)
-        expect(Shard.default(true)).to be_a(Switchman::Shard)
+        expect(Shard.default(reload: true)).to be_a(Switchman::Shard)
       end
 
       context "when using reload with_fallback" do
@@ -655,11 +655,6 @@ module Switchman
         it "respects a false reload even with fallback" do
           Shard.instance_variable_set(:@default, DefaultShard.instance)
           expect(Shard.default(reload: false, with_fallback: true)).to eq(DefaultShard.instance)
-        end
-
-        it "uses the original positional parameter if provided (will go away ultimately, remove this spec then)" do
-          Shard.instance_variable_set(:@default, DefaultShard.instance)
-          expect(Shard.default(true, reload: false, with_fallback: false)).to be_a(Switchman::Shard)
         end
       end
 

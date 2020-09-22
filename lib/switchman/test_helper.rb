@@ -4,7 +4,7 @@ module Switchman
       def recreate_persistent_test_shards(dont_create: false)
         # recreate the default shard (it got buhleted)
         ::Shackles.activate(:deploy) { Switchman.cache.clear }
-        if Shard.default(true).is_a?(DefaultShard)
+        if Shard.default(reload: true).is_a?(DefaultShard)
           begin
             Shard.create!(default: true)
           rescue
@@ -12,7 +12,7 @@ module Switchman
             # database doesn't exist yet, presumably cause we're creating it right now
             return [nil, nil]
           end
-          Shard.default(true)
+          Shard.default(reload: true)
         end
 
         # can't auto-create a new shard on the default shard's db server if the

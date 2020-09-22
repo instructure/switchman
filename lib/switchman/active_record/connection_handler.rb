@@ -70,7 +70,7 @@ module Switchman
 
           if Shard.default.is_a?(DefaultShard) && Shard.default.database_server.config[:slave]
             Shard.default.database_server.shackle!
-            Shard.default(true)
+            Shard.default(reload: true)
           end
         end
 

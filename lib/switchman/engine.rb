@@ -150,8 +150,8 @@ module Switchman
       end
     end
 
-    def self.foreign_key_check(name, type, options)
-      if name.to_s =~ /_id\z/ && type.to_s == 'integer' && options[:limit].to_i < 8
+    def self.foreign_key_check(name, type, limit: nil)
+      if name.to_s =~ /_id\z/ && type.to_s == 'integer' && limit.to_i < 8
         puts "WARNING: All foreign keys need to be 8-byte integers. #{name} looks like a foreign key. If so, please add the option: `:limit => 8`"
       end
     end

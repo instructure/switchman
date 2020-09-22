@@ -4,8 +4,8 @@ module Switchman
   module ActiveRecord
     module AbstractAdapter
       module ForeignKeyCheck
-        def add_column(table, name, type, options = {})
-          Engine.foreign_key_check(name, type, options)
+        def add_column(table, name, type, limit: nil, **)
+          Engine.foreign_key_check(name, type, limit: limit)
           super
         end
       end

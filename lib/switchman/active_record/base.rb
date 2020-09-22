@@ -31,7 +31,7 @@ module Switchman
           @integral_id
         end
 
-        def transaction(*args)
+        def transaction(**)
           if self != ::ActiveRecord::Base && current_scope
             current_scope.activate do
               db = Shard.current(shard_category).database_server
@@ -105,12 +105,12 @@ module Switchman
         end
       end
 
-      def save(*args)
+      def save(*, **)
         @shard_set_in_stone = true
         (self.class.current_scope || self.class.default_scoped).shard(shard, :implicit).scoping { super }
       end
 
-      def save!(*args)
+      def save!(*, **)
         @shard_set_in_stone = true
         (self.class.current_scope || self.class.default_scoped).shard(shard, :implicit).scoping { super }
       end

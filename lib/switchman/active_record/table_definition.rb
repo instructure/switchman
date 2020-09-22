@@ -1,8 +1,8 @@
 module Switchman
   module ActiveRecord
     module TableDefinition
-      def column(name, type, options = {})
-        Engine.foreign_key_check(name, type, options)
+      def column(name, type, limit: nil, **)
+        Engine.foreign_key_check(name, type, limit: limit)
         super
       end
     end

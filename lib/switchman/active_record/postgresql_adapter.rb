@@ -192,7 +192,7 @@ module Switchman
         end
       end
 
-      def add_index_options(_table_name, _column_name, _options = {})
+      def add_index_options(_table_name, _column_name, **)
         index_name, index_type, index_columns, index_options, algorithm, using = super
         algorithm = nil if DatabaseServer.creating_new_shard && algorithm == "CONCURRENTLY"
         [index_name, index_type, index_columns, index_options, algorithm, using]

@@ -5,7 +5,7 @@ module Switchman
         klass::SINGLE_VALUE_METHODS.concat [ :shard, :shard_source ]
       end
 
-      def initialize(*args)
+      def initialize(*, **)
         super
         self.shard_value = Shard.current(klass ? klass.shard_category : :primary) unless shard_value
         self.shard_source_value = :implicit unless shard_source_value
@@ -17,7 +17,7 @@ module Switchman
         result
       end
 
-      def merge(*args)
+      def merge(*)
         relation = super
         if relation.shard_value != self.shard_value && relation.shard_source_value == :implicit
           relation.shard_value = self.shard_value
@@ -26,15 +26,15 @@ module Switchman
         relation
       end
 
-      def new(*args, &block)
+      def new(*, &block)
         primary_shard.activate(klass.shard_category) { super }
       end
 
-      def create(*args, &block)
+      def create(*, &block)
         primary_shard.activate(klass.shard_category) { super }
       end
 
-      def create!(*args, &block)
+      def create!(*, &block)
         primary_shard.activate(klass.shard_category) { super }
       end
 

@@ -2,7 +2,7 @@ module Switchman
   module ActiveRecord
     module StatementCache
       module ClassMethods
-        def create(connection, block = Proc.new)
+        def create(connection, &block)
           relation = block.call ::ActiveRecord::StatementCache::Params.new
 
           if ::Rails.version >= "5.2"

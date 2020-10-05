@@ -87,7 +87,7 @@ module Switchman
         require "switchman/arel"
         require "switchman/call_super"
         require "switchman/rails"
-        require "switchman/shackles/relation"
+        require "switchman/guard_rail/relation"
         require_dependency "switchman/shard"
         require "switchman/standard_error"
 
@@ -133,7 +133,7 @@ module Switchman
         ::ActiveRecord::Relation.prepend(ActiveRecord::Calculations)
         ::ActiveRecord::Relation.include(ActiveRecord::FinderMethods)
         ::ActiveRecord::Relation.include(ActiveRecord::QueryMethods)
-        ::ActiveRecord::Relation.prepend(Shackles::Relation)
+        ::ActiveRecord::Relation.prepend(GuardRail::Relation)
         ::ActiveRecord::Relation.prepend(ActiveRecord::Relation)
         ::ActiveRecord::Relation.include(ActiveRecord::SpawnMethods)
         ::ActiveRecord::Relation.include(CallSuper)
@@ -185,15 +185,15 @@ module Switchman
       end
     end
 
-    initializer 'switchman.extend_shackles', :before => "switchman.extend_ar" do
+    initializer 'switchman.extend_guard_rail', :before => "switchman.extend_ar" do
       ::ActiveSupport.on_load(:active_record) do
-        require "switchman/shackles"
+        require "switchman/guard_rail"
 
-        ::Shackles.singleton_class.prepend(Shackles::ClassMethods)
+        ::GuardRail.singleton_class.prepend(GuardRail::ClassMethods)
       end
     end
 
-    initializer 'switchman.extend_controller', :after => "shackles.extend_ar" do
+    initializer 'switchman.extend_controller', :after => "guard_rail.extend_ar" do
       ::ActiveSupport.on_load(:action_controller) do
         require "switchman/action_controller/caching"
 

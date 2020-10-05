@@ -15,5 +15,5 @@ RUN mkdir -p .bundle coverage log \
              spec/dummy/log \
              spec/dummy/tmp
 
-RUN /bin/bash -lc "cd /app && rvm-exec 2.4 bundle install --jobs 5"
+RUN /bin/bash -lc "cd /app && rvm-exec 2.5 bundle install --jobs 5"
 COPY --chown=docker:docker . /app

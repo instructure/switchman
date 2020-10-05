@@ -1,4 +1,4 @@
-require "shackles"
+require "guard_rail"
 require "switchman/open4"
 require "switchman/engine"
 

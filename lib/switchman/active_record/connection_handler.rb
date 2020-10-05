@@ -55,7 +55,7 @@ module Switchman
           Shard.default.remove_instance_variable(:@name) if Shard.default.instance_variable_defined?(:@name)
         end
 
-        @shard_connection_pools ||= { [:master, Shard.default.database_server.shareable? ? ::Rails.env : Shard.default] => pool}
+        @shard_connection_pools ||= { [:primary, Shard.default.database_server.shareable? ? ::Rails.env : Shard.default] => pool}
 
         category = pool.spec.name.to_sym
         proxy = ConnectionPoolProxy.new(category,
@@ -64,12 +64,12 @@ module Switchman
         owner_to_pool[pool.spec.name] = proxy
 
         if first_time
-          if Shard.default.database_server.config[:prefer_slave]
-            Shard.default.database_server.shackle!
+          if Shard.default.database_server.config[:prefer_secondary]
+            Shard.default.database_server.guard!
           end
 
-          if Shard.default.is_a?(DefaultShard) && Shard.default.database_server.config[:slave]
-            Shard.default.database_server.shackle!
+          if Shard.default.is_a?(DefaultShard) && Shard.default.database_server.config[:secondary]
+            Shard.default.database_server.guard!
             Shard.default(reload: true)
           end
         end

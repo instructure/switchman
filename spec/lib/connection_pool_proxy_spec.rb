@@ -11,15 +11,15 @@ module Switchman
       proxy.clear_idle_connections!(Time.now)
     end
 
-    it "should handle an array of slaves when creating a pool" do
+    it "should handle an array of secondaries when creating a pool" do
       spec = Object.new
-      spec.instance_variable_set(:@config, adapter: Shard.connection_pool.spec.config[:adapter], database: 'master', slave: [ { database: 'slave1' }, { database: 'slave2' }])
+      spec.instance_variable_set(:@config, adapter: Shard.connection_pool.spec.config[:adapter], database: 'primary', secondary: [ { database: 'secondary1' }, { database: 'secondary2' }])
       default_pool = stub(spec: spec, get_schema_cache: nil, set_schema_cache: nil)
       cache = {}
       proxy = ConnectionPoolProxy.new(:unsharded, default_pool, cache)
-      proxy.stubs(:active_shackles_environment).returns(:slave)
+      proxy.stubs(:active_guard_rail_environment).returns(:secondary)
       new_pool = proxy.send(:create_pool)
-      expect(new_pool.spec.config[:database]).to eq 'slave1'
+      expect(new_pool.spec.config[:database]).to eq 'secondary1'
     end
 
     it "should share schema caches between connections" do

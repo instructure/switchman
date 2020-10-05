@@ -2,14 +2,14 @@ Switchman
 ==========
 
 [![Build
-Status](https://travis-ci.org/instructure/switchman.svg?branch=master)](https://travis-ci.org/instructure/switchman)
+Status](https://travis-ci.org/instructure/switchman.svg?branch=main)](https://travis-ci.org/instructure/switchman)
 
 ## About
 
 Switchman is an ActiveRecord extension for sharding your database. Key features
 include:
 
- * Integration with the Shackles gem for master/slave/deploy environments
+ * Integration with the GuardRail gem for primary/secondary/deploy environments
  * Creation of shards on the fly
  * Multiple shard "categories"
  * Support for cross-shard references in associations (and even multi-shard
@@ -24,7 +24,7 @@ include:
 
 ## Requirements
 
-* Ruby 2.4+
+* Ruby 5.4+
 * Rails 5.1+
 
 ## Installation

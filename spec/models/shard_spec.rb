@@ -202,17 +202,17 @@ module Switchman
 
         it "should disconnect unshareable connections from other environments" do
           DatabaseServer.any_instance.stubs(:shareable?).returns(false)
-          ::Shackles.activate(:slave) do
+          ::GuardRail.activate(:secondary) do
             Shard.with_each_shard([Shard.default, @shard2]) do
-              ::Shackles.activate(:master) do
+              ::GuardRail.activate(:primary) do
                 User.connection
                 expect(User.connected?).to eq true
               end
             end
           end
 
-          ::Shackles.activate(:slave) { expect(User.connected?).to eq false }
-          ::Shackles.activate(:master) { expect(User.connected?).to eq false }
+          ::GuardRail.activate(:secondary) { expect(User.connected?).to eq false }
+          ::GuardRail.activate(:primary) { expect(User.connected?).to eq false }
         end
 
         it "should not disconnect when it's the current shard" do

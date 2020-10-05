@@ -1,11 +1,11 @@
 module Switchman
-  module Shackles
+  module GuardRail
     module Relation
       def exec_queries(*args)
         if self.lock_value
           db = Shard.current(shard_category).database_server
-          if ::Shackles.environment != db.shackles_environment
-            return db.unshackle { super }
+          if ::GuardRail.environment != db.guard_rail_environment
+            return db.unguard { super }
           end
         end
         super
@@ -15,8 +15,8 @@ module Switchman
         class_eval <<-RUBY, __FILE__, __LINE__ + 1
           def #{method}(*args)
             db = Shard.current(shard_category).database_server
-            if ::Shackles.environment != db.shackles_environment
-              db.unshackle { super }
+            if ::GuardRail.environment != db.guard_rail_environment
+              db.unguard { super }
             else
               super
             end

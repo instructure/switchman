@@ -3,7 +3,7 @@ module Switchman
     class << self
       def recreate_persistent_test_shards(dont_create: false)
         # recreate the default shard (it got buhleted)
-        ::Shackles.activate(:deploy) { Switchman.cache.clear }
+        ::GuardRail.activate(:deploy) { Switchman.cache.clear }
         if Shard.default(reload: true).is_a?(DefaultShard)
           begin
             Shard.create!(default: true)

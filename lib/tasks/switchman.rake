@@ -64,8 +64,8 @@ module Switchman
           TestHelper.recreate_persistent_test_shards(dont_create: true)
         end
 
-        ::Shackles.activate(:deploy) do
-          Shard.default.database_server.unshackle do
+        ::GuardRail.activate(:deploy) do
+          Shard.default.database_server.unguard do
             begin
               categories = categories.call if categories.respond_to?(:call)
               Shard.with_each_shard(scope, categories, options) do
@@ -83,7 +83,7 @@ module Switchman
       
                   ::ActiveRecord::Base.configurations = new_configs
                 end
-                shard.database_server.unshackle do
+                shard.database_server.unguard do
                   old_actions.each { |action| action.call(*task_args) }
                 end
                 nil

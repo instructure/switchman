@@ -1,17 +1,17 @@
 module Switchman
-  module Shackles
+  module GuardRail
     module ClassMethods
       def self.prepended(klass)
         klass.send(:remove_method, :ensure_handler)
       end
 
       # drops the save_handler and ensure_handler calls from the vanilla
-      # Shackles' implementation.
+      # GuardRail' implementation.
       def activate!(environment)
-        environment ||= :master
+        environment ||= :primary
         activated_environments << environment
         old_environment = self.environment
-        Thread.current[:shackles_environment] = environment
+        Thread.current[:guard_rail_environment] = environment
         old_environment
       end
 

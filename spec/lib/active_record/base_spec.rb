@@ -145,7 +145,7 @@ module Switchman
             MirrorUser.establish_connection(config)
 
             expect(MirrorUser.connection).not_to eq ::ActiveRecord::Base.connection
-            ::Shackles.activate(:slave) do
+            ::GuardRail.activate(:secondary) do
               expect(MirrorUser.connection).not_to eq ::ActiveRecord::Base.connection
             end
           ensure

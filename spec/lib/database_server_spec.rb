@@ -24,13 +24,13 @@ module Switchman
       it "should depend on the database environment" do
         db = DatabaseServer.new(nil, adapter: 'postgresql', username: '%{schema_search_path}', deploy: { username: 'deploy' })
         expect(db.shareable?).to eq false
-        expect(::Shackles.activate(:deploy) { db.shareable? }).to eq true
+        expect(::GuardRail.activate(:deploy) { db.shareable? }).to eq true
       end
 
       it "should handle string keys" do
         db = DatabaseServer.new(nil, adapter: 'postgresql', username: '%{schema_search_path}', deploy: { 'username' => 'deploy' })
         expect(db.shareable?).to eq false
-        expect(::Shackles.activate(:deploy) { db.shareable? }).to eq true
+        expect(::GuardRail.activate(:deploy) { db.shareable? }).to eq true
       end
     end
 
@@ -91,41 +91,41 @@ module Switchman
     describe "#config" do
       it "should return subenvs" do
         base_config = { database: 'db',
-                        slave: [nil, { database: 'slave' }],
+                        secondary: [nil, { database: 'secondary' }],
                         deploy: { username: 'deploy' }}
         ds = DatabaseServer.new(nil, base_config)
         expect(ds.config).to eq base_config
-        expect(ds.config(:slave)).to eq [{ database: 'db', deploy: base_config[:deploy] },
-                                     { database: 'slave', deploy: base_config[:deploy] }]
-        expect(ds.config(:deploy)).to eq({ database: 'db', username: 'deploy', slave: base_config[:slave], deploy: base_config[:deploy] })
+        expect(ds.config(:secondary)).to eq [{ database: 'db', deploy: base_config[:deploy] },
+                                     { database: 'secondary', deploy: base_config[:deploy] }]
+        expect(ds.config(:deploy)).to eq({ database: 'db', username: 'deploy', secondary: base_config[:secondary], deploy: base_config[:deploy] })
       end
     end
 
-    describe "#shackles_environment" do
-      it "should inherit from Shackles.environment" do
+    describe "#guard_rail_environment" do
+      it "should inherit from GuardRail.environment" do
         ds = DatabaseServer.new
-        expect(ds.shackles_environment).to eq :master
-        ::Shackles.activate(:slave) do
-          expect(ds.shackles_environment).to eq :slave
+        expect(ds.guard_rail_environment).to eq :primary
+        ::GuardRail.activate(:secondary) do
+          expect(ds.guard_rail_environment).to eq :secondary
         end
       end
 
-      it "should override Shackles.environment when explicitly set" do
+      it "should override GuardRail.environment when explicitly set" do
         ds = DatabaseServer.new
-        ds.shackle!
-        expect(ds.shackles_environment).to eq :slave
-        ds.unshackle do
-          expect(ds.shackles_environment).to eq :master
+        ds.guard!
+        expect(ds.guard_rail_environment).to eq :secondary
+        ds.unguard do
+          expect(ds.guard_rail_environment).to eq :primary
         end
-        expect(ds.shackles_environment).to eq :slave
-        ::Shackles.activate(:slave) do
-          expect(ds.shackles_environment).to eq :slave
-          ds.unshackle do
-            expect(ds.shackles_environment).to eq :slave
+        expect(ds.guard_rail_environment).to eq :secondary
+        ::GuardRail.activate(:secondary) do
+          expect(ds.guard_rail_environment).to eq :secondary
+          ds.unguard do
+            expect(ds.guard_rail_environment).to eq :secondary
           end
-          expect(ds.shackles_environment).to eq :slave
+          expect(ds.guard_rail_environment).to eq :secondary
         end
-        expect(ds.shackles_environment).to eq :slave
+        expect(ds.guard_rail_environment).to eq :secondary
       end
     end
 

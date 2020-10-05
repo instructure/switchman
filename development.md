@@ -9,7 +9,7 @@ be installed. To get started, run the following:
 ```
 
 This will install the gem in a docker image with all versions of Ruby installed,
-and install all gem dependencies in the Ruby 2.4 set of gems. It will also
+and install all gem dependencies in the Ruby 2.5 set of gems. It will also
 download and spin up a PostgreSQL container for use with specs.
 
 The first build will take a long time, however, docker images and gems are
@@ -20,9 +20,9 @@ your custom options like so:
 
 ```bash
 docker-compose run --rm app /bin/bash -lc \
-  "rvm-exec 2.4 bundle exec rake db:drop db:create db:migrate"
+  "rvm-exec 2.5 bundle exec rake db:drop db:create db:migrate"
 docker-compose run --rm app /bin/bash -lc \
-  "rvm-exec 2.4 bundle exec rspec spec/lib/rails_spec.rb"
+  "rvm-exec 2.5 bundle exec rspec spec/lib/rails_spec.rb"
 ```
 
 If you'd like to mount your git checkout within the docker container running

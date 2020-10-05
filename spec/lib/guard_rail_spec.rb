@@ -1,23 +1,23 @@
 require "spec_helper"
 
 module Switchman
-  describe Shackles do
+  describe GuardRail do
     include RSpecHelper
 
     before do
-      #!!! trick Shackles in to actually switching envs
+      #!!! trick GuardRail in to actually switching envs
       ::Rails.env.stubs(:test?).returns(false)
 
       # be sure to test bugs where the current env isn't yet included in this hash
-      ::Shackles.connection_handlers.clear
+      ::GuardRail.connection_handlers.clear
     end
 
     it "should capture the correct current_pool" do
       # use @shard2 cause it has its own DatabaseServer
       @shard2.activate do
-        @current_pool = ::Shackles.activate(:slave) { ::ActiveRecord::Base.connection_pool.current_pool }
+        @current_pool = ::GuardRail.activate(:secondary) { ::ActiveRecord::Base.connection_pool.current_pool }
       end
-      ::Shackles.activate(:slave) do
+      ::GuardRail.activate(:secondary) do
         expect(::ActiveRecord::Base.connection_pool.default_pool).not_to eq @current_pool
       end
     end
@@ -26,7 +26,7 @@ module Switchman
       models = ::ActiveRecord::Base.connection_handler.send(:owner_to_pool)
       default_pools = {}
       models.each_pair { |k, v| default_pools[k] = v.current_pool }
-      ::Shackles.activate(:slave_that_no_one_else_uses) do
+      ::GuardRail.activate(:secondary_that_no_one_else_uses) do
         models = ::ActiveRecord::Base.connection_handler.send(:owner_to_pool)
         pools = {}
         models.each_pair { |k, v| pools[k] = v.current_pool }
@@ -37,13 +37,13 @@ module Switchman
       end
     end
 
-    it "should connect to the first working slave" do
+    it "should connect to the first working secondary" do
       # have to unstub long enough to create this
       ::Rails.env.unstub(:test?)
       ds = DatabaseServer.create(Shard.default.database_server.config.merge(
-        :slave => [{ host: 'some.postgres.server' }, nil]))
+        :secondary => [{ host: 'some.postgres.server' }, nil]))
       ::Rails.env.stubs(:test?).returns(false)
-      ds.shackle!
+      ds.guard!
       s = ds.shards.create!
       s.activate do
         User.connection
@@ -51,57 +51,57 @@ module Switchman
       end
     end
 
-    it "should deshackle the appropriate connection when the scope changes connections" do
+    it "should unguard the appropriate connection when the scope changes connections" do
       begin
-        Shard.default.database_server.shackle!
+        Shard.default.database_server.guard!
         @shard2.activate do
-          expect(Shard.default.database_server.shackles_environment).to eq :slave
-          expect(::Shackles.environment).to eq :master
+          expect(Shard.default.database_server.guard_rail_environment).to eq :secondary
+          expect(::GuardRail.environment).to eq :primary
 
-          Shard.default.database_server.expects(:unshackle).once
+          Shard.default.database_server.expects(:unguard).once
           User.shard(Shard.default).update_all(updated_at: nil)
         end
       ensure
-        Shard.default.database_server.unshackle!
+        Shard.default.database_server.unguard!
       end
     end
 
-    it "should deshackle for FOR UPDATE queries" do
+    it "should unguard for FOR UPDATE queries" do
       begin
-        Shard.default.database_server.shackle!
-        expect(Shard.default.database_server.shackles_environment).to eq :slave
+        Shard.default.database_server.guard!
+        expect(Shard.default.database_server.guard_rail_environment).to eq :secondary
 
         u = User.create!
-        Shard.default.database_server.expects(:unshackle).once.returns([])
+        Shard.default.database_server.expects(:unguard).once.returns([])
         User.lock.first
-        Shard.default.database_server.expects(:unshackle).once.returns([])
+        Shard.default.database_server.expects(:unguard).once.returns([])
         expect { u.lock! }.to raise_error(::ActiveRecord::RecordNotFound)
       ensure
-        Shard.default.database_server.unshackle!
+        Shard.default.database_server.unguard!
       end
     end
 
-    it "should not get confused about a single shackled server" do
+    it "should not get confused about a single guarded server" do
       begin
-        Shard.default.database_server.shackle!
+        Shard.default.database_server.guard!
         # have to unstub long enough to create this
         ::Rails.env.unstub(:test?)
-        ds = DatabaseServer.create(adapter: 'postgresql', host: 'notshackled', slave: { host: 'shackled' })
+        ds = DatabaseServer.create(adapter: 'postgresql', host: 'notguarded', secondary: { host: 'guarded' })
         ::Rails.env.stubs(:test?).returns(false)
         s = ds.shards.create!
         s.activate do
-          expect(User.connection_pool.spec.config[:host]).to eq 'notshackled'
+          expect(User.connection_pool.spec.config[:host]).to eq 'notguarded'
         end
       ensure
-        Shard.default.database_server.unshackle!
+        Shard.default.database_server.unguard!
       end
     end
 
     it "should track all activated environments" do
-      ::Shackles.activate(:slave) {}
-      ::Shackles.activate(:custom) {}
-      expected = Set.new([:master, :slave, :custom])
-      expect(::Shackles.activated_environments & expected).to eq expected
+      ::GuardRail.activate(:secondary) {}
+      ::GuardRail.activate(:custom) {}
+      expected = Set.new([:primary, :secondary, :custom])
+      expect(::GuardRail.activated_environments & expected).to eq expected
     end
 
     context "non-transactional" do
@@ -119,7 +119,7 @@ module Switchman
           expect(::ActiveRecord::Base.connection_pool).to be_connected
         end
 
-        ::Shackles.activate(:slave) do
+        ::GuardRail.activate(:secondary) do
           ::ActiveRecord::Base.connection
           expect(::ActiveRecord::Base.connection_pool).to be_connected
           @shard1.activate do
@@ -140,7 +140,7 @@ module Switchman
         @shard2.activate do
           expect(::ActiveRecord::Base.connection_pool).not_to be_connected
         end
-        ::Shackles.activate(:slave) do
+        ::GuardRail.activate(:secondary) do
           expect(::ActiveRecord::Base.connection_pool).not_to be_connected
           @shard1.activate do
             expect(::ActiveRecord::Base.connection_pool).not_to be_connected
@@ -167,7 +167,7 @@ module Switchman
           expect(actual_connection_count).not_to eq 0
         end
 
-        ::Shackles.activate(:slave) do
+        ::GuardRail.activate(:secondary) do
           ::ActiveRecord::Base.connection
           expect(actual_connection_count).not_to eq 0
           @shard1.activate do
@@ -188,7 +188,7 @@ module Switchman
         @shard2.activate do
           expect(actual_connection_count).to eq 0
         end
-        ::Shackles.activate(:slave) do
+        ::GuardRail.activate(:secondary) do
           expect(actual_connection_count).to eq 0
           @shard1.activate do
             expect(actual_connection_count).to eq 0
@@ -202,7 +202,7 @@ module Switchman
       it "should not establish connections when switching environments" do
         ::ActiveRecord::Base.clear_all_connections!
         expect(::ActiveRecord::Base.connection_pool).not_to be_connected
-        ::Shackles.activate(:slave) {}
+        ::GuardRail.activate(:secondary) {}
         expect(::ActiveRecord::Base.connection_pool).not_to be_connected
       end
     end

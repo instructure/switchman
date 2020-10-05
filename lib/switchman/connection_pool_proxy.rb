@@ -37,13 +37,13 @@ module Switchman
       Shard.current(@category)
     end
 
-    def active_shackles_environment
-      ::Rails.env.test? ? :master : active_shard.database_server.shackles_environment
+    def active_guard_rail_environment
+      ::Rails.env.test? ? :primary : active_shard.database_server.guard_rail_environment
     end
 
     def current_pool
       current_active_shard = active_shard
-      pool = self.default_pool if current_active_shard.database_server == Shard.default.database_server && active_shackles_environment == :master && (current_active_shard.default? || current_active_shard.database_server.shareable?)
+      pool = self.default_pool if current_active_shard.database_server == Shard.default.database_server && active_guard_rail_environment == :primary && (current_active_shard.default? || current_active_shard.database_server.shareable?)
       pool = @connection_pools[pool_key] ||= create_pool unless pool
       pool.shard = current_active_shard
       pool
@@ -60,8 +60,8 @@ module Switchman
         connection.instance_variable_set(:@schema_cache, @schema_cache) unless ::Rails.version >= '6'
         connection
       rescue ConnectionError
-        raise if active_shard.database_server == Shard.default.database_server && active_shackles_environment == :master
-        configs = active_shard.database_server.config(active_shackles_environment)
+        raise if active_shard.database_server == Shard.default.database_server && active_guard_rail_environment == :primary
+        configs = active_shard.database_server.config(active_guard_rail_environment)
         raise unless configs.is_a?(Array)
         configs.each_with_index do |config, idx|
           pool = create_pool(config.dup)
@@ -120,7 +120,7 @@ module Switchman
     end
 
     def pool_key
-      [active_shackles_environment,
+      [active_guard_rail_environment,
         active_shard.database_server.shareable? ? active_shard.database_server.pool_key : active_shard]
     end
 
@@ -128,7 +128,7 @@ module Switchman
       shard = active_shard
       unless config
         if shard != Shard.default
-          config = shard.database_server.config(active_shackles_environment)
+          config = shard.database_server.config(active_guard_rail_environment)
           config = config.first if config.is_a?(Array)
           config = config.dup
         else
@@ -138,10 +138,10 @@ module Switchman
           # different models could be using different configs on the default
           # shard, and database server wouldn't know about that
           config = default_pool.spec.instance_variable_get(:@config)
-          if config[active_shackles_environment].is_a?(Hash)
-            config = config.merge(config[active_shackles_environment])
-          elsif config[active_shackles_environment].is_a?(Array)
-            config = config.merge(config[active_shackles_environment].first)
+          if config[active_guard_rail_environment].is_a?(Hash)
+            config = config.merge(config[active_guard_rail_environment])
+          elsif config[active_guard_rail_environment].is_a?(Array)
+            config = config.merge(config[active_guard_rail_environment].first)
           else
             config = config.dup
           end

@@ -69,12 +69,12 @@ module Switchman
       @fake
     end
 
-    def config(environment = :master)
+    def config(environment = :primary)
       @configs[environment] ||= begin
         if @config[environment].is_a?(Array)
           @config[environment].map do |config|
             config = @config.merge((config || {}).symbolize_keys)
-            # make sure Shackles doesn't get any brilliant ideas about choosing the first possible server
+            # make sure GuardRail doesn't get any brilliant ideas about choosing the first possible server
             config.delete(environment)
             config
           end
@@ -86,33 +86,33 @@ module Switchman
       end
     end
 
-    def shackles_environment
-      @shackles_environment || ::Shackles.environment
+    def guard_rail_environment
+      @guard_rail_environment || ::GuardRail.environment
     end
 
     # locks this db to a specific environment, except for
     # when doing writes (then it falls back to the current
-    # value of Shackles.environment)
-    def shackle!(environment = :slave)
-      @shackles_environment = environment
+    # value of GuardRail.environment)
+    def guard!(environment = :secondary)
+      @guard_rail_environment = environment
     end
 
-    def unshackle!
-      @shackles_environment = nil
+    def unguard!
+      @guard_rail_environment = nil
     end
 
-    def unshackle
-      old_env = @shackles_environment
-      unshackle!
+    def unguard
+      old_env = @guard_rail_environment
+      unguard!
       yield
     ensure
-      shackle!(old_env)
+      guard!(old_env)
     end
 
     def shareable?
       @shareable_environment_key ||= []
-      environment = shackles_environment
-      explicit_user = ::Shackles.global_config[:username]
+      environment = guard_rail_environment
+      explicit_user = ::GuardRail.global_config[:username]
       return @shareable if @shareable_environment_key == [environment, explicit_user]
       @shareable_environment_key = [environment, explicit_user]
       if explicit_user
@@ -190,7 +190,7 @@ module Switchman
         begin
           self.class.creating_new_shard = true
           shard.activate(*Shard.categories) do
-            ::Shackles.activate(:deploy) do
+            ::GuardRail.activate(:deploy) do
               begin
                 if create_statement
                   if (::ActiveRecord::Base.connection.select_value("SELECT 1 FROM pg_namespace WHERE nspname=#{::ActiveRecord::Base.connection.quote(name)}"))

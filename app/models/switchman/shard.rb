@@ -354,8 +354,8 @@ module Switchman
           # prune the prior connection unless it happened to be the same
           if previous_shard && shard != previous_shard && !previous_shard.database_server.shareable?
             previous_shard.activate do
-              ::Shackles.activated_environments.each do |env|
-                ::Shackles.activate(env) do
+              ::GuardRail.activated_environments.each do |env|
+                ::GuardRail.activate(env) do
                   if ::ActiveRecord::Base.connected? && ::ActiveRecord::Base.connection.open_transactions == 0
                     ::ActiveRecord::Base.connection_pool.current_pool.disconnect!
                   end
@@ -662,7 +662,7 @@ module Switchman
         case adapter
           when 'mysql', 'mysql2'
             self.activate do
-              ::Shackles.activate(:deploy) do
+              ::GuardRail.activate(:deploy) do
                 drop_statement ||= "DROP DATABASE #{self.name}"
                 Array(drop_statement).each do |stmt|
                   ::ActiveRecord::Base.connection.execute(stmt)
@@ -671,7 +671,7 @@ module Switchman
             end
           when 'postgresql'
             self.activate do
-              ::Shackles.activate(:deploy) do
+              ::GuardRail.activate(:deploy) do
                 # Shut up, Postgres!
                 conn = ::ActiveRecord::Base.connection
                 old_proc = conn.raw_connection.set_notice_processor {}

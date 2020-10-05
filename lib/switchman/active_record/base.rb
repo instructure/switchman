@@ -35,16 +35,16 @@ module Switchman
           if self != ::ActiveRecord::Base && current_scope
             current_scope.activate do
               db = Shard.current(shard_category).database_server
-              if ::Shackles.environment != db.shackles_environment
-                db.unshackle { super }
+              if ::GuardRail.environment != db.guard_rail_environment
+                db.unguard { super }
               else
                 super
               end
             end
           else
             db = Shard.current(shard_category).database_server
-            if ::Shackles.environment != db.shackles_environment
-              db.unshackle { super }
+            if ::GuardRail.environment != db.guard_rail_environment
+              db.unguard { super }
             else
               super
             end
@@ -157,8 +157,8 @@ module Switchman
 
       def update_columns(*)
         db = Shard.current(self.class.shard_category).database_server
-        if ::Shackles.environment != db.shackles_environment
-          return db.unshackle { super }
+        if ::GuardRail.environment != db.guard_rail_environment
+          return db.unguard { super }
         else
           super
         end

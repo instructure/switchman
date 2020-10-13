@@ -128,9 +128,9 @@ module Switchman
         result
       end
 
-      def transaction(options={}, &block)
+      def transaction(**kwargs, &block)
         shard.activate(self.class.shard_category) do
-          self.class.transaction(options, &block)
+          self.class.transaction(**kwargs, &block)
         end
       end
 

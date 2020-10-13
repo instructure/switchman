@@ -40,7 +40,7 @@ module Switchman
       def default(reload_deprecated = false, reload: false, with_fallback: false)
         if reload_deprecated
           reload = reload_deprecated
-          ActiveSupport::Deprecation.warn("positional reload parameter to Switchman::Shard.default is deprecated; use `reload: true`")
+          ::ActiveSupport::Deprecation.warn("positional reload parameter to Switchman::Shard.default is deprecated; use `reload: true`")
         end
         if !@default || reload
           # Have to create a dummy object so that several key methods still work

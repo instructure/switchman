@@ -15,12 +15,12 @@ module Switchman
       end
 
       module RedisCacheStore
-        def clear(options = {})
+        def clear(namespace: nil, **)
           # RedisCacheStore tries to be smart and only clear the cache under your namespace, if you have one set
           # unfortunately, it uses the keys command, which is extraordinarily inefficient in a large redis instance
           # fortunately, we can assume we control the entire instance, because we set up the namespacing, so just
           # always unset it temporarily for clear calls
-          options[:namespace] = nil
+          namespace = nil
           super
         end
       end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Switchman
   module CallSuper
     def super_method_above(method_name, above_module)

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class AddBackDefaultStringLimitsSwitchman < ActiveRecord::Migration[4.2]
   def up
     add_string_limit_if_missing :switchman_shards, :name

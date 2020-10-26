@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateDefaultShard < ActiveRecord::Migration[4.2]
   def up
     unless Switchman::Shard.default.is_a?(Switchman::Shard)

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'switchman/database_server'
 
 module Switchman

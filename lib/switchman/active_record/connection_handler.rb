@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'switchman/connection_pool_proxy'
 
 module Switchman

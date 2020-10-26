@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Switchman
   class SchemaCache < ::ActiveRecord::ConnectionAdapters::SchemaCache
     delegate :connection, to: :pool

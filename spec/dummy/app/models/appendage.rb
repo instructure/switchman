@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Appendage < ActiveRecord::Base
   belongs_to :user, :required => false
   has_many :digits

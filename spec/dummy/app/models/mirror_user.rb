@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class MirrorUser < ActiveRecord::Base
   self.shard_category = :mirror_universe
 

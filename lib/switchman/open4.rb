@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'open4'
 
 # This fixes a bug with exception handling,

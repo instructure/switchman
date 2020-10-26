@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Digit < ActiveRecord::Base
   belongs_to :appendage, :required => false
   has_one :user, :through => :appendage

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Switchman
   class ShardedInstrumenter < ::SimpleDelegator
     def initialize(instrumenter, shard_host)

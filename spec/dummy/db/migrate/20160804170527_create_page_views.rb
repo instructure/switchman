@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreatePageViews < ActiveRecord::Migration[4.2]
   def change
     create_table :page_views, id: false do |t|

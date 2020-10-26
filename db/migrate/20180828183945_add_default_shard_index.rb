@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class AddDefaultShardIndex < ActiveRecord::Migration[4.2]
   def change
     Switchman::Shard.where(default: nil).update_all(default: false)

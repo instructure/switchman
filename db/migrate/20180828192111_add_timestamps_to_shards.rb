@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class AddTimestampsToShards < ActiveRecord::Migration[4.2]
   def change
     add_timestamps :switchman_shards, null: true

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'switchman/database_server'
 require 'switchman/default_shard'
 require 'switchman/environment'

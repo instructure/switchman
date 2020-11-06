@@ -29,6 +29,10 @@ module Switchman
         quote_table_name(name)
       end
 
+      def schema_migration
+        ::ActiveRecord::SchemaMigration
+      end
+
       protected
 
       def log(*args, &block)

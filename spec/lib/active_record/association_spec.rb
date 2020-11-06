@@ -489,7 +489,7 @@ module Switchman
           end
 
           it "should work without statement cache" do
-            ::ActiveRecord::Associations::Association.any_instance.stubs(:skip_statement_cache?).returns(true)
+            allow_any_instance_of(::ActiveRecord::Associations::Association).to receive(:skip_statement_cache?).and_return(true)
             f = Feature.create!(:owner => @user1)
             expect(f.reload.owner).to eq @user1
           end

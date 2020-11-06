@@ -9,7 +9,7 @@ module Switchman
 
       it "should update the connection's last_query_at on query" do
         conn = @shard1.activate{ User.connection }
-        Time.stubs(:now).returns(conn.last_query_at + 1.minute)
+        allow(Time).to receive(:now).and_return(conn.last_query_at + 1.minute)
         @shard1.activate{ User.create! }
         expect(conn.last_query_at).to eq Time.now
       end
@@ -23,7 +23,7 @@ module Switchman
 
         it "doesn't get confused if another env is active when creating the SchemaMigration class" do
           # this doesn't manifest itself in test normally
-          ::Rails.env.stubs(:test?).returns(false)
+          allow(::Rails.env).to receive(:test?).and_return(false)
           ::GuardRail.activate(:deploy) do
             # clean slate
             ::ActiveRecord::Base.clear_all_connections!

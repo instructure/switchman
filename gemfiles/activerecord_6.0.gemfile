@@ -2,7 +2,6 @@
 
 source "http://rubygems.org"
 
-gem "mocha", require: false
 gem "activerecord", ">= 6.0", "< 6.1"
 gem "railties", ">= 6.0", "< 6.1"
 

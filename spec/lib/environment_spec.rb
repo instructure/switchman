@@ -16,7 +16,7 @@ module Switchman
 
       it "return 0 if processor counter doesn't exist" do
         if Etc.respond_to?(:nprocessors)
-          Etc.stubs(:nprocessors).returns(0)
+          allow(Etc).to receive(:nprocessors).and_return(0)
           expect(Environment.cpu_count).to eq(0)
         else
           expect(Environment.cpu_count("nonsense_nproc")).to eq(0)

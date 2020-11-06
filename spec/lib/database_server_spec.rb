@@ -81,11 +81,12 @@ module Switchman
       class MyException < Exception; end
       it "should not use a temp name" do
         db = DatabaseServer.new(nil, adapter: 'postgresql')
-        Shard.expects(:create!).with { |hash|
-          hash[:name] == "new_shard" &&
-            hash[:database_server] == db &&
-            !hash[:id].nil?
-        }.raises(MyException.new)
+        expect(Shard).to receive(:create!) do |hash|
+          expect(hash[:name]).to eq "new_shard"
+          expect(hash[:database_server]).to eq db
+          expect(hash[:id]).not_to be_nil
+         raise MyException
+        end
         expect { db.create_new_shard(name: "new_shard") }.to raise_error(MyException)
       end
     end
@@ -212,7 +213,7 @@ module Switchman
     describe "#primary_shard" do
       it "works even without a shards table" do
         expect(Shard.default).to be_a(DefaultShard)
-        Shard.default.database_server.expects(:shards).never
+        expect(Shard.default.database_server).to receive(:shards).never
         expect(Shard.default.database_server.primary_shard).to eq Shard.default
       end
     end

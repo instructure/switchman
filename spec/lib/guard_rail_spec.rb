@@ -8,7 +8,7 @@ module Switchman
 
     before do
       #!!! trick GuardRail in to actually switching envs
-      ::Rails.env.stubs(:test?).returns(false)
+      allow(::Rails.env).to receive(:test?).and_return(false)
 
       # be sure to test bugs where the current env isn't yet included in this hash
       ::GuardRail.connection_handlers.clear
@@ -41,10 +41,10 @@ module Switchman
 
     it "should connect to the first working secondary" do
       # have to unstub long enough to create this
-      ::Rails.env.unstub(:test?)
+      allow(::Rails.env).to receive(:test?).and_call_original
       ds = DatabaseServer.create(Shard.default.database_server.config.merge(
         :secondary => [{ host: 'some.postgres.server' }, nil]))
-      ::Rails.env.stubs(:test?).returns(false)
+      allow(::Rails.env).to receive(:test?).and_return(false)
       ds.guard!
       s = ds.shards.create!
       s.activate do
@@ -60,7 +60,7 @@ module Switchman
           expect(Shard.default.database_server.guard_rail_environment).to eq :secondary
           expect(::GuardRail.environment).to eq :primary
 
-          Shard.default.database_server.expects(:unguard).once
+          expect(Shard.default.database_server).to receive(:unguard).once
           User.shard(Shard.default).update_all(updated_at: nil)
         end
       ensure
@@ -74,9 +74,9 @@ module Switchman
         expect(Shard.default.database_server.guard_rail_environment).to eq :secondary
 
         u = User.create!
-        Shard.default.database_server.expects(:unguard).once.returns([])
+        expect(Shard.default.database_server).to receive(:unguard).once.and_return([])
         User.lock.first
-        Shard.default.database_server.expects(:unguard).once.returns([])
+        expect(Shard.default.database_server).to receive(:unguard).once.and_return([])
         expect { u.lock! }.to raise_error(::ActiveRecord::RecordNotFound)
       ensure
         Shard.default.database_server.unguard!
@@ -87,9 +87,9 @@ module Switchman
       begin
         Shard.default.database_server.guard!
         # have to unstub long enough to create this
-        ::Rails.env.unstub(:test?)
+        allow(::Rails.env).to receive(:test?).and_call_original
         ds = DatabaseServer.create(adapter: 'postgresql', host: 'notguarded', secondary: { host: 'guarded' })
-        ::Rails.env.stubs(:test?).returns(false)
+        allow(::Rails.env).to receive(:test?).and_return(false)
         s = ds.shards.create!
         s.activate do
           expect(User.connection_pool.spec.config[:host]).to eq 'notguarded'

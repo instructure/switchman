@@ -11,13 +11,12 @@ module ActiveRecord
 
     describe '#quote_table_name' do
       before do
-        shard = mock()
-        shard.stubs(:name).returns('bob')
-        ::ActiveRecord::Base.connection.stubs(:shard).returns(shard)
+        shard = double(name: 'bob')
+        allow(::ActiveRecord::Base.connection).to receive(:shard).and_return(shard)
       end
 
       after do
-        ::ActiveRecord::Base.connection.unstub(:shard)
+        allow(::ActiveRecord::Base.connection).to receive(:shard).and_call_original
       end
 
       it 'should add schema if not included' do

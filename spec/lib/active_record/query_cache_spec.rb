@@ -42,12 +42,12 @@ module Switchman
           User.create!
         end
         expect(@shard1.activate { User.all.to_a }).not_to eq @shard3.activate { User.all.to_a }
-        @shard1.activate { User.connection.expects(:select).never }
+        @shard1.activate { expect(User.connection).to receive(:select).never }
         expect(@shard1.activate { User.all.to_a }).not_to eq @shard3.activate { User.all.to_a }
       end
 
       it "doesn't break logging with binds" do
-        ::Rails.logger.expects(:error).never
+        expect(::Rails.logger).to receive(:error).never
         User.connection.cache do
           User.where(id: 1).take
           User.where(id: 1).take

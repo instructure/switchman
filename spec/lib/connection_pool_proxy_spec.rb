@@ -8,18 +8,18 @@ module Switchman
 
     it "should forward clear_idle_connections! to each of its pools" do
       proxy = User.connection_pool
-      @shard1.activate{ proxy.current_pool.expects(:clear_idle_connections!).once }
-      @shard2.activate{ proxy.current_pool.expects(:clear_idle_connections!).once }
+      @shard1.activate{ expect(proxy.current_pool).to receive(:clear_idle_connections!).once }
+      @shard2.activate{ expect(proxy.current_pool).to receive(:clear_idle_connections!).once }
       proxy.clear_idle_connections!(Time.now)
     end
 
     it "should handle an array of secondaries when creating a pool" do
       spec = Object.new
       spec.instance_variable_set(:@config, adapter: Shard.connection_pool.spec.config[:adapter], database: 'primary', secondary: [ { database: 'secondary1' }, { database: 'secondary2' }])
-      default_pool = stub(spec: spec, get_schema_cache: nil, set_schema_cache: nil)
+      default_pool = double(spec: spec, get_schema_cache: nil, set_schema_cache: nil)
       cache = {}
       proxy = ConnectionPoolProxy.new(:unsharded, default_pool, cache)
-      proxy.stubs(:active_guard_rail_environment).returns(:secondary)
+      allow(proxy).to receive(:active_guard_rail_environment).and_return(:secondary)
       new_pool = proxy.send(:create_pool)
       expect(new_pool.spec.config[:database]).to eq 'secondary1'
     end

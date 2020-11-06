@@ -11,7 +11,7 @@ module Switchman
         describe "cache_store" do
           before do
             DatabaseServer.all.each do |ds|
-              ds.instance_variable_set(:@cache_store, stub("cache_store #{ds.id}"))
+              ds.instance_variable_set(:@cache_store, double("cache_store #{ds.id}"))
             end
           end
 

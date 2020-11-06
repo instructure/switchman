@@ -37,7 +37,7 @@ module Switchman
 
         it "should disconnect idle connections" do
           @pool.checkin(@conn)
-          @conn.expects(:disconnect!).once
+          expect(@conn).to receive(:disconnect!).once
           @pool.clear_idle_connections!(@conn.last_query_at + 1)
         end
 
@@ -50,13 +50,13 @@ module Switchman
         end
 
         it "should not affect idle but checked out connections" do
-          @conn.expects(:disconnect!).never
+          expect(@conn).to receive(:disconnect!).never
           @pool.clear_idle_connections!(@conn.last_query_at + 1)
         end
 
         it "should not affect checked in but recently active connections" do
           @pool.checkin(@conn)
-          @conn.expects(:disconnect!).never
+          expect(@conn).to receive(:disconnect!).never
           @pool.clear_idle_connections!(@conn.last_query_at - 1)
         end
       end
@@ -76,13 +76,13 @@ module Switchman
 
         it "should clear idle connections if idle timeout is configured" do
           @pool.spec.config[:idle_timeout] = 1.minute
-          @pool.expects(:clear_idle_connections!).at_least_once
+          expect(@pool).to receive(:clear_idle_connections!).at_least(:once)
           @pool.release_connection
         end
 
         it "should still work if idle timeout is not configured" do
           @pool.spec.config[:idle_timeout] = nil
-          @pool.expects(:clear_idle_connections!).never
+          expect(@pool).to receive(:clear_idle_connections!).never
           expect { @pool.release_connection }.not_to raise_exception
         end
       end

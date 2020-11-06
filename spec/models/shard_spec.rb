@@ -134,7 +134,7 @@ module Switchman
         attrs = Shard.default.attributes
         # add an extra attribute
         attrs[:dummy_column] = 1
-        shard_to_cache = mock("shard", attributes: attrs)
+        shard_to_cache = double("shard", attributes: attrs)
         cached_default_shard = Shard.send(:find_cached, "cache_key") { shard_to_cache }
         # logically equivalent, but a different instance
         expect(cached_default_shard).to eq Shard.default
@@ -169,13 +169,13 @@ module Switchman
 
       it "orders explicit scopes without an explicit order" do
         scope = Shard.where(id: Shard.default)
-        scope.expects(:order).once.returns(scope)
+        expect(scope).to receive(:order).once.and_return(scope)
         Shard.with_each_shard(scope) {}
       end
 
       it "does not order explicit scopes that already have an order" do
         scope = Shard.order(:id)
-        scope.expects(:order).never
+        expect(scope).to receive(:order).never
         Shard.with_each_shard(scope) {}
       end
 
@@ -187,7 +187,7 @@ module Switchman
         self.use_transactional_tests = false
 
         it "should disconnect unshareable connections when switching among different database servers" do
-          DatabaseServer.any_instance.stubs(:shareable?).returns(false)
+          allow_any_instance_of(DatabaseServer).to receive(:shareable?).and_return(false)
           User.connection
           expect(User.connected?).to eq true
           Shard.with_each_shard([Shard.default, @shard2]) {}
@@ -203,7 +203,7 @@ module Switchman
         end
 
         it "should disconnect unshareable connections from other environments" do
-          DatabaseServer.any_instance.stubs(:shareable?).returns(false)
+          allow_any_instance_of(DatabaseServer).to receive(:shareable?).and_return(false)
           ::GuardRail.activate(:secondary) do
             Shard.with_each_shard([Shard.default, @shard2]) do
               ::GuardRail.activate(:primary) do
@@ -387,22 +387,24 @@ module Switchman
         db = DatabaseServer.create(adapter: 'postgresql', database: 'notme')
         shard = Shard.new(database_server: db)
         shard.database_server = db
-        shard.stubs(:new_record?).returns(false)
-        connection = mock()
-        connection.stubs(:open_transactions).returns(0)
-        connection.expects(:current_schemas).returns(['canvas', 'public']).once
-        connection.stubs(:shard).returns(Shard.default)
-        connection.expects(:shard=).with(shard)
-        connection.stubs(:adapter_name).returns('PostgreSQL')
-        connection.stubs(:run_callbacks).returns(nil)
-        connection.stubs(:_run_checkin_callbacks).returns(nil)
-        connection.stubs(:owner).returns(Thread.current)
-        connection.stubs(:lock).returns(Mutex.new)
-        ::ActiveRecord::ConnectionAdapters::ConnectionPool.any_instance.stubs(:checkout).returns(connection)
+        allow(shard). to receive(:new_record?).and_return(false)
+        connection = double(
+          open_transactions: 0,
+          shard: Shard.default,
+          adapter_name: 'PostgreSQL',
+          run_callbacks: nil,
+          _run_checkin_callbacks: nil,
+          owner: Thread.current,
+          lock: Mutex.new
+        )
+        expect(connection).to receive(:current_schemas).once.and_return(['canvas', 'public'])
+        expect(connection).to receive(:shard=).with(shard)
+        allow_any_instance_of(::ActiveRecord::ConnectionAdapters::ConnectionPool).to receive(:checkout).and_return(connection)
         begin
           expect(shard.name).to eq 'canvas'
         ensure
-          shard.activate { ::ActiveRecord::Base.connection_pool.current_pool.disconnect! }
+          allow_any_instance_of(::ActiveRecord::ConnectionAdapters::ConnectionPool).to receive(:checkout).and_call_original
+          shard.activate { ::ActiveRecord::Base.clear_active_connections! }
         end
       end
     end
@@ -419,7 +421,7 @@ module Switchman
 
       it "works for non-integeral primary key AR objects" do
         user = @shard1.activate { User.new }
-        user.stubs(:id).returns('abc')
+        allow(user).to receive(:id).and_return('abc')
         expect(user.id).to eq 'abc'
         expect(user.shard).to eq @shard1
         expect(Shard.shard_for(user)).to eq @shard1
@@ -598,7 +600,7 @@ module Switchman
     describe ".default" do
 
       after(:each) do
-        Shard.unstub(:where)
+        allow(Shard).to receive(:where).and_call_original
         Shard.send(:active_shards).clear
         Shard.default(reload: true)
       end
@@ -630,7 +632,7 @@ module Switchman
           expect(non_default).to_not be(nil)
           expect(actual_default).to_not be(nil)
           Shard.instance_variable_set(:@default, non_default)
-          Shard.stubs(:where).with(default: true).returns([actual_default])
+          allow(Shard).to receive(:where).with(default: true).and_return([actual_default])
           new_default = Shard.default(reload: true, with_fallback: true)
           expect(new_default).to eq(actual_default)
         end
@@ -640,7 +642,7 @@ module Switchman
           actual_default = Shard.where(default:true).first
           Shard.instance_variable_set(:@default, non_default)
           Switchman.cache.clear
-          Shard.stubs(:where).with(default: true).raises(PG::UnableToSend)
+          allow(Shard).to receive(:where).with(default: true).and_raise(PG::UnableToSend)
           new_default = Shard.default(reload: true, with_fallback: false)
           expect(new_default).to eq(DefaultShard.instance)
         end
@@ -649,7 +651,7 @@ module Switchman
           non_default = Shard.where(default: false).first
           Shard.instance_variable_set(:@default, non_default)
           Switchman.cache.clear
-          Shard.stubs(:where).with(default: true).raises(PG::UnableToSend)
+          allow(Shard).to receive(:where).with(default: true).and_raise(PG::UnableToSend)
           new_default = Shard.default(reload: true, with_fallback: true)
           expect(new_default).to eq(non_default)
         end
@@ -671,7 +673,7 @@ module Switchman
     describe ".determine_max_procs" do
       context "with no info on cpu_count" do
         before(:each) do
-          ::Switchman::Environment.stubs(:cpu_count).returns(nil)
+          allow(::Switchman::Environment).to receive(:cpu_count).and_return(nil)
         end
 
         it "returns the option if valid" do
@@ -701,7 +703,7 @@ module Switchman
 
       context "with a cpu_count" do
         before(:each) do
-          ::Switchman::Environment.stubs(:cpu_count).returns(8)
+          allow(::Switchman::Environment).to receive(:cpu_count).and_return(8)
         end
 
         it "returns the option if valid" do
@@ -729,7 +731,7 @@ module Switchman
         end
 
         it "is nil if the cpu count is 0" do
-          ::Switchman::Environment.stubs(:cpu_count).returns(0)
+          allow(::Switchman::Environment).to receive(:cpu_count).and_return(0)
           expect(Shard.determine_max_procs(nil)).to eq(nil)
         end
       end

@@ -25,7 +25,8 @@ Gem::Specification.new do |s|
   s.add_development_dependency "byebug"
   s.add_development_dependency "pry"
   s.add_development_dependency "pg", "~> 0"
-  s.add_development_dependency "rspec-rails", "3.5.2"
+  s.add_development_dependency "rspec-rails", "~> 3.5"
+  s.add_development_dependency "rspec-mocks", "~> 3.5"
   s.add_development_dependency "simplecov", "~> 0.15"
   s.add_development_dependency "rake", "~> 12.0"
 end

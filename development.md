@@ -32,6 +32,14 @@ tests so changes are easier to test, use the override provided:
 cp docker-compose.override.example.yml docker-compose.override.yml
 ```
 
+Also note that you can run specs against specific versions of ActiveRecord by
+setting `BUNDLE_GEMFILE`, e.g.:
+
+```bash
+docker-compose run --rm app /bin/bash -lc \
+  "BUNDLE_GEMFILE=gemfiles/activerecord_5.2.3.gemfile rvm-exec 2.5 bundle exec rspec"
+```
+
 ## Linux Tips
 
 When running on Linux, everything should work out of the box, but if you enable

@@ -77,7 +77,7 @@ module Switchman
       module Association
         if ::Rails.version >= "5.2" and ::Rails.version < "6.0"
           def run(preloader)
-            associated_records_by_owner(preloader).each do |owner, records|
+            associated_records_by_owner.each do |owner, records|
               associate_records_to_owner(owner, records)
             end
           end
@@ -104,6 +104,7 @@ module Switchman
         end
 
         def associated_records_by_owner(preloader = nil)
+          return @associated_records_by_owner if defined?(@associated_records_by_owner)
           owners_map = owners_by_key
 
           if klass.nil? || owners_map.empty?
@@ -151,10 +152,13 @@ module Switchman
             records.flatten!
           end
 
+          # This ivar may look unused, but remember this is an extension of
+          # rails' AR::Associations::Preloader::Association class. It gets used
+          # by that class (and its subclasses).
           @preloaded_records = records
 
           # Each record may have multiple owners, and vice-versa
-          records_by_owner = owners.each_with_object({}) do |owner,h|
+          @associated_records_by_owner = owners.each_with_object({}) do |owner,h|
             h[owner] = []
           end
           records.each do |record|
@@ -163,10 +167,10 @@ module Switchman
 
             owners_map[owner_key.to_s].each do |owner|
               owner.association(reflection.name).set_inverse_instance(record)
-              records_by_owner[owner] << record
+              @associated_records_by_owner[owner] << record
             end
           end
-          records_by_owner
+          @associated_records_by_owner
         end
 
         def owners_by_key

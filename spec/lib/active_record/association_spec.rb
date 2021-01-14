@@ -359,6 +359,57 @@ module Switchman
         end
 
         describe "preloading" do
+          it "should only run the preload query once per owner shard" do
+            user3 = @shard2.activate { User.create! }
+            a1 = Appendage.create!(user: @user1)
+            a2 = Appendage.create!(user: @user2)
+            a3 = Appendage.create!(user: user3)
+            a4 = @shard2.activate { Appendage.create!(user: user3) }
+
+            query_count = 0
+            increment_query_count = lambda { |*args| query_count += 1 }
+
+            appendages = Appendage.where(id: [a1, a2, a3, a4])
+            # load this relation outside of the SQL subscription so as not to
+            # increment the query count.
+            appendages.to_a
+            # we use `to_a` rather than `load` because the latter currently has
+            # a bug that causes it to lose all records not belonging to the
+            # current shard.
+
+            expected_query_count = 2 # one per shard
+
+            ::ActiveSupport::Notifications.subscribed(increment_query_count, 'sql.active_record') do
+              expect do
+                ::ActiveRecord::Associations::Preloader.new.preload(appendages, :user)
+
+                # pull the users off the appendages in this subscribed block to
+                # show not only that they are correct, but that they are
+                # preloaded (and therefore not issuing more queries)
+                expect(appendages.first.user).to eq(@user1)
+                expect(appendages.second.user).to eq(@user2)
+                expect(appendages.third.user).to eq(user3)
+                expect(appendages.fourth.user).to eq(user3)
+              end.to change{query_count}.by(expected_query_count)
+            end
+          end
+
+          it "invalidates the preloaded associations when a record is reloaded" do
+            # this doesn't test unique switchman functionality, per se. the
+            # intention is to ensure the memoization in
+            # Association#associated_records_by_owner doesn't hold on to
+            # associated records through a reload. (the reason it does not is
+            # because the underlying Preloader instance itself gets detached,
+            # so the next call to the association queries the db.)
+            u = User.create!(name: 'Ted')
+            a_id = Appendage.create!(user: u).id
+            a = Appendage.preload(:user).find(a_id)
+            u.update!(name: 'Theodore')
+            expect(a.user.name).to eq('Ted')
+            a.reload
+            expect(a.user.name).to eq('Theodore')
+          end
+
           it "should preload belongs_to associations across shards" do
             a1 = Appendage.create!(:user => @user1)
             a2 = Appendage.create!(:user => @user2)

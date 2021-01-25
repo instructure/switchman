@@ -78,6 +78,32 @@ module Switchman
           expect(where_value(predicates(relation).first.right)).to eq @user2.local_id
         end
 
+        describe "with OR conditions" do
+          it "handles applying shard and transposing ID for an or method" do
+            inner_relation = User.where(:id => @user2)
+            r1 = inner_relation.shard(@shard1)
+            r2 = inner_relation.shard(Shard.current)
+            or_relation = User.where("1=2").or(inner_relation)
+            sharded_relation = or_relation.shard(@shard1)
+            expect(sharded_relation.shard_value).to eq @shard1
+            expect(sharded_relation.to_sql).to include("\"users\".\"id\" = #{@user2.local_id}")
+          end
+
+          it "can transpose for non-local records" do
+            relation = User.where("1=2").or(User.where(:id => @user1)).shard(@shard1)
+            expect(relation.shard_value).to eq @shard1
+            expect(relation.to_sql).to include("\"users\".\"id\" = #{@user1.global_id}")
+          end
+
+          it "transposes correctly when default shard not active" do
+            @shard1.activate do
+              relation = User.where("1=2").or(User.where(:id => @user1)).shard(Shard.default)
+            expect(relation.shard_value).to eq Shard.default
+            expect(relation.to_sql).to include("\"users\".\"id\" = #{@user1.local_id}")
+            end
+          end
+        end
+
         it "should infer the shard from multiple arguments" do
           relation = User.where(:id => [@user2, @user2])
           # execute on @shard1, with id local to that shard

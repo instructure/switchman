@@ -42,14 +42,8 @@ module Switchman
       def database_servers
         unless @database_servers
           @database_servers = {}.with_indifferent_access
-          if ::Rails.version >= '6.0'
-            ::ActiveRecord::Base.configurations.configurations.each do |config|
-              @database_servers[config.env_name] = DatabaseServer.new(config.env_name, config.config)
-            end
-          else
-            ::ActiveRecord::Base.configurations.each do |(id, config)|
-              @database_servers[id] = DatabaseServer.new(id, config)
-            end
+          ::ActiveRecord::Base.configurations.configurations.each do |config|
+            @database_servers[config.env_name] = DatabaseServer.new(config.env_name, config.config)
           end
         end
         @database_servers
@@ -216,11 +210,10 @@ module Switchman
                 unless create_schema == false
                   reset_column_information
 
-                  migrate = ::Rails.version >= '5.2' ?
-                    -> { ::ActiveRecord::Base.connection.migration_context.migrate } :
-                    -> { ::ActiveRecord::Migrator.migrate(::ActiveRecord::Migrator.migrations_paths) }
                   if ::ActiveRecord::Base.connection.supports_ddl_transactions?
-                    ::ActiveRecord::Base.connection.transaction(requires_new: true, &migrate)
+                    ::ActiveRecord::Base.connection.transaction(requires_new: true) do
+                      ::ActiveRecord::Base.connection.migration_context.migrate
+                    end
                   else
                     migrate.call
                   end

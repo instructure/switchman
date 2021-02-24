@@ -42,16 +42,12 @@ module Switchman
           ConnectionHandler.make_sharing_automagic(config)
           ConnectionHandler.make_sharing_automagic(Shard.default.database_server.config)
 
-          if ::Rails.version < '6.0'
-            ::ActiveRecord::Base.configurations[::Rails.env] = config.stringify_keys
-          else
-            # Adopted from the deprecated code that currently lives in rails proper
-            remaining_configs = ::ActiveRecord::Base.configurations.configurations.reject { |db_config| db_config.env_name == ::Rails.env }
-            new_config = ::ActiveRecord::DatabaseConfigurations.new(::Rails.env => config.stringify_keys).configurations
-            new_configs = remaining_configs + new_config
+          # Adopted from the deprecated code that currently lives in rails proper
+          remaining_configs = ::ActiveRecord::Base.configurations.configurations.reject { |db_config| db_config.env_name == ::Rails.env }
+          new_config = ::ActiveRecord::DatabaseConfigurations.new(::Rails.env => config.stringify_keys).configurations
+          new_configs = remaining_configs + new_config
 
-            ::ActiveRecord::Base.configurations = new_configs
-          end
+          ::ActiveRecord::Base.configurations = new_configs
         else
           # this is probably wrong now
           Shard.default.remove_instance_variable(:@name) if Shard.default.instance_variable_defined?(:@name)

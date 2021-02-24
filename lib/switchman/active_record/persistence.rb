@@ -8,10 +8,8 @@ module Switchman
         shard.activate(self.class.shard_category) { super }
       end
 
-      if ::Rails.version >= '5.2'
-        def update_columns(*)
-          shard.activate(self.class.shard_category) { super }
-        end
+      def update_columns(*)
+        shard.activate(self.class.shard_category) { super }
       end
     end
   end

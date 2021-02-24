@@ -448,7 +448,7 @@ module Switchman
       def integral_id_for(any_id)
         if any_id.is_a?(::Arel::Nodes::Casted)
           any_id = any_id.val
-        elsif any_id.is_a?(::Arel::Nodes::BindParam) && ::Rails.version >= "5.2"
+        elsif any_id.is_a?(::Arel::Nodes::BindParam)
           any_id = any_id.value.value_before_type_cast
         end
 

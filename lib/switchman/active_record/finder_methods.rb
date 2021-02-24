@@ -47,9 +47,7 @@ module Switchman
         conditions = conditions.id if ::ActiveRecord::Base === conditions
         return false if !conditions
 
-        relation = ::Rails.version >= "5.2" ?
-          apply_join_dependency(eager_loading: false) :
-          apply_join_dependency(self, construct_join_dependency)
+        relation = apply_join_dependency(eager_loading: false)
         return false if ::ActiveRecord::NullRelation === relation
 
         relation = relation.except(:select, :order).select("1 AS one").limit(1)
@@ -62,9 +60,7 @@ module Switchman
         end
 
         relation.activate do |shard_rel|
-          return true if ::Rails.version >= "5.2" ?
-            connection.select_value(shard_rel.arel, "#{name} Exists") :
-            connection.select_value(shard_rel, "#{name} Exists", shard_rel.bound_attributes)
+          return true if connection.select_value(shard_rel.arel, "#{name} Exists")
         end
         false
       end

@@ -72,17 +72,13 @@ module Switchman
                 shard = Shard.current
                 puts "#{shard.id}: #{shard.description}"
                 ::ActiveRecord::Base.connection_pool.spec.config[:shard_name] = Shard.current.name
-                if ::Rails.version < '6.0'
-                  ::ActiveRecord::Base.configurations[::Rails.env] = ::ActiveRecord::Base.connection_pool.spec.config.stringify_keys
-                else
-                  # Adopted from the deprecated code that currently lives in rails proper
-                  remaining_configs = ::ActiveRecord::Base.configurations.configurations.reject { |db_config| db_config.env_name == ::Rails.env }
-                  new_config = ::ActiveRecord::DatabaseConfigurations.new(::Rails.env =>
-                    ::ActiveRecord::Base.connection_pool.spec.config.stringify_keys).configurations
-                  new_configs = remaining_configs + new_config
-      
-                  ::ActiveRecord::Base.configurations = new_configs
-                end
+                # Adopted from the deprecated code that currently lives in rails proper
+                remaining_configs = ::ActiveRecord::Base.configurations.configurations.reject { |db_config| db_config.env_name == ::Rails.env }
+                new_config = ::ActiveRecord::DatabaseConfigurations.new(::Rails.env =>
+                  ::ActiveRecord::Base.connection_pool.spec.config.stringify_keys).configurations
+                new_configs = remaining_configs + new_config
+    
+                ::ActiveRecord::Base.configurations = new_configs
                 shard.database_server.unguard do
                   old_actions.each { |action| action.call(*task_args) }
                 end

@@ -75,32 +75,22 @@ module Switchman
 
     module Preloader
       module Association
-        if ::Rails.version >= "5.2" and ::Rails.version < "6.0"
-          def run(preloader)
-            associated_records_by_owner.each do |owner, records|
-              associate_records_to_owner(owner, records)
-            end
+        # Copypasta from Activerecord but with added global_id_for goodness.
+        def records_for(ids)
+          scope.where(association_key_name => ids).load do |record|
+            global_key = if record.class.shard_category == :unsharded
+                            convert_key(record[association_key_name])
+                          else
+                            Shard.global_id_for(record[association_key_name], record.shard)
+                          end
+            owner = owners_by_key[global_key.to_s].first
+            association = owner.association(reflection.name)
+            association.set_inverse_instance(record)
           end
         end
 
-        if ::Rails.version >= "6.0"
-          # Copypasta from Activerecord but with added global_id_for goodness.
-          def records_for(ids)
-            scope.where(association_key_name => ids).load do |record|
-              global_key = if record.class.shard_category == :unsharded
-                             convert_key(record[association_key_name])
-                           else
-                             Shard.global_id_for(record[association_key_name], record.shard)
-                           end
-              owner = owners_by_key[global_key.to_s].first
-              association = owner.association(reflection.name)
-              association.set_inverse_instance(record)
-            end
-          end
-
-          def records_by_owner
-            associated_records_by_owner
-          end
+        def records_by_owner
+          associated_records_by_owner
         end
 
         def associated_records_by_owner(preloader = nil)

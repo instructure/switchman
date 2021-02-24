@@ -20,11 +20,11 @@ your custom options like so:
 
 ```bash
 docker-compose run --rm app /bin/bash -lc \
-  "rvm-exec 2.5 bundle exec rake db:drop db:create db:migrate"
+  "rvm-exec 2.7 bundle exec rake db:drop db:create db:migrate"
 docker-compose run --rm app /bin/bash -lc \
-  "rvm-exec 2.5 bundle exec rspec spec/lib/rails_spec.rb"
+  "rvm-exec 2.7 bundle exec rspec spec/lib/rails_spec.rb"
 docker-compose run --rm app /bin/bash -lc \
-  "rvm-exec 2.5 bundle exec rspec spec/lib/active_record/query_methods_spec.rb"
+  "rvm-exec 2.7 bundle exec rspec spec/lib/active_record/query_methods_spec.rb"
 ```
 
 Note that these will only run against one version of active record^. You can use
@@ -42,9 +42,9 @@ Or you can boot a bash terminal one time interactively, and then run what you wa
 
 ```bash
 docker-compose run --rm app /bin/bash
-rvm-exec 2.5 bundle exec rake db:drop db:create db:migrate
-rvm-exec 2.5 bundle exec appraisal activerecord-6.0 rspec
-rvm-exec 2.5 bundle exec appraisal rspec
+rvm-exec 2.7 bundle exec rake db:drop db:create db:migrate
+rvm-exec 2.7 bundle exec appraisal activerecord-6.0 rspec
+rvm-exec 2.7 bundle exec appraisal rspec
 ```
 
 If you'd like to mount your git checkout within the docker container running
@@ -60,22 +60,6 @@ setting `BUNDLE_GEMFILE`, e.g.:
 ```bash
 docker-compose run --rm app /bin/bash -lc \
   "BUNDLE_GEMFILE=gemfiles/activerecord_5.2.3.gemfile rvm-exec 2.5 bundle exec rspec"
-```
-
-## Linux Tips
-
-When running on Linux, everything should work out of the box, but if you enable
-the docker-compose override example config (to mount your git checkout into the
-container), you will want to pre-create all lock files, and give world write
-permissions so the containers can update them, since they're not located in any
-regular docker volumes:
-
-```bash
-touch Gemfile.lock \
-      gemfiles/activerecord_5.1.gemfile.lock \
-      gemfiles/activerecord_5.2.gemfile.lock \
-      gemfiles/activerecord_6.0.gemfile.lock
-chmod a+w Gemfile.lock gemfiles/*.lock
 ```
 
 ## Code Coverage

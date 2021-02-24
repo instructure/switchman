@@ -2,7 +2,6 @@
 /.byebug_history
 /coverage/
 /docker-compose.override.yml
-/gemfiles/*.gemfile.lock
 /gemfiles/.bundle/
 /log/
 /pkg/
@@ -12,4 +11,3 @@
 /spec/dummy/tmp/
 /spec/dummy/.sass-cache
 /switchman-*.gem
-/Gemfile.lock

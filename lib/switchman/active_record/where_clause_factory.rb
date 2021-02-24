@@ -21,7 +21,7 @@ module Switchman
           super
         when Hash, ::Arel::Nodes::Node
           where_clause = super
-          binds = ::Rails.version >= "5.2" ? nil : where_clause.binds
+          binds = nil
           predicates = where_clause.send(:predicates)
           @scope.send(:infer_shards_from_primary_key, predicates, binds) if @scope.shard_source_value == :implicit && @scope.shard_value.is_a?(Shard)
           predicates, _new_binds = @scope.transpose_predicates(predicates, nil, @scope.primary_shard, false, binds: binds)

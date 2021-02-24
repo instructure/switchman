@@ -246,7 +246,7 @@ module Switchman
       end
 
       it 'properly re-raises an autoloaded exception' do
-        skip 'Rails 6 (zeitwerk) does not support dynamically changing the autoload path' if ::Rails.version >= '6'
+        skip 'Rails 6 (zeitwerk) does not support dynamically changing the autoload path'
 
         expect(defined?(TestException)).to eq nil
         ::ActiveSupport::Dependencies.autoload_paths << File.expand_path(File.join(__FILE__, "../.."))

@@ -35,14 +35,14 @@ module Switchman
           end
           key = [key, shard(owner).id].flatten
           @association_scope_cache[key] ||= @scope_lock.synchronize {
-            @association_scope_cache[key] ||= (::Rails.version >= "5.2" ? ::ActiveRecord::StatementCache.create(conn, &block) : block.call)
+            @association_scope_cache[key] ||=::ActiveRecord::StatementCache.create(conn, &block)
           }
         end
       end
 
       module AssociationReflection
         def join_id_for(owner)
-          owner.send(::Rails.version >= "5.2" ? join_foreign_key : active_record_primary_key) # use sharded id values in association binds
+          owner.send(join_foreign_key) # use sharded id values in association binds
         end
       end
     end

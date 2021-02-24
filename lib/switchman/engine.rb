@@ -124,7 +124,7 @@ module Switchman
         ::ActiveRecord::LogSubscriber.prepend(ActiveRecord::LogSubscriber)
         ::ActiveRecord::Migration.prepend(ActiveRecord::Migration)
         ::ActiveRecord::Migration::Compatibility::V5_0.prepend(ActiveRecord::Migration::Compatibility::V5_0)
-        ::ActiveRecord::MigrationContext.prepend(ActiveRecord::MigrationContext) if ::Rails.version >= '5.2'
+        ::ActiveRecord::MigrationContext.prepend(ActiveRecord::MigrationContext)
         ::ActiveRecord::Migrator.prepend(ActiveRecord::Migrator)
 
         ::ActiveRecord::Reflection::AbstractReflection.include(ActiveRecord::Reflection::AbstractReflection)

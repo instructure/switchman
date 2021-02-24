@@ -17,9 +17,9 @@ module Switchman
                   binds: binds,
                   name: name,
                   connection_id: object_id,
-                  cached: true
+                  cached: true,
+                  type_casted_binds: -> { type_casted_binds(binds) }
                 }
-                args[:type_casted_binds] = -> { type_casted_binds(binds) } if ::Rails.version >= '5.1.5'
                 ::ActiveSupport::Notifications.instrument(
                     "sql.active_record",
                     args

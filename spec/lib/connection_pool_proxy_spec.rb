@@ -28,7 +28,6 @@ module Switchman
       conn1 = User.connection
       conn2 = @shard2.activate { User.connection }
       expect(conn1).to_not be conn2
-      expect(conn1.schema_cache).to be_a(Switchman::SchemaCache) unless ::Rails.version >= '6'
       expect(conn1.schema_cache.object_id).to eql conn2.schema_cache.object_id
       expect(conn1.schema_cache.connection).to be conn1
       @shard2.activate do

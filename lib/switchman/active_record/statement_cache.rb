@@ -7,14 +7,9 @@ module Switchman
         def create(connection, &block)
           relation = block.call ::ActiveRecord::StatementCache::Params.new
 
-          if ::Rails.version >= "5.2"
-            query_builder, binds = connection.cacheable_query(self, relation.arel)
-            bind_map = ::ActiveRecord::StatementCache::BindMap.new(binds)
-            new(relation.arel, bind_map, relation.klass)
-          else
-            bind_map = ::ActiveRecord::StatementCache::BindMap.new(relation.bound_attributes)
-            new relation.arel, bind_map
-          end
+          query_builder, binds = connection.cacheable_query(self, relation.arel)
+          bind_map = ::ActiveRecord::StatementCache::BindMap.new(binds)
+          new(relation.arel, bind_map, relation.klass)
         end
       end
 
@@ -31,12 +26,8 @@ module Switchman
       # (e.g. infer from the primary key or use the current shard)
 
       def execute(*args)
-        if ::Rails.version >= '5.2'
-          params, connection = args
-          klass = @klass
-        else
-          params, klass, connection = args
-        end
+        params, connection = args
+        klass = @klass
         target_shard = nil
         if primary_index = bind_map.primary_value_index
           primary_value = params[primary_index]
@@ -53,14 +44,8 @@ module Switchman
         end
       end
 
-      if ::Rails.version < '5.2'
-        def qualified_query_builder(shard, klass)
-          @qualified_query_builders[shard.id] ||= klass.connection.cacheable_query(self.class, @arel)
-        end
-      else
-        def qualified_query_builder(shard, klass)
-          @qualified_query_builders[shard.id] ||= klass.connection.cacheable_query(self.class, @arel).first
-        end
+      def qualified_query_builder(shard, klass)
+        @qualified_query_builders[shard.id] ||= klass.connection.cacheable_query(self.class, @arel).first
       end
 
       module BindMap

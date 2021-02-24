@@ -84,7 +84,7 @@ module Switchman
         def define_method_original_attribute(attr_name)
           if sharded_column?(attr_name)
             reflection = reflection_for_integer_attribute(attr_name)
-            if attr_name == "id" && ::Rails.version >= '5.1.2'
+            if attr_name == "id"
               return if self.method_defined?(:original_id)
               owner = self
             else

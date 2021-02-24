@@ -20,11 +20,7 @@ module Switchman
         shard = "  [#{shard[:database_server_id]}:#{shard[:id]} #{shard[:env]}]" if shard
 
         unless (payload[:binds] || []).empty?
-          use_old_format = (::Rails.version < '5.1.5')
-          args = use_old_format ?
-            [payload[:binds], payload[:type_casted_binds]] :
-            [payload[:type_casted_binds]]
-          casted_params = type_casted_binds(*args)
+          casted_params = type_casted_binds(payload[:type_casted_binds])
           binds = "  " + payload[:binds].zip(casted_params).map { |attr, value|
             render_bind(attr, value)
           }.inspect

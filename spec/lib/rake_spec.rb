@@ -92,7 +92,7 @@ module Switchman
 
     describe '.scope' do
       it "supports selecting open servers" do
-        db = DatabaseServer.create(open: true)
+        db = DatabaseServer.create({ open: true, adapter: 'postgresql' })
         shard = db.shards.create!
         expect(Rake.scope(database_server: 'open').to_a).to eq([shard])
       end
@@ -109,8 +109,8 @@ module Switchman
         ::Rake::Task.clear
       end
 
-      it "only activates each shard as the :primary category by default" do
-        mu = @shard2.activate(:mirror_universe) do
+      it "only activates each shard as the for ActiveRecord::Base by default" do
+        mu = @shard2.activate(MirrorUniverse) do
           mu = MirrorUser.create!
           MirrorUser.where(id: mu).update_all(updated_at: 2.days.ago)
           mu
@@ -118,29 +118,29 @@ module Switchman
 
         Rake.shardify_task('dummy:touch_mirror_users')
 
-        @shard1.activate(:mirror_universe) do
+        @shard1.activate(MirrorUniverse) do
           ::Rake::Task['dummy:touch_mirror_users'].execute
         end
 
-        @shard2.activate(:mirror_universe) do
+        @shard2.activate(MirrorUniverse) do
           expect(mu.reload.updated_at).to be < 1.day.ago
         end
       end
 
-      it "can activate each shard as all categories" do
-        mu = @shard2.activate(:mirror_universe) do
+      it "can activate each shard as all classes" do
+        mu = @shard2.activate(MirrorUniverse) do
           mu = MirrorUser.create!
           MirrorUser.where(id: mu).update_all(updated_at: 2.days.ago)
           mu
         end
 
-        Rake.shardify_task('dummy:touch_mirror_users', categories: ->{ Shard.categories })
+        Rake.shardify_task('dummy:touch_mirror_users', classes: ->{ Shard.sharded_models })
 
-        @shard1.activate(:mirror_universe) do
+        @shard1.activate(MirrorUniverse) do
           ::Rake::Task['dummy:touch_mirror_users'].execute
         end
 
-        @shard2.activate(:mirror_universe) do
+        @shard2.activate(MirrorUniverse) do
           expect(mu.reload.updated_at).to be > 1.day.ago
         end
       end

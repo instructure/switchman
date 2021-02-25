@@ -4,38 +4,6 @@ require "spec_helper"
 
 module Switchman
   describe DatabaseServer do
-    describe "shareable?" do
-      it "should be true for mysql" do
-        db = DatabaseServer.new(nil, adapter: 'mysql')
-        expect(db.shareable?).to eq true
-
-        db = DatabaseServer.new(nil, adapter: 'mysql2')
-        expect(db.shareable?).to eq true
-      end
-
-      it "should be true for postgres with a non-variable username" do
-        db = DatabaseServer.new(nil, adapter: 'postgresql')
-        expect(db.shareable?).to eq true
-      end
-
-      it "should be false for postgres with variable username" do
-        db = DatabaseServer.new(nil, adapter: 'postgresql', username: '%{schema_search_path}')
-        expect(db.shareable?).to eq false
-      end
-
-      it "should depend on the database environment" do
-        db = DatabaseServer.new(nil, adapter: 'postgresql', username: '%{schema_search_path}', deploy: { username: 'deploy' })
-        expect(db.shareable?).to eq false
-        expect(::GuardRail.activate(:deploy) { db.shareable? }).to eq true
-      end
-
-      it "should handle string keys" do
-        db = DatabaseServer.new(nil, adapter: 'postgresql', username: '%{schema_search_path}', deploy: { 'username' => 'deploy' })
-        expect(db.shareable?).to eq false
-        expect(::GuardRail.activate(:deploy) { db.shareable? }).to eq true
-      end
-    end
-
     describe "#create_new_shard" do
       include RSpecHelper
 
@@ -51,10 +19,10 @@ module Switchman
         expect(new_shard.name).to match /shard_\d+/
         # They should share a connection pool
         if server == Shard.default.database_server
-          expect(User.connection_pool.current_pool).to eq new_shard.activate { User.connection_pool.current_pool }
-          expect(User.connection_pool.current_pool).to eq Shard.connection_pool.current_pool
+          expect(User.connection_pool).to eq new_shard.activate { User.connection_pool }
+          expect(User.connection_pool).to eq Shard.connection_pool
         else
-          expect(User.connection_pool.current_pool).not_to eq new_shard.activate { User.connection_pool.current_pool }
+          expect(User.connection_pool).not_to eq new_shard.activate { User.connection_pool }
         end
         # The tables should be created, ready to use
         new_shard.activate {
@@ -83,7 +51,7 @@ module Switchman
         db = DatabaseServer.new(nil, adapter: 'postgresql')
         expect(Shard).to receive(:create!) do |hash|
           expect(hash[:name]).to eq "new_shard"
-          expect(hash[:database_server]).to eq db
+          expect(hash[:database_server_id]).to eq db.id
           expect(hash[:id]).not_to be_nil
          raise MyException
         end
@@ -156,57 +124,57 @@ module Switchman
     end
 
     describe ".server_for_new_shard" do
-      before(:all) do
-        @db1 = DatabaseServer.find(nil)
-        @old_open = @db1.config.delete(:open)
-        @old_servers = DatabaseServer.all
-        @old_servers.delete(@db1)
-        @old_servers.each do |db|
-          db.destroy unless db == @db1
-        end
-      end
+      # just to avoid ActiveRecord trying to begin a transaction on dbs that don't exist
+      self.use_transactional_tests = false
 
       before do
-        @db1.config.delete(:open)
+        db_servers = {}
+        allow(DatabaseServer).to receive(:database_servers).and_return(db_servers)
+        DatabaseServer.create({ id: ::Rails.env, adapter: 'postgresql' })
       end
 
-      after do
-        @db2&.destroy
-      end
+      let(:db1) { DatabaseServer.find(nil) }
 
       after(:all) do
-        @db1.config[:open] = @old_open
-        @old_servers.each do |db|
-          DatabaseServer.create(db.config.merge(id: db.id))
+        # clean up connection pools to match reality
+        Shard.sharded_models.each do |klass|
+          pool_manager = klass.connection_handler.send(:get_pool_manager, klass.name)
+          pool_manager.shard_names.each do |shard|
+            next if DatabaseServer.find(shard.to_s)
+            pool_manager.role_names.each do |role|
+              klass.connection_handler.remove_connection_pool(klass.connection_specification_name, role: role, shard: shard)
+            end
+          end
         end
+        Shard.initialize_sharding
       end
 
       it "should return the default server if that's the only one around" do
-        expect(DatabaseServer.server_for_new_shard).to eq @db1
+        expect(DatabaseServer.server_for_new_shard).to eq db1
       end
 
       it "should return on open server" do
-        @db1.config[:open] = true
-        expect(DatabaseServer.server_for_new_shard).to eq @db1
+        db1.config[:open] = true
+        expect(DatabaseServer.server_for_new_shard).to eq db1
       end
 
       it "should return another server if it's the only one open" do
-        @db2 = DatabaseServer.create(open: true)
-        4.times { expect(DatabaseServer.server_for_new_shard).to eq @db2 }
-        @db2.config.delete(:open)
-        @db1.config[:open] = true
-        4.times { expect(DatabaseServer.server_for_new_shard).to eq @db1 }
+        db2 = DatabaseServer.create({ open: true, adapter: 'postgresql' })
+        4.times { expect(DatabaseServer.server_for_new_shard).to eq db2 }
+        db2.config.delete(:open)
+        db1.config[:open] = true
+        4.times { expect(DatabaseServer.server_for_new_shard).to eq db1 }
       end
 
       it "should return multiple open servers" do
-        @db2 = DatabaseServer.create(open: true)
-        @db1.config[:open] = true
+        db2 = DatabaseServer.create({ open: true, adapter: 'postgresql' })
+        db1.config[:open] = true
         dbs = []
         20.times do
           dbs << DatabaseServer.server_for_new_shard
         end
-        expect(dbs).to include(@db1)
-        expect(dbs).to include(@db2)
+        expect(dbs).to include(db1)
+        expect(dbs).to include(db2)
       end
     end
 

@@ -191,9 +191,9 @@ module Switchman
       end
 
       def add_index_options(_table_name, _column_name, **)
-        index_name, index_type, index_columns, index_options, algorithm, using = super
+        index, algorithm, if_not_exists = super
         algorithm = nil if DatabaseServer.creating_new_shard && algorithm == "CONCURRENTLY"
-        [index_name, index_type, index_columns, index_options, algorithm, using]
+        [index, algorithm, if_not_exists]
       end
 
       def rename_table(table_name, new_name)

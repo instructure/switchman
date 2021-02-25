@@ -2,16 +2,12 @@
 
 require "spec_helper"
 
-module Switchman
-  module ActiveRecord
-    describe Batches do
-      include RSpecHelper
+describe ::ActiveRecord::Batches do
+  include Switchman::RSpecHelper
 
-      describe "#find_in_batches" do
-        it "doesn't form invalid queries with qualified_names" do
-          User.shard(@shard1).find_in_batches {}
-        end
-      end
+  describe "#find_in_batches" do
+    it "doesn't form invalid queries with qualified_names" do
+      User.shard(@shard1).find_in_batches {}
     end
   end
 end

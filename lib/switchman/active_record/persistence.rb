@@ -5,11 +5,11 @@ module Switchman
     module Persistence
       # touch reads the id attribute directly, so it's not relative to the current shard
       def touch(*, **)
-        shard.activate(self.class.shard_category) { super }
+        shard.activate(self.class.connection_classes) { super }
       end
 
       def update_columns(*)
-        shard.activate(self.class.shard_category) { super }
+        shard.activate(self.class.connection_classes) { super }
       end
     end
   end

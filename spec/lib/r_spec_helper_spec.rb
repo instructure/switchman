@@ -62,7 +62,7 @@ module Switchman
           expect(User.count).to eq 1 # we get the user from the before :all
           User.create! # should only last for the duration of this spec
           conn = ::ActiveRecord::Base.connection
-          expect(conn.open_transactions).to eql 2
+          expect(conn.open_transactions).to eql 3
         end
       end
 

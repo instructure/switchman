@@ -86,20 +86,20 @@ module Switchman
             or_relation = User.where("1=2").or(inner_relation)
             sharded_relation = or_relation.shard(@shard1)
             expect(sharded_relation.shard_value).to eq @shard1
-            expect(sharded_relation.to_sql).to include("\"users\".\"id\" = #{@user2.local_id}")
+            expect(sharded_relation.to_sql).to include(%{"users"."id" = #{@user2.local_id}})
           end
 
           it "can transpose for non-local records" do
             relation = User.where("1=2").or(User.where(:id => @user1)).shard(@shard1)
             expect(relation.shard_value).to eq @shard1
-            expect(relation.to_sql).to include("\"users\".\"id\" = #{@user1.global_id}")
+            expect(relation.to_sql).to include(%{"users"."id" = #{@user1.global_id}})
           end
 
           it "transposes correctly when default shard not active" do
             @shard1.activate do
               relation = User.where("1=2").or(User.where(:id => @user1)).shard(Shard.default)
             expect(relation.shard_value).to eq Shard.default
-            expect(relation.to_sql).to include("\"users\".\"id\" = #{@user1.local_id}")
+            expect(relation.to_sql).to include(%{"users"."id" = #{@user1.local_id}})
             end
           end
         end
@@ -230,20 +230,11 @@ module Switchman
         end
 
         it "should translate ids according to the current shard of the foreign type" do
-          @shard1.activate(:mirror_universe) do
+          @shard1.activate(MirrorUniverse) do
             mirror_user = MirrorUser.create!
             relation = User.where(mirror_user_id: mirror_user)
             expect(where_value(predicates(relation).first.right)).to eq mirror_user.global_id
           end
-        end
-
-        it "translates ids in array conditions when given records" do
-          original_count = Appendage.count
-          # create an off-shard appendage
-          appendage = Appendage.create!(user: @user2)
-          # make sure it ended up on this shard
-          expect(Appendage.count).to eq original_count + 1
-          expect(Appendage.where("user_id=?", @user2).take).to eq appendage
         end
 
         it "doesn't modify another relation when using bind params" do

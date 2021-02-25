@@ -32,8 +32,8 @@ module Switchman
             # now talk to a sharded model
             name1 = ::ActiveRecord::Base.connection.schema_migration.connection_specification_name
             name2 = @shard2.activate { ::ActiveRecord::Base.connection.schema_migration.connection_specification_name }
-            expect(name1.to_sym).to eq :primary
-            expect(name2.to_sym).to eq :primary
+            expect(name1).to eq 'ActiveRecord::Base'
+            expect(name2).to eq 'ActiveRecord::Base'
           end
         end
       end

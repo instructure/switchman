@@ -33,12 +33,12 @@ module Switchman
           primary_value = params[primary_index]
           target_shard = Shard.local_id_for(primary_value)[1]
         end
-        current_shard = Shard.current(klass.shard_category)
+        current_shard = Shard.current(klass.connection_classes)
         target_shard ||= current_shard
 
         bind_values = bind_map.bind(params, current_shard, target_shard)
 
-        target_shard.activate(klass.shard_category) do
+        target_shard.activate(klass.connection_classes) do
           sql = qualified_query_builder(target_shard, klass).sql_for(bind_values, connection)
           klass.find_by_sql(sql, bind_values)
         end

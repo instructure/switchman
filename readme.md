@@ -101,37 +101,41 @@ should be 64-bit integers. Assuming that the database uses signed integers, so
 that we have 63 rather than 64 bits to use for the ids, you have
 (2^63)/(10 trillion)=922,337 shards available.
 
-## Categories
+## Vertical Sharding
 
-Categories let you activate different shards for different purposes at the same
-time. There are two special categories. A model marked as belonging to the
-`unsharded` category always lives on the default shard. An example of this is
+Vertical sharding lets you activate different shards for different purposes at
+the same time. There are two special classes. A model inheriting from
+Switchman::UnshardedRecord always lives on the default shard. An example of this is
 the switchman_shards table itself - there is only one copy of the data in this
-table, no matter how many shards there are. The other is `primary`, which is
-every model not otherwise marked as belonging to a category. You can come up
-with your own categories by simply annotating your models, like so:
+table, no matter how many shards there are. The other is `ActiveRecord::Base`, which is
+every model not otherwise inheriting from a connection class. You can come up
+with your own verticals by creating an abstract class, and inheriting from it,
+like so:
 
 ```ruby
-class SomeModel < ActiveRecord::Base
-  self.shard_category = :some_category
+class SomeAbstractModel < ActiveRecord::Base
+  sharded_model
+end
+
+class SomeModel < SomeAbstractModel
 end
 ```
 
-When activating shards, the `unsharded` category is always locked to the
-default shard, and passing no arguments defaults to `primary`:
+When activating shards, the `Switchman::UnshardedRecord` model is always locked to the
+default shard, and passing no arguments defaults to `ActiveRecord::Base`:
 
 ```ruby
->>> Switchman::Shard.current(:primary)
+>>> Switchman::Shard.current(ActiveRecord::Base)
  => <Switchman::Shard id:1>
 >>> Switchman::Shard.current
  => <Switchman::Shard id:1>
 >>> shard2.activate { Switchman::Shard.current }
  => <Switchman::Shard id:2>
->>> shard2.activate(:some_category) {
- [Switchman::Shard.current, Switchman::Shard.current(:some_category)] }
+>>> shard2.activate(SomeAbstractModel) {
+ [Switchman::Shard.current, Switchman::Shard.current(SomeAbstractModel)] }
  => [<Switchman::Shard id:1>, <Switchman::Shard id:2>]
->>> Switchman::Shard.activate(primary: shard2, some_category: shard3) {
-  [Switchman::Shard.current, Switchman::Shard.current(:some_category)] }
+>>> Switchman::Shard.activate(ActiveRecord::Base => shard2, SomeAbstractModel => shard3) {
+  [Switchman::Shard.current, Switchman::Shard.current(SomeAbstractModel)] }
  => [<Switchman::Shard id:2>, <Switchman::Shard id:3>]
 ```
 

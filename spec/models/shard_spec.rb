@@ -9,21 +9,21 @@ module Switchman
     describe ".activate" do
       it "should activate a hash of shard categories" do
         expect(Shard.current).to eq Shard.default
-        expect(Shard.current(:other)).to eq Shard.default
-        Shard.activate(:primary => @shard1, :other => @shard2) do
+        expect(Shard.current(MirrorUniverse)).to eq Shard.default
+        Shard.activate(::ActiveRecord::Base => @shard1, MirrorUniverse => @shard2) do
           expect(Shard.current).to eq @shard1
-          expect(Shard.current(:other)).to eq @shard2
+          expect(Shard.current(MirrorUniverse)).to eq @shard2
         end
         expect(Shard.current).to eq Shard.default
-        expect(Shard.current(:other)).to eq Shard.default
+        expect(Shard.current(MirrorUniverse)).to eq Shard.default
       end
 
       it "should not allow activating the unsharded category" do
-        expect(Shard.current(:unsharded)).to eq Shard.default
-        Shard.activate(:unsharded => @shard1) do
-          expect(Shard.current(:unsharded)).to eq Shard.default
+        expect(Shard.current(UnshardedRecord)).to eq Shard.default
+        Shard.activate(UnshardedRecord => @shard1) do
+          expect(Shard.current(UnshardedRecord)).to eq Shard.default
         end
-        expect(Shard.current(:unsharded)).to eq Shard.default
+        expect(Shard.current(UnshardedRecord)).to eq Shard.default
       end
     end
 
@@ -58,23 +58,23 @@ module Switchman
       end
 
       it "should activate other categories" do
-        expect(Shard.current(:other)).to eq Shard.default
-        @shard1.activate(:other) do
-          expect(Shard.current(:other)).to eq @shard1
+        expect(Shard.current(MirrorUniverse)).to eq Shard.default
+        @shard1.activate(MirrorUniverse) do
+          expect(Shard.current(MirrorUniverse)).to eq @shard1
           expect(Shard.current).to eq Shard.default
         end
-        expect(Shard.current(:other)).to eq Shard.default
+        expect(Shard.current(MirrorUniverse)).to eq Shard.default
       end
 
       it "should activate multiple categories" do
         expect(Shard.current).to eq Shard.default
-        expect(Shard.current(:other)).to eq Shard.default
-        @shard1.activate(:primary, :other) do
+        expect(Shard.current(MirrorUniverse)).to eq Shard.default
+        @shard1.activate(::ActiveRecord::Base, MirrorUniverse) do
           expect(Shard.current).to eq @shard1
-          expect(Shard.current(:other)).to eq @shard1
+          expect(Shard.current(MirrorUniverse)).to eq @shard1
         end
         expect(Shard.current).to eq Shard.default
-        expect(Shard.current(:other)).to eq Shard.default
+        expect(Shard.current(MirrorUniverse)).to eq Shard.default
       end
     end
 
@@ -186,35 +186,11 @@ module Switchman
       context "non-transactional" do
         self.use_transactional_tests = false
 
-        it "should disconnect unshareable connections when switching among different database servers" do
-          allow_any_instance_of(DatabaseServer).to receive(:shareable?).and_return(false)
-          User.connection
-          expect(User.connected?).to eq true
-          Shard.with_each_shard([Shard.default, @shard2]) {}
-          expect(User.connected?).to eq false
-        end
-
-        it "should not disconnect when connections are shareable" do
-          skip 'A "real" database"' unless Shard.default.database_server.shareable?
+        it "should not disconnect" do
           User.connection
           expect(User.connected?).to eq true
           Shard.with_each_shard([Shard.default, @shard2]) {}
           expect(User.connected?).to eq true
-        end
-
-        it "should disconnect unshareable connections from other environments" do
-          allow_any_instance_of(DatabaseServer).to receive(:shareable?).and_return(false)
-          ::GuardRail.activate(:secondary) do
-            Shard.with_each_shard([Shard.default, @shard2]) do
-              ::GuardRail.activate(:primary) do
-                User.connection
-                expect(User.connected?).to eq true
-              end
-            end
-          end
-
-          ::GuardRail.activate(:secondary) { expect(User.connected?).to eq false }
-          ::GuardRail.activate(:primary) { expect(User.connected?).to eq false }
         end
 
         it "should not disconnect when it's the current shard" do
@@ -364,6 +340,9 @@ module Switchman
     end
 
     describe "#name" do
+      # just to avoid Rails connecting to non-existent dbs as we temporarily create configs
+      self.use_transactional_tests = false
+
       it "the default shard should not be marked as dirty after reading its name" do
         s = Shard.default
         expect(s).not_to be_new_record
@@ -372,15 +351,9 @@ module Switchman
       end
 
       it "should fall back to shard_name in the config if nil" do
-        db = DatabaseServer.new(nil, adapter: 'mysql', database: 'canvas', shard_name: 'yoyoyo')
+        db = DatabaseServer.new('test', adapter: 'postgresql', database: 'canvas', shard_name: 'yoyoyo')
         shard = Shard.new(database_server: db)
         expect(shard.name).to eq 'yoyoyo'
-      end
-
-      it "should fall back to the database_server if nil" do
-        db = DatabaseServer.new(nil, adapter: 'mysql', database: 'canvas')
-        shard = Shard.new(database_server: db)
-        expect(shard.name).to eq 'canvas'
       end
 
       it "should get it from the postgres connection if not otherwise specified" do
@@ -601,7 +574,6 @@ module Switchman
 
       after(:each) do
         allow(Shard).to receive(:where).and_call_original
-        Shard.send(:active_shards).clear
         Shard.default(reload: true)
       end
 
@@ -629,10 +601,10 @@ module Switchman
         it "replaces a Shard instance if replacement query successful" do
           non_default = Shard.where(default: false).first
           actual_default = Shard.where(default:true).first
-          expect(non_default).to_not be(nil)
-          expect(actual_default).to_not be(nil)
+          expect(non_default).to_not be_nil
+          expect(actual_default).to_not be_nil
           Shard.instance_variable_set(:@default, non_default)
-          allow(Shard).to receive(:where).with(default: true).and_return([actual_default])
+          allow(Shard).to receive(:where).with(default: true).and_return(double(take: actual_default))
           new_default = Shard.default(reload: true, with_fallback: true)
           expect(new_default).to eq(actual_default)
         end

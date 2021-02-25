@@ -100,9 +100,9 @@ module Switchman
         @user1.appendages.to_a # trigger the cache
         @user2.appendages.to_a # trigger the cache
 
-        keys = User.reflect_on_association('appendages').instance_variable_get(:@association_scope_cache).keys
-        prepared = User.connection.prepared_statements
-        expect(keys).to eq [[prepared, @user1.shard.id], [prepared, @user2.shard.id]]
+        reflection = User.reflect_on_association('appendages')
+        keys = Appendage.instance_variable_get(:@find_by_statement_cache)[User.connection.prepared_statements].keys
+        expect(keys).to include([reflection, @user1.shard.id], [reflection, @user2.shard.id])
       end
 
       it "properly saves a new child STI object onto the parent's shard" do
@@ -114,9 +114,9 @@ module Switchman
         @user1.roots.to_a # trigger the cache
         @user2.roots.to_a # trigger the cache
 
-        keys = User.reflect_on_association('roots').instance_variable_get(:@association_scope_cache).keys
-        prepared = User.connection.prepared_statements
-        expect(keys).to eq [[prepared, Shard.default.id]]
+        reflection = User.reflect_on_association('roots')
+        keys = Root.instance_variable_get(:@find_by_statement_cache)[User.connection.prepared_statements].keys
+        expect(keys).to eq [[reflection, Shard.default.id]]
       end
 
       it "should work with has_many through associations" do
@@ -196,7 +196,7 @@ module Switchman
       end
 
       it "should properly set up a cross-shard-category query" do
-        @shard1.activate(:mirror_universe) do
+        @shard1.activate(MirrorUniverse) do
           mirror_user = MirrorUser.create!
           relation = mirror_user.association(:user).scope
           expect(relation.shard_value).to eq Shard.default
@@ -367,7 +367,10 @@ module Switchman
             a4 = @shard2.activate { Appendage.create!(user: user3) }
 
             query_count = 0
-            increment_query_count = lambda { |*args| query_count += 1 }
+            increment_query_count = lambda do |*args|
+              next if args.last[:name] == "SCHEMA" # ignore metadata queries
+              query_count += 1
+            end
 
             appendages = Appendage.where(id: [a1, a2, a3, a4])
             # load this relation outside of the SQL subscription so as not to
@@ -581,3 +584,4 @@ module Switchman
     end
   end
 end
+

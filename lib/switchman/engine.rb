@@ -4,6 +4,10 @@ module Switchman
   class Engine < ::Rails::Engine
     isolate_namespace Switchman
 
+    # enable Rails 6.1 style connection handling
+    config.active_record.legacy_connection_handling = false
+    config.active_record.writing_role = :primary
+
     config.autoload_once_paths << File.expand_path("app/models", config.paths.path)
 
     def self.lookup_stores(cache_store_config)
@@ -68,10 +72,10 @@ module Switchman
         require "switchman/active_record/association"
         require "switchman/active_record/attribute_methods"
         require "switchman/active_record/base"
-        require "switchman/active_record/batches"
         require "switchman/active_record/calculations"
-        require "switchman/active_record/connection_handler"
         require "switchman/active_record/connection_pool"
+        require "switchman/active_record/database_configurations"
+        require "switchman/active_record/database_configurations/database_config"
         require "switchman/active_record/finder_methods"
         require "switchman/active_record/log_subscriber"
         require "switchman/active_record/migration"
@@ -84,16 +88,18 @@ module Switchman
         require "switchman/active_record/relation"
         require "switchman/active_record/spawn_methods"
         require "switchman/active_record/statement_cache"
+        require "switchman/active_record/tasks/database_tasks"
         require "switchman/active_record/type_caster"
-        require "switchman/active_record/where_clause_factory"
         require "switchman/arel"
         require "switchman/call_super"
         require "switchman/rails"
         require "switchman/guard_rail/relation"
-        require_dependency "switchman/shard"
         require "switchman/standard_error"
 
         ::StandardError.include(StandardError)
+
+        self.default_shard = ::Rails.env.to_sym
+        self.default_role = :primary
 
         include ActiveRecord::Base
         include ActiveRecord::AttributeMethods
@@ -106,6 +112,8 @@ module Switchman
         ::ActiveRecord::StatementCache::Substitute.send(:attr_accessor, :primary, :sharded)
 
         ::ActiveRecord::Associations::CollectionAssociation.prepend(ActiveRecord::CollectionAssociation)
+        ::ActiveRecord::Associations::HasOneAssociation.prepend(ActiveRecord::ForeignAssociation)
+        ::ActiveRecord::Associations::HasManyAssociation.prepend(ActiveRecord::ForeignAssociation)
 
         ::ActiveRecord::PredicateBuilder.singleton_class.prepend(ActiveRecord::PredicateBuilder)
 
@@ -117,9 +125,11 @@ module Switchman
 
         ::ActiveRecord::Associations::Preloader::Association.prepend(ActiveRecord::Preloader::Association)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::AbstractAdapter)
-        ::ActiveRecord::ConnectionAdapters::ConnectionHandler.prepend(ActiveRecord::ConnectionHandler)
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.prepend(ActiveRecord::ConnectionPool)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::QueryCache)
+
+        ::ActiveRecord::DatabaseConfigurations.prepend(ActiveRecord::DatabaseConfigurations)
+        ::ActiveRecord::DatabaseConfigurations::DatabaseConfig.prepend(ActiveRecord::DatabaseConfigurations::DatabaseConfig)
 
         ::ActiveRecord::LogSubscriber.prepend(ActiveRecord::LogSubscriber)
         ::ActiveRecord::Migration.prepend(ActiveRecord::Migration)
@@ -131,7 +141,6 @@ module Switchman
         ::ActiveRecord::Reflection::AssociationReflection.prepend(ActiveRecord::Reflection::AssociationScopeCache)
         ::ActiveRecord::Reflection::ThroughReflection.prepend(ActiveRecord::Reflection::AssociationScopeCache)
         ::ActiveRecord::Reflection::AssociationReflection.prepend(ActiveRecord::Reflection::AssociationReflection)
-        ::ActiveRecord::Relation.prepend(ActiveRecord::Batches)
         ::ActiveRecord::Relation.prepend(ActiveRecord::Calculations)
         ::ActiveRecord::Relation.include(ActiveRecord::FinderMethods)
         ::ActiveRecord::Relation.include(ActiveRecord::QueryMethods)
@@ -140,8 +149,10 @@ module Switchman
         ::ActiveRecord::Relation.include(ActiveRecord::SpawnMethods)
         ::ActiveRecord::Relation.include(CallSuper)
 
-        ::ActiveRecord::Relation::WhereClauseFactory.prepend(ActiveRecord::WhereClauseFactory)
         ::ActiveRecord::PredicateBuilder::AssociationQueryValue.prepend(ActiveRecord::PredicateBuilder::AssociationQueryValue)
+
+        ::ActiveRecord::Tasks::DatabaseTasks.singleton_class.prepend(ActiveRecord::Tasks::DatabaseTasks)
+
         ::ActiveRecord::TypeCaster::Map.include(ActiveRecord::TypeCaster::Map)
         ::ActiveRecord::TypeCaster::Connection.include(ActiveRecord::TypeCaster::Connection)
 
@@ -172,11 +183,7 @@ module Switchman
           ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(ActiveRecord::PostgreSQLAdapter)
         end
 
-        # If Switchman::Shard wasn't loaded as of when ActiveRecord::Base initialized
-        # establish a connection here instead
-        if !Shard.instance_variable_get(:@default)
-          ::ActiveRecord::Base.establish_connection
-        end
+        Shard.initialize_sharding
       end
     end
 

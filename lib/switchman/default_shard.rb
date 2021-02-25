@@ -6,8 +6,8 @@ module Switchman
   class DefaultShard
     def id; 'default'; end
     alias cache_key id
-    def activate(*categories); yield; end
-    def activate!(*categories); end
+    def activate(*classes); yield; end
+    def activate!(*classes); end
     def default?; true; end
     def primary?; true; end
     def relative_id_for(local_id, target = nil); local_id; end

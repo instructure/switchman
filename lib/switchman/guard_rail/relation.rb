@@ -5,7 +5,7 @@ module Switchman
     module Relation
       def exec_queries(*args)
         if self.lock_value
-          db = Shard.current(shard_category).database_server
+          db = Shard.current(connection_classes).database_server
           if ::GuardRail.environment != db.guard_rail_environment
             return db.unguard { super }
           end
@@ -16,7 +16,7 @@ module Switchman
       %w{update_all delete_all}.each do |method|
         class_eval <<-RUBY, __FILE__, __LINE__ + 1
           def #{method}(*args)
-            db = Shard.current(shard_category).database_server
+            db = Shard.current(connection_classes).database_server
             if ::GuardRail.environment != db.guard_rail_environment
               db.unguard { super }
             else

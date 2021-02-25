@@ -58,7 +58,7 @@ module Switchman
         when ::ActiveRecord::Relation
           Shard.default
         when nil
-          Shard.current(klass.shard_category)
+          Shard.current(klass.connection_classes)
         else
           raise ArgumentError, "invalid shard value #{shard_value}"
         end
@@ -72,7 +72,7 @@ module Switchman
         when ::ActiveRecord::Base
           shard_value.respond_to?(:associated_shards) ? shard_value.associated_shards : [shard_value.shard]
         when nil
-          [Shard.current(klass.shard_category)]
+          [Shard.current(klass.connection_classes)]
         else
           shard_value
         end
@@ -88,7 +88,7 @@ module Switchman
         class_eval <<-RUBY, __FILE__, __LINE__ + 1
         def transpose_#{type}_clauses(source_shard, target_shard, remove_nonlocal_primary_keys)
           unless (predicates = #{type}_clause.send(:predicates)).empty?
-            new_predicates, _binds = transpose_predicates(predicates, source_shard,
+            new_predicates = transpose_predicates(predicates, source_shard,
                                                               target_shard, remove_nonlocal_primary_keys)
             if new_predicates != predicates
               self.#{type}_clause = #{type}_clause.dup
@@ -106,21 +106,24 @@ module Switchman
         transpose_having_clauses(source_shard, target_shard, remove_nonlocal_primary_keys)
       end
 
-      def infer_shards_from_primary_key(predicates, binds = nil)
+      def infer_shards_from_primary_key(predicates)
         return unless klass.integral_id?
 
         primary_key = predicates.detect do |predicate|
-          predicate.is_a?(::Arel::Nodes::Binary) && predicate.left.is_a?(::Arel::Attributes::Attribute) &&
-            predicate.left.relation.is_a?(::Arel::Table) && predicate.left.relation.model == klass &&
+          (predicate.is_a?(::Arel::Nodes::Binary) || predicate.is_a?(::Arel::Nodes::HomogeneousIn)) &&
+            predicate.left.is_a?(::Arel::Attributes::Attribute) &&
+            predicate.left.relation.is_a?(::Arel::Table) && predicate.left.relation.klass == klass &&
             klass.primary_key == predicate.left.name
         end
         if primary_key
-          case primary_key.right
+          right = primary_key.is_a?(::Arel::Nodes::HomogeneousIn) ? primary_key.values : primary_key.right
+
+          case right
           when Array
             id_shards = Set.new
-            primary_key.right.each do |value|
+            right.each do |value|
               local_id, id_shard = Shard.local_id_for(value)
-              id_shard ||= Shard.current(klass.shard_category) if local_id
+              id_shard ||= Shard.current(klass.connection_classes) if local_id
               id_shards << id_shard if id_shard
             end
             if id_shards.empty?
@@ -139,11 +142,11 @@ module Switchman
               return
             end
           when ::Arel::Nodes::BindParam
-            local_id, id_shard = Shard.local_id_for(primary_key.right.value.value_before_type_cast)
-            id_shard ||= Shard.current(klass.shard_category) if local_id
+            local_id, id_shard = Shard.local_id_for(right.value.value_before_type_cast)
+            id_shard ||= Shard.current(klass.connection_classes) if local_id
           else
-            local_id, id_shard = Shard.local_id_for(primary_key.right)
-            id_shard ||= Shard.current(klass.shard_category) if local_id
+            local_id, id_shard = Shard.local_id_for(right)
+            id_shard ||= Shard.current(klass.connection_classes) if local_id
           end
 
           return if !id_shard || id_shard == primary_shard
@@ -171,8 +174,8 @@ module Switchman
 
       def sharded_primary_key?(relation, column)
         column = column.to_s
-        return column == 'id' if relation.model == ::ActiveRecord::Base
-        relation.model.primary_key == column && relation.model.integral_id?
+        return column == 'id' if relation.klass == ::ActiveRecord::Base
+        relation.klass.primary_key == column && relation.klass.integral_id?
       end
 
       def source_shard_for_foreign_key(relation, column)
@@ -181,8 +184,8 @@ module Switchman
           reflection = model.send(:reflection_for_integer_attribute, column)
           break if reflection
         end
-        return Shard.current(klass.shard_category) if reflection.options[:polymorphic]
-        Shard.current(reflection.klass.shard_category)
+        return Shard.current(klass.connection_classes) if reflection.options[:polymorphic]
+        Shard.current(reflection.klass.connection_classes)
       end
 
       def relation_and_column(attribute)
@@ -191,8 +194,33 @@ module Switchman
         [attribute.relation, column]
       end
 
-      def where_clause_factory
-        super.tap { |factory| factory.scope = self }
+      def build_where_clause(opts, rest = [])
+        opts = sanitize_forbidden_attributes(opts)
+
+        case opts
+        when String, Array
+          values = Hash === rest.first ? rest.first.values : rest
+
+          values.grep(ActiveRecord::Relation) do |rel|
+            # serialize subqueries against the same shard as the outer query is currently
+            # targeted to run against
+            if rel.shard_source_value == :implicit && rel.primary_shard != primary_shard
+              rel.shard!(primary_shard)
+            end
+          end
+
+          super
+        when Hash, ::Arel::Nodes::Node
+          where_clause = super
+
+          predicates = where_clause.send(:predicates)
+          infer_shards_from_primary_key(predicates) if shard_source_value == :implicit && shard_value.is_a?(Shard)
+          predicates = transpose_predicates(predicates, nil, primary_shard, false)
+          where_clause.instance_variable_set(:@predicates, predicates)
+          where_clause
+        else
+          super
+        end
       end
 
       def arel_columns(columns)
@@ -203,98 +231,90 @@ module Switchman
         connection.with_local_table_name { super }
       end
 
-      # semi-private
-      public
       def transpose_predicates(predicates,
                                source_shard,
                                target_shard,
-                               remove_nonlocal_primary_keys = false,
-                               binds: nil,
-                               dup_binds_on_mutation: false)
-        result = predicates.map do |predicate|
-          transposed, binds = transpose_single_predicate(predicate, source_shard, target_shard, remove_nonlocal_primary_keys,
-                                     binds: binds, dup_binds_on_mutation: dup_binds_on_mutation)
-          transposed
+                               remove_nonlocal_primary_keys = false)
+        predicates.map do |predicate|
+          transpose_single_predicate(predicate, source_shard, target_shard, remove_nonlocal_primary_keys)
         end
-        result = [result, binds]
-        result
       end
 
       def transpose_single_predicate(predicate,
                                      source_shard,
                                      target_shard,
-                                     remove_nonlocal_primary_keys = false,
-                                     binds: nil,
-                                     dup_binds_on_mutation: false)
+                                     remove_nonlocal_primary_keys = false)
         if predicate.is_a?(::Arel::Nodes::Grouping)
-          return predicate, binds unless predicate.expr.is_a?(::Arel::Nodes::Or)
+          return predicate unless predicate.expr.is_a?(::Arel::Nodes::Or)
           # Dang, we have an OR.  OK, that means we have other epxressions below this
           # level, perhaps many, that may need transposition.
           # the left side and right side must each be treated as predicate lists and
           # transformed in kind, if neither of them changes we can just return the grouping as is.
           # hold on, it's about to get recursive...
-          #
-          # TODO: "binds" is getting passed up and down
-          # this stack purely because of the necessary handling for rails <5.2
-          #  Dropping support for 5.2 means we can remove the "binds" argument from
-          # all of this and yank the conditional below where we monkey with their instance state.
           or_expr = predicate.expr
           left_node = or_expr.left
           right_node = or_expr.right
-          left_predicates = left_node.children
-          right_predicates = right_node.children
-          new_left_predicates, binds = transpose_predicates(left_predicates, source_shard,
-                                                               target_shard, remove_nonlocal_primary_keys,
-                                                               binds: binds, dup_binds_on_mutation: dup_binds_on_mutation)
-          new_right_predicates, binds = transpose_predicates(right_predicates, source_shard,
-                                                               target_shard, remove_nonlocal_primary_keys,
-                                                               binds: binds, dup_binds_on_mutation: dup_binds_on_mutation)
-          if new_left_predicates != left_predicates
-            left_node.instance_variable_set(:@children, new_left_predicates)
+          new_left_predicates = transpose_single_predicate(left_node, source_shard,
+                                                              target_shard, remove_nonlocal_primary_keys)
+          if new_left_predicates != left_node
+            or_expr.instance_variable_set(:@left, new_left_predicates)
           end
-          if new_right_predicates != right_predicates
-            right_node.instance_variable_set(:@children, new_right_predicates)
+          new_right_predicates = transpose_single_predicate(right_node, source_shard,
+                                                              target_shard, remove_nonlocal_primary_keys)
+          if new_right_predicates != right_node
+            or_expr.instance_variable_set(:@right, new_right_predicates)
           end
-          return predicate, binds
+          return predicate
         end
-        return predicate, binds unless predicate.is_a?(::Arel::Nodes::Binary)
-        return predicate, binds unless predicate.left.is_a?(::Arel::Attributes::Attribute)
+        return predicate unless predicate.is_a?(::Arel::Nodes::Binary) || predicate.is_a?(::Arel::Nodes::HomogeneousIn)
+        return predicate unless predicate.left.is_a?(::Arel::Attributes::Attribute)
         relation, column = relation_and_column(predicate.left)
-        return predicate, binds unless (type = transposable_attribute_type(relation, column))
+        return predicate unless (type = transposable_attribute_type(relation, column))
 
         remove = true if type == :primary &&
             remove_nonlocal_primary_keys &&
-            predicate.left.relation.model == klass &&
+            predicate.left.relation.klass == klass &&
             predicate.is_a?(::Arel::Nodes::Equality)
 
         current_source_shard =
             if source_shard
               source_shard
             elsif type == :primary
-              Shard.current(klass.shard_category)
+              Shard.current(klass.connection_classes)
             elsif type == :foreign
               source_shard_for_foreign_key(relation, column)
             end
 
-        new_right_value =
-          case predicate.right
-          when Array
-            predicate.right.map {|val| transpose_predicate_value(val, current_source_shard, target_shard, type, remove) }
-          else
-            transpose_predicate_value(predicate.right, current_source_shard, target_shard, type, remove)
-          end
-        out_predicate = if new_right_value == predicate.right
-          predicate
-        elsif predicate.right.is_a?(::Arel::Nodes::Casted)
-          if new_right_value == predicate.right.val
-            predicate
-          else
-            predicate.class.new(predicate.left, predicate.right.class.new(new_right_value, predicate.right.attribute))
-          end
+        if predicate.is_a?(::Arel::Nodes::HomogeneousIn)
+          right = predicate.values
         else
-          predicate.class.new(predicate.left, new_right_value)
+          right = predicate.right
         end
-        return out_predicate, binds
+
+        new_right_value =
+          case right
+          when Array
+            right.map {|val| transpose_predicate_value(val, current_source_shard, target_shard, type, remove) }
+          else
+            transpose_predicate_value(right, current_source_shard, target_shard, type, remove)
+          end
+
+          out_predicate = if new_right_value == right
+            predicate
+          elsif predicate.right.is_a?(::Arel::Nodes::Casted)
+            if new_right_value == right.value
+              predicate
+            else
+              predicate.class.new(predicate.left, right.class.new(new_right_value, right.attribute))
+            end
+          else
+            if predicate.is_a?(::Arel::Nodes::HomogeneousIn)
+              predicate.class.new(new_right_value, predicate.attribute, predicate.type)
+            else
+              predicate.class.new(predicate.left, new_right_value)
+            end
+          end
+        return out_predicate
       end
 
       def transpose_predicate_value(value, current_shard, target_shard, attribute_type, remove_non_local_ids)

@@ -2,7 +2,7 @@
 
 source "http://rubygems.org"
 
-gem "activerecord", ">= 6.0", "< 6.1"
-gem "railties", ">= 6.0", "< 6.1"
+gem "activerecord", ">= 6.1", "< 6.2"
+gem "railties", ">= 6.1", "< 6.2"
 
 gemspec path: "../"

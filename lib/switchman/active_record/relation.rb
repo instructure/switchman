@@ -9,13 +9,13 @@ module Switchman
 
       def initialize(*, **)
         super
-        self.shard_value = Shard.current(klass ? klass.shard_category : :primary) unless shard_value
+        self.shard_value = Shard.current(klass ? klass.connection_classes : :primary) unless shard_value
         self.shard_source_value = :implicit unless shard_source_value
       end
 
       def clone
         result = super
-        result.shard_value = Shard.current(klass ? klass.shard_category : :primary) unless shard_value
+        result.shard_value = Shard.current(klass ? klass.connection_classes : :primary) unless shard_value
         result
       end
 
@@ -29,19 +29,19 @@ module Switchman
       end
 
       def new(*, &block)
-        primary_shard.activate(klass.shard_category) { super }
+        primary_shard.activate(klass.connection_classes) { super }
       end
 
       def create(*, &block)
-        primary_shard.activate(klass.shard_category) { super }
+        primary_shard.activate(klass.connection_classes) { super }
       end
 
       def create!(*, &block)
-        primary_shard.activate(klass.shard_category) { super }
+        primary_shard.activate(klass.connection_classes) { super }
       end
 
       def to_sql
-        primary_shard.activate(klass.shard_category) { super }
+        primary_shard.activate(klass.connection_classes) { super }
       end
 
       def explain
@@ -100,15 +100,15 @@ module Switchman
       def activate(&block)
         shards = all_shards
         if (Array === shards && shards.length == 1)
-          if shards.first == DefaultShard || shards.first == Shard.current(klass.shard_category)
+          if shards.first == DefaultShard || shards.first == Shard.current(klass.connection_classes)
             yield(self, shards.first)
           else
-            shards.first.activate(klass.shard_category) { yield(self, shards.first) }
+            shards.first.activate(klass.connection_classes) { yield(self, shards.first) }
           end
         else
           # TODO: implement local limit to avoid querying extra shards
-          Shard.with_each_shard(shards, [klass.shard_category]) do
-            shard(Shard.current(klass.shard_category), :to_a).activate(&block)
+          Shard.with_each_shard(shards, [klass.connection_classes]) do
+            shard(Shard.current(klass.connection_classes), :to_a).activate(&block)
           end
         end
       end

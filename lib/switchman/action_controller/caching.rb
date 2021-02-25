@@ -21,7 +21,7 @@ module Switchman
       include ConfigMethods
 
       def self.included(base)
-        base.extend(ConfigMethods)
+        base.singleton_class.prepend(ConfigMethods)
       end
     end
   end

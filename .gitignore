@@ -1,5 +1,5 @@
 /.bundle/
-/.byebug_history
+.byebug_history
 /coverage/
 /docker-compose.override.yml
 /gemfiles/.bundle/

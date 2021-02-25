@@ -17,13 +17,7 @@ module Switchman
           Shard.default(reload: true)
         end
 
-        # can't auto-create a new shard on the default shard's db server if the
-        # default shard is split across multiple db servers
-        if ::ActiveRecord::Base.connection_handler.connection_pool_list.length > 1
-          server1 = DatabaseServer.create(Shard.default.database_server.config)
-        else
-          server1 = Shard.default.database_server
-        end
+        server1 = Shard.default.database_server
         server2 = DatabaseServer.create(Shard.default.database_server.config)
 
         if server1 == Shard.default.database_server && server1.config[:shard1] && server1.config[:shard2]

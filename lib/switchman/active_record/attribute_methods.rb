@@ -6,7 +6,7 @@ module Switchman
       module ClassMethods
 
         def sharded_primary_key?
-          self != Shard && shard_category != :unsharded && integral_id?
+          !(self <= UnshardedRecord) && integral_id?
         end
 
         def sharded_foreign_key?(column_name)
@@ -35,103 +35,105 @@ module Switchman
           raise if connection.open_transactions > 0
         end
 
-        def define_method_global_attribute(attr_name)
+        def define_method_global_attribute(attr_name, owner: )
           if sharded_column?(attr_name)
-            generated_attribute_methods.module_eval <<-RUBY, __FILE__, __LINE__ + 1
-              def __temp__
-                Shard.global_id_for(original_#{attr_name}, shard)
+            owner << <<-RUBY
+              def global_#{attr_name}
+                ::Switchman::Shard.global_id_for(original_#{attr_name}, shard)
               end
-              alias_method 'global_#{attr_name}', :__temp__
-              undef_method :__temp__
             RUBY
           else
-            define_method_unsharded_column(attr_name, 'global')
+            define_method_unsharded_column(attr_name, 'global', owner)
           end
         end
 
-        def define_method_local_attribute(attr_name)
+        def define_method_local_attribute(attr_name, owner: )
           if sharded_column?(attr_name)
-            generated_attribute_methods.module_eval <<-RUBY, __FILE__, __LINE__ + 1
-              def __temp__
-                Shard.local_id_for(original_#{attr_name}).first
+            owner << <<-RUBY
+              def local_#{attr_name}
+                ::Switchman::Shard.local_id_for(original_#{attr_name}).first
               end
-              alias_method 'local_#{attr_name}', :__temp__
-              undef_method :__temp__
             RUBY
           else
-            define_method_unsharded_column(attr_name, 'local')
+            define_method_unsharded_column(attr_name, 'local', owner)
           end
         end
 
-        # see also Base#shard_category_for_reflection
+        # see also Base#connection_classes_for_reflection
         # the difference being this will output static strings for the common cases, making them
         # more performant
-        def shard_category_code_for_reflection(reflection)
+        def connection_classes_code_for_reflection(reflection)
           if reflection
             if reflection.options[:polymorphic]
               # a polymorphic association has to be discovered at runtime. This code ends up being something like
-              # context_type.&.constantize&.shard_category || :primary
-              "read_attribute(:#{reflection.foreign_type})&.constantize&.shard_category || :primary"
+              # context_type.&.constantize&.connection_classes
+              "read_attribute(:#{reflection.foreign_type})&.constantize&.connection_classes"
             else
               # otherwise we can just return a symbol for the statically known type of the association
-              reflection.klass.shard_category.inspect
+              "::#{reflection.klass.connection_classes.name}"
             end
           else
-            shard_category.inspect
+            "::#{connection_classes.name}"
           end
         end
 
-        def define_method_original_attribute(attr_name)
+        # just a dummy class with the proper interface that calls module_eval immediately
+        class CodeGenerator
+          def initialize(mod, line)
+            @module = mod
+            @line = line
+          end
+
+          def <<(string)
+            @module.module_eval(string, __FILE__, @line)
+          end
+        end
+
+        def define_method_original_attribute(attr_name, owner: )
           if sharded_column?(attr_name)
             reflection = reflection_for_integer_attribute(attr_name)
             if attr_name == "id"
-              return if self.method_defined?(:original_id)
-              owner = self
-            else
-              owner = generated_attribute_methods
+              return if method_defined?(:original_id)
+              owner = CodeGenerator.new(self, __LINE__ + 4)
             end
-            owner.module_eval <<-RUBY, __FILE__, __LINE__ + 1
-              # rename the original method to original_
+
+            owner << <<-RUBY
+              # rename the original method to original_*
               alias_method 'original_#{attr_name}', '#{attr_name}'
               # and replace with one that transposes the id
-              def __temp__
-                Shard.relative_id_for(original_#{attr_name}, shard, Shard.current(#{shard_category_code_for_reflection(reflection)}))
+              def #{attr_name}
+                ::Switchman::Shard.relative_id_for(original_#{attr_name}, shard, ::Switchman::Shard.current(#{connection_classes_code_for_reflection(reflection)}))
               end
-              alias_method '#{attr_name}', :__temp__
-              undef_method :__temp__
 
               alias_method 'original_#{attr_name}=', '#{attr_name}='
-              def __temp__(new_value)
-                self.original_#{attr_name} = Shard.relative_id_for(new_value, Shard.current(#{shard_category_code_for_reflection(reflection)}), shard)
+              def #{attr_name}=(new_value)
+                self.original_#{attr_name} = ::Switchman::Shard.relative_id_for(new_value, ::Switchman::Shard.current(#{connection_classes_code_for_reflection(reflection)}), shard)
               end
-              alias_method '#{attr_name}=', :__temp__
-              undef_method :__temp__
             RUBY
           else
-            define_method_unsharded_column(attr_name, 'global')
+            define_method_unsharded_column(attr_name, 'global', owner)
           end
         end
 
-        def define_method_unsharded_column(attr_name, prefix)
+        def define_method_unsharded_column(attr_name, prefix, owner)
           return if columns_hash["#{prefix}_#{attr_name}"]
-          generated_attribute_methods.module_eval <<-RUBY, __FILE__, __LINE__ + 1
-              def __temp__
-                raise NoMethodError, "undefined method `#{prefix}_#{attr_name}'; are you missing an association?"
-              end
-              alias_method '#{prefix}_#{attr_name}', :__temp__
-              undef_method :__temp__
+          owner << <<-RUBY
+            def #{prefix}_#{attr_name}
+              raise NoMethodError, "undefined method `#{prefix}_#{attr_name}'; are you missing an association?"
+            end
           RUBY
         end
       end
 
       def self.included(klass)
-        klass.extend(ClassMethods)
+        klass.singleton_class.include(ClassMethods)
         klass.attribute_method_prefix "global_", "local_", "original_"
       end
 
       # ensure that we're using the sharded attribute method
       # and not the silly one in AR::AttributeMethods::PrimaryKey
       def id
+        return super if self.is_a?(Shard)
         self.class.define_attribute_methods
         super
       end

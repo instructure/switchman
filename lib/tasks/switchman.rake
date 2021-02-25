@@ -49,11 +49,11 @@ module Switchman
       { parallel: ENV['PARALLEL'].to_i, max_procs: ENV['MAX_PARALLEL_PROCS'] }
     end
 
-    # categories - an array or proc, to activate as the current shard during the
+    # classes - an array or proc, to activate as the current shard during the
     # task. tasks which modify the schema may want to pass all categories in
     # so that schema updates for non-default tables happen against all shards.
     # this is handled automatically for the default migration tasks, below.
-    def self.shardify_task(task_name, categories: [:primary])
+    def self.shardify_task(task_name, classes: [::ActiveRecord::Base])
       old_task = ::Rake::Task[task_name]
       old_actions = old_task.actions.dup
       old_task.actions.clear
@@ -67,18 +67,11 @@ module Switchman
         ::GuardRail.activate(:deploy) do
           Shard.default.database_server.unguard do
             begin
-              categories = categories.call if categories.respond_to?(:call)
-              Shard.with_each_shard(scope, categories, options) do
+              classes = classes.call if classes.respond_to?(:call)
+              Shard.with_each_shard(scope, classes, **options) do
                 shard = Shard.current
                 puts "#{shard.id}: #{shard.description}"
-                ::ActiveRecord::Base.connection_pool.spec.config[:shard_name] = Shard.current.name
-                # Adopted from the deprecated code that currently lives in rails proper
-                remaining_configs = ::ActiveRecord::Base.configurations.configurations.reject { |db_config| db_config.env_name == ::Rails.env }
-                new_config = ::ActiveRecord::DatabaseConfigurations.new(::Rails.env =>
-                  ::ActiveRecord::Base.connection_pool.spec.config.stringify_keys).configurations
-                new_configs = remaining_configs + new_config
-    
-                ::ActiveRecord::Base.configurations = new_configs
+
                 shard.database_server.unguard do
                   old_actions.each { |action| action.call(*task_args) }
                 end
@@ -87,6 +80,8 @@ module Switchman
             rescue => e
               puts "Exception from #{e.current_shard.id}: #{e.current_shard.description}" if options[:parallel] != 0
               raise
+            ensure
+              #::ActiveRecord::Base.configurations = old_configurations
             end
           end
         end
@@ -94,7 +89,7 @@ module Switchman
     end
 
     %w{db:migrate db:migrate:up db:migrate:down db:rollback}.each do |task_name|
-      shardify_task(task_name, categories: ->{ Shard.categories })
+      shardify_task(task_name, classes: ->{ Shard.sharded_models })
     end
 
     private

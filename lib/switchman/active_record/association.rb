@@ -10,7 +10,7 @@ module Switchman
       def build_record(*args)
         self.shard.activate { super }
       end
-
+  
       def load_target
         self.shard.activate { super }
       end
@@ -19,16 +19,6 @@ module Switchman
         shard_value = @reflection.options[:multishard] ? @owner : self.shard
         @owner.shard.activate { super.shard(shard_value, :association) }
       end
-
-      def creation_attributes
-        attributes = super
-
-        # translate keys
-        if reflection.macro.in?([:has_one, :has_many]) && !options[:through]
-          attributes[reflection.foreign_key] = Shard.relative_id_for(owner[reflection.active_record_primary_key], owner.shard, self.shard)
-        end
-        attributes
-      end
     end
 
     module CollectionAssociation
@@ -36,14 +26,18 @@ module Switchman
         shards = reflection.options[:multishard] && owner.respond_to?(:associated_shards) ? owner.associated_shards : [shard]
         # activate both the owner and the target's shard category, so that Reflection#join_id_for,
         # when called for the owner, will be returned relative to shard the query will execute on
-        Shard.with_each_shard(shards, [klass.shard_category, owner.class.shard_category].uniq) do
+        Shard.with_each_shard(shards, [klass.connection_classes, owner.class.connection_classes].uniq) do
           super
         end
+      end
+
+      def _create_record(*)
+        shard.activate { super }
       end
     end
 
     module BelongsToAssociation
-      def replace_keys(record)
+      def replace_keys(record, force: false)
         if record && record.class.sharded_column?(reflection.association_primary_key(record.class))
           foreign_id = record[reflection.association_primary_key(record.class)]
           owner[reflection.foreign_key] = Shard.relative_id_for(foreign_id, record.shard, owner.shard)
@@ -58,6 +52,22 @@ module Switchman
           Shard.shard_for(foreign_id, @owner.shard)
         else
           super
+        end
+      end
+    end
+
+    module ForeignAssociation
+      # significant change:
+      #   * transpose the key to the correct shard
+      def set_owner_attributes(record)
+        return if options[:through]
+
+        key = owner._read_attribute(reflection.join_foreign_key)
+        key = Shard.relative_id_for(key, owner.shard, shard)
+        record._write_attribute(reflection.join_primary_key, key)
+
+        if reflection.type
+          record._write_attribute(reflection.type, owner.class.polymorphic_name)
         end
       end
     end
@@ -78,27 +88,27 @@ module Switchman
         # Copypasta from Activerecord but with added global_id_for goodness.
         def records_for(ids)
           scope.where(association_key_name => ids).load do |record|
-            global_key = if record.class.shard_category == :unsharded
+            global_key = if record.class.connection_classes == UnshardedRecord
                             convert_key(record[association_key_name])
                           else
                             Shard.global_id_for(record[association_key_name], record.shard)
                           end
-            owner = owners_by_key[global_key.to_s].first
+            owner = owners_by_key[convert_key(global_key)].first
             association = owner.association(reflection.name)
             association.set_inverse_instance(record)
           end
         end
 
-        def records_by_owner
-          associated_records_by_owner
-        end
+        # significant changes:
+        #  * partition_by_shard the records_for call
+        #  * re-globalize the fetched owner id before looking up in the map
+        def load_records
+          # owners can be duplicated when a relation has a collection association join
+          # #compare_by_identity makes such owners different hash keys
+          @records_by_owner = {}.compare_by_identity
 
-        def associated_records_by_owner(preloader = nil)
-          return @associated_records_by_owner if defined?(@associated_records_by_owner)
-          owners_map = owners_by_key
-
-          if klass.nil? || owners_map.empty?
-            records = []
+          if owner_keys.empty?
+            raw_records = []
           else
             # determine the shard to search for each owner
             if reflection.macro == :belongs_to
@@ -122,55 +132,50 @@ module Switchman
               # partition_proc = ->(owner) { owner }
             end
 
-            records = Shard.partition_by_shard(owners, partition_proc) do |partitioned_owners|
-              # Some databases impose a limit on the number of ids in a list (in Oracle it's 1000)
-              # Make several smaller queries if necessary or make one query if the adapter supports it
-              sliced_owners = partitioned_owners.each_slice(model.connection.in_clause_length || partitioned_owners.size)
-              sliced_owners.map do |slice|
-                relative_owner_keys = slice.map do |owner|
-                  key = owner[owner_key_name]
-                  if key && owner.class.sharded_column?(owner_key_name)
-                    key = Shard.relative_id_for(key, owner.shard, Shard.current(owner.class.shard_category))
-                  end
-                  key && key.to_s
+            raw_records = Shard.partition_by_shard(owners, partition_proc) do |partitioned_owners|
+              relative_owner_keys = partitioned_owners.map do |owner|
+                key = owner[owner_key_name]
+                if key && owner.class.sharded_column?(owner_key_name)
+                  key = Shard.relative_id_for(key, owner.shard, Shard.current(klass.connection_classes))
                 end
-                relative_owner_keys.compact!
-                relative_owner_keys.uniq!
-                records_for(relative_owner_keys)
+                convert_key(key)
               end
+              relative_owner_keys.compact!
+              relative_owner_keys.uniq!
+              records_for(relative_owner_keys)
             end
-            records.flatten!
           end
 
-          # This ivar may look unused, but remember this is an extension of
-          # rails' AR::Associations::Preloader::Association class. It gets used
-          # by that class (and its subclasses).
-          @preloaded_records = records
+          @preloaded_records = raw_records.select do |record|
+            assignments = false
 
-          # Each record may have multiple owners, and vice-versa
-          @associated_records_by_owner = owners.each_with_object({}) do |owner,h|
-            h[owner] = []
-          end
-          records.each do |record|
             owner_key = record[association_key_name]
             owner_key = Shard.global_id_for(owner_key, record.shard) if owner_key && record.class.sharded_column?(association_key_name)
 
-            owners_map[owner_key.to_s].each do |owner|
-              owner.association(reflection.name).set_inverse_instance(record)
-              @associated_records_by_owner[owner] << record
+            owners_by_key[convert_key(owner_key)].each do |owner|
+              entries = (@records_by_owner[owner] ||= [])
+
+              if reflection.collection? || entries.empty?
+                entries << record
+                assignments = true
+              end
             end
+
+            assignments
           end
-          @associated_records_by_owner
         end
 
+        # significant change: globalize keys on sharded columns
         def owners_by_key
-          @owners_by_key ||= owners.group_by do |owner|
+          @owners_by_key ||= owners.each_with_object({}) do |owner, result|
             key = owner[owner_key_name]
             key = Shard.global_id_for(key, owner.shard) if key && owner.class.sharded_column?(owner_key_name)
-            key && key.to_s
+            key = convert_key(key)
+            (result[key] ||= []) << owner if key
           end
         end
 
+        # significant change: don't cache scope (since it could be for different shards)
         def scope
           build_scope
         end
@@ -200,7 +205,7 @@ module Switchman
         # this seems counter-intuitive, but the autosave code will assign to attribute bypassing switchman,
         # after reading the id attribute _without_ bypassing switchman. So we need Shard.current for the
         # category of the associated record to match Shard.current for the category of self
-        shard.activate(shard_category_for_reflection(reflection)) { super }
+        shard.activate(connection_classes_for_reflection(reflection)) { super }
       end
     end
   end

@@ -5,7 +5,7 @@ module Switchman
     module Reflection
       module AbstractReflection
         def shard(owner)
-          if polymorphic? || klass.shard_category == owner.class.shard_category
+          if polymorphic? || klass.connection_classes == owner.class.connection_classes
             # polymorphic associations assume the same shard as the owning item
             owner.shard
           else
@@ -28,15 +28,13 @@ module Switchman
         # this technically belongs on AssociationReflection, but we put it on
         # ThroughReflection as well, instead of delegating to its internal
         # HasManyAssociation, losing its proper `klass`
-        def association_scope_cache(conn, owner, &block)
-          key = conn.prepared_statements
+        def association_scope_cache(klass, owner, &block)
+          key = self
           if polymorphic?
             key = [key, owner._read_attribute(@foreign_type)]
           end
           key = [key, shard(owner).id].flatten
-          @association_scope_cache[key] ||= @scope_lock.synchronize {
-            @association_scope_cache[key] ||=::ActiveRecord::StatementCache.create(conn, &block)
-          }
+          klass.cached_find_by_statement(key, &block)
         end
       end
 

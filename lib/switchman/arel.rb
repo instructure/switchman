@@ -3,10 +3,11 @@
 module Switchman
   module Arel
     module Table
-      def model
-        type_caster.model
+      def klass
+        @klass || ::ActiveRecord::Base
       end
     end
+
     module Visitors
       module ToSql
         def visit_Arel_Nodes_TableAlias *args

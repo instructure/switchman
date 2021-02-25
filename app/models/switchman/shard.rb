@@ -6,23 +6,9 @@ require 'switchman/environment'
 require 'switchman/errors'
 
 module Switchman
-  class Shard < ::ActiveRecord::Base
+  class Shard < UnshardedRecord
     # ten trillion possible ids per shard. yup.
     IDS_PER_SHARD = 10_000_000_000_000
-
-    CATEGORIES =
-      {
-          # special cased to mean all other models
-          :primary => nil,
-          # special cased to not allow activating a shard other than the default
-          :unsharded => [Shard]
-      }
-    private_constant :CATEGORIES
-    @connection_specification_name = @shard_category = :unsharded
-
-    if defined?(::ProtectedAttributes)
-      attr_accessible :default, :name, :database_server
-    end
 
     # only allow one default
     validates_uniqueness_of :default, :if => lambda { |s| s.default? }
@@ -30,20 +16,39 @@ module Switchman
     after_save :clear_cache
     after_destroy :clear_cache
 
-    after_rollback :on_rollback
-
     scope :primary, -> { where(name: nil).order(:database_server_id, :id).distinct_on(:database_server_id) }
 
     class << self
-      def categories
-        CATEGORIES.keys
+      def sharded_models
+        # for initialization reasons, this is stored over yonder
+        ActiveRecord::Base::ClassMethods::SHARDED_MODELS
       end
 
-      def default(reload_deprecated = false, reload: false, with_fallback: false)
-        if reload_deprecated
-          reload = reload_deprecated
-          ::ActiveSupport::Deprecation.warn("positional reload parameter to Switchman::Shard.default is deprecated; use `reload: true`")
+      def initialize_sharding
+        full_connects_to_hash = DatabaseServer.all.map { |db| [db.id.to_sym, db.connects_to_hash] }.to_h
+        sharded_models.each do |klass|
+          connects_to_hash = full_connects_to_hash.deep_dup
+          if klass == UnshardedRecord
+            # no need to mention other databases for the unsharded category
+            connects_to_hash = { ::Rails.env.to_sym => DatabaseServer.find(nil).connects_to_hash }
+          end
+
+          # prune things we're already connected to
+          if klass.connection_specification_name == klass.name
+            connects_to_hash.each do |(db_name, role_hash)|
+              role_hash.each_key do |role|
+                if klass.connection_handler.retrieve_connection_pool(klass.connection_specification_name, role: role, shard: db_name)
+                  role_hash.delete(role)
+                end
+              end
+            end
+          end
+
+          klass.connects_to shards: connects_to_hash
         end
+      end
+
+      def default(reload: false, with_fallback: false)
         if !@default || reload
           # Have to create a dummy object so that several key methods still work
           # (it's easier to do this in one place here, and just assume that sharding
@@ -68,50 +73,48 @@ module Switchman
             default
           end
 
-          # rebuild current shard activations - it might have "another" default shard serialized there
-          active_shards.replace(active_shards.dup.map do |category, shard|
-            shard = Shard.lookup((!shard || shard.default?) ? 'default' : shard.id)
-            [category, shard]
-          end.to_h)
-
-          activate!(primary: @default) if active_shards.empty?
-
           # make sure this is not erroneously cached
           if @default.database_server.instance_variable_defined?(:@primary_shard)
             @default.database_server.remove_instance_variable(:@primary_shard)
           end
 
           # and finally, check for cached references to the default shard on the existing connection
-          if ::ActiveRecord::Base.connected? && ::ActiveRecord::Base.connection.shard.default?
-            ::ActiveRecord::Base.connection.shard = @default
+          sharded_models.each do |klass|
+            if klass.connected? && klass.connection.shard.default?
+              klass.connection.shard = @default
+            end
           end
         end
         @default
       end
 
-      def current(category = :primary)
-        active_shards[category] || Shard.default
+      def current(klass = ::ActiveRecord::Base)
+        klass ||= ::ActiveRecord::Base
+        klass.connection_pool.shard
       end
 
       def activate(shards)
-        old_shards = activate!(shards)
+        activated_classes = activate!(shards)
         yield
       ensure
-        active_shards.merge!(old_shards) if old_shards
+        activated_classes.each do |klass|
+          klass.connection_pool.shard_stack.pop
+          klass.connected_to_stack.pop
+        end
       end
 
       def activate!(shards)
-        old_shards = nil
-        currently_active_shards = active_shards
-        shards.each do |category, shard|
-          next if category == :unsharded
-          unless currently_active_shards[category] == shard
-            old_shards ||= {}
-            old_shards[category] = currently_active_shards[category]
-            currently_active_shards[category] = shard
+        activated_classes = []
+        shards.each do |klass, shard|
+          next if klass == UnshardedRecord
+          if klass.current_shard != shard.database_server.id.to_sym ||
+            klass.connection_pool.shard != shard
+            activated_classes << klass
+            klass.connected_to_stack << { shard: shard.database_server.id.to_sym, klasses: [klass] }
+            klass.connection_pool.shard_stack << shard
           end
         end
-        old_shards
+        activated_classes
       end
 
       def lookup(id)
@@ -136,42 +139,33 @@ module Switchman
       # ==== Parameters
       #
       # * +shards+ - an array or relation of Shards to iterate over
-      # * +categories+ - an array of categories to activate
-      # * +options+ -
-      #    :parallel - true/false to execute in parallel, or a integer of how many
+      # * +classes+ - an array of classes to activate
+      #    parallel: - true/false to execute in parallel, or a integer of how many
       #                sub-processes per database server. Note that parallel
       #                invocation currently uses forking, so should be used sparingly
       #                because errors are not raised, and you cannot get results back
-      #    :max_procs - only run this many parallel processes at a time
-      #    :exception - :ignore, :raise, :defer (wait until the end and raise the first
+      #    max_procs: - only run this many parallel processes at a time
+      #    exception: - :ignore, :raise, :defer (wait until the end and raise the first
       #                error), or a proc
-      def with_each_shard(*args)
-        raise ArgumentError, "wrong number of arguments (#{args.length} for 0...3)" if args.length > 3
+      def with_each_shard(*args, parallel: false, max_procs: nil, exception: :raise)
+        raise ArgumentError, "wrong number of arguments (#{args.length} for 0...2)" if args.length > 2
 
         unless default.is_a?(Shard)
           return Array.wrap(yield)
         end
 
-        options = args.extract_options!
         if args.length == 1
-          if Array === args.first && args.first.first.is_a?(Symbol)
-            categories = args.first
+          if Array === args.first && args.first.first.is_a?(Class)
+            classes = args.first
           else
             scope = args.first
           end
         else
-          scope, categories = args
+          scope, classes = args
         end
 
-        parallel = case options[:parallel]
-                     when true
-                       1
-                     when false, nil
-                       0
-                     else
-                       options[:parallel]
-                   end
-        options.delete(:parallel)
+        parallel = 1 if parallel == true
+        parallel = 0 if parallel == false || parallel.nil?
 
         scope ||= Shard.all
         if ::ActiveRecord::Relation === scope && scope.order_values.empty?
@@ -179,7 +173,7 @@ module Switchman
         end
 
         if parallel > 0
-          max_procs = determine_max_procs(options.delete(:max_procs), parallel)
+          max_procs = determine_max_procs(max_procs, parallel)
           if ::ActiveRecord::Relation === scope
             # still need a post-uniq, cause the default database server could be NULL or Rails.env in the db
             database_servers = scope.reorder('database_server_id').select(:database_server_id).distinct.
@@ -245,7 +239,7 @@ module Switchman
 
           # only one process; don't bother forking
           if scopes.length == 1 && parallel == 1
-            return with_each_shard(scopes.first.last.first, categories, options) { yield }
+            return with_each_shard(scopes.first.last.first, classes, exception: exception) { yield }
           end
 
           # clear connections prior to forking (no more queries will be executed in the parent,
@@ -281,7 +275,7 @@ module Switchman
                   new_title = [bin, args, name].join(" ")
                   Process.setproctitle(new_title)
 
-                  with_each_shard(subscope, categories, options) { yield }
+                  with_each_shard(subscope, classes, exception: exception) { yield }
                   exception_pipe.last.close
                 rescue => e
                   begin
@@ -336,8 +330,8 @@ module Switchman
             begin
               serialized_exception = exception_pipe.first.read
               next if serialized_exception.empty?
-              exception = Marshal.load(serialized_exception)
-              raise exception
+              ex = Marshal.load(serialized_exception)
+              raise ex
             ensure
               exception_pipe.first.close
             end
@@ -349,40 +343,24 @@ module Switchman
           return
         end
 
-        categories ||= []
+        classes ||= []
 
         previous_shard = nil
-        close_connections_if_needed = lambda do |shard|
-          # prune the prior connection unless it happened to be the same
-          if previous_shard && shard != previous_shard && !previous_shard.database_server.shareable?
-            previous_shard.activate do
-              ::GuardRail.activated_environments.each do |env|
-                ::GuardRail.activate(env) do
-                  if ::ActiveRecord::Base.connected? && ::ActiveRecord::Base.connection.open_transactions == 0
-                    ::ActiveRecord::Base.connection_pool.current_pool.disconnect!
-                  end
-                end
-              end
-            end
-          end
-        end
-
         result = []
-        exception = nil
+        ex = nil
         scope.each do |shard|
           # shard references a database server that isn't configured in this environment
           next unless shard.database_server
-          close_connections_if_needed.call(shard)
-          shard.activate(*categories) do
+          shard.activate(*classes) do
             begin
               result.concat Array.wrap(yield)
             rescue
-              case options[:exception]
+              case exception
               when :ignore
               when :defer
-                exception ||= $!
+                ex ||= $!
               when Proc
-                options[:exception].call
+                exception.call
               when :raise
                 raise
               else
@@ -392,8 +370,7 @@ module Switchman
           end
           previous_shard = shard
         end
-        close_connections_if_needed.call(Shard.current)
-        raise exception if exception
+        raise ex if ex
         result
       end
 
@@ -447,7 +424,7 @@ module Switchman
       # integral id. nil if it can't be interpreted
       def integral_id_for(any_id)
         if any_id.is_a?(::Arel::Nodes::Casted)
-          any_id = any_id.val
+          any_id = any_id.value
         elsif any_id.is_a?(::Arel::Nodes::BindParam)
           any_id = any_id.value.value_before_type_cast
         end
@@ -582,10 +559,6 @@ module Switchman
         shard = nil unless shard.database_server
         shard
       end
-
-      def active_shards
-        Thread.current[:active_shards] ||= {}.compare_by_identity
-      end
     end
 
     def name
@@ -624,16 +597,16 @@ module Switchman
       Shard.default
     end
 
-    def activate(*categories)
-      shards = hashify_categories(categories)
+    def activate(*classes)
+      shards = hashify_classes(classes)
       Shard.activate(shards) do
         yield
       end
     end
 
     # for use from console ONLY
-    def activate!(*categories)
-      shards = hashify_categories(categories)
+    def activate!(*classes)
+      shards = hashify_classes(classes)
       Shard.activate!(shards)
       nil
     end
@@ -724,20 +697,11 @@ module Switchman
       database_server.shard_name(self)
     end
 
-    def on_rollback
-      # make sure all connection pool proxies are referencing valid pools
-      ::ActiveRecord::Base.connection_handler.connection_pools.each do |pool|
-        next unless pool.is_a?(ConnectionPoolProxy)
-
-        pool.remove_shard!(self)
-      end
-    end
-
-    def hashify_categories(categories)
-      if categories.empty?
-        { :primary => self }
+    def hashify_classes(classes)
+      if classes.empty?
+        { ::ActiveRecord::Base => self }
       else
-        categories.inject({}) { |h, category| h[category] = self; h }
+        classes.inject({}) { |h, klass| h[klass] = self; h }
       end
     end
 

@@ -22,8 +22,8 @@ module Switchman
           end
 
           it "should share the cache across shards on the same server" do
-            expect(@shard1.activate{ subject.cache_store }).
-              to eq @shard3.activate{ subject.cache_store }
+            expect(Shard.default.activate{ subject.cache_store }).
+              to eq @shard1.activate{ subject.cache_store }
           end
 
           it "should not share the cache across shards on different servers" do

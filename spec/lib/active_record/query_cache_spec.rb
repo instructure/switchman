@@ -37,13 +37,13 @@ module Switchman
           User.create!
           User.create!
         end
-        @shard3.activate do
+        Shard.default.activate do
           expect(User.connection.query_cache_enabled).to eq true
           User.create!
         end
-        expect(@shard1.activate { User.all.to_a }).not_to eq @shard3.activate { User.all.to_a }
+        expect(@shard1.activate { User.all.to_a }).not_to eq Shard.default.activate { User.all.to_a }
         @shard1.activate { expect(User.connection).to receive(:select).never }
-        expect(@shard1.activate { User.all.to_a }).not_to eq @shard3.activate { User.all.to_a }
+        expect(@shard1.activate { User.all.to_a }).not_to eq Shard.default.activate { User.all.to_a }
       end
 
       it "doesn't break logging with binds" do

@@ -3,12 +3,18 @@
 module Switchman
   module StandardError
     def initialize(*args)
-      @active_shards = Shard.send(:active_shards).dup
+      # Shard.current can throw this when switchman isn't working right; if we try to
+      # do our stuff here, it'll cause a SystemStackError, which is a pain to deal with
+      return super if self.is_a?(::ActiveRecord::ConnectionNotEstablished)
+
+      @active_shards = Shard.sharded_models.map do |klass|
+        [klass, Shard.current(klass)]
+      end.compact.to_h
       super
     end
 
-    def current_shard(category = :primary)
-      @active_shards&.[](category) || Shard.default
+    def current_shard(klass = ::ActiveRecord::Base)
+      @active_shards&.[](klass) || Shard.default
     end
   end
 end

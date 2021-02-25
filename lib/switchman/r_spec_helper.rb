@@ -6,11 +6,8 @@ module Switchman
   # including this module in your specs will give you several shards to
   # work with during specs:
   #  * Shard.default - the test database itself
-  #  * @shard1 - a shard possibly using the same connection as Shard.default
+  #  * @shard1 - a shard using the same connection as Shard.default
   #  * @shard2 - a shard using a dedicated connection
-  #  * @shard3 - a shard using the same connection as @shard1 (this might
-  #              be Shard.default if they already share a connection, or
-  #              a separate shard)
   module RSpecHelper
     @@keep_the_shards = false
     @@shard1 = nil
@@ -49,11 +46,6 @@ module Switchman
           begin
             @@shard1 = @@shard1.create_new_shard
             @@shard2 = @@shard2.create_new_shard
-            if @@shard1.database_server == Shard.default.database_server
-              @@shard3 = nil
-            else
-              @@shard3 = @@shard1.database_server.create_new_shard
-            end
           rescue => e
             $stderr.puts "Sharding setup FAILED!:"
             while e
@@ -62,10 +54,9 @@ module Switchman
               e = e.respond_to?(:cause) ? e.cause : nil
             end
             @@sharding_failed = true
-            (@@shard1.drop_database if @@shard1) rescue nil
-            (@@shard2.drop_database if @@shard3) rescue nil
-            (@@shard3.drop_database if @@shard3) rescue nil
-            @@shard1 = @@shard2 = @@shard3 = nil
+            (@@shard1&.drop_database) rescue nil
+            (@@shard2&.drop_database) rescue nil
+            @@shard1 = @@shard2 = nil
             Shard.delete_all
             Shard.default(reload: true)
             next
@@ -88,10 +79,6 @@ module Switchman
             @@shard1.destroy
             @@shard2.drop_database
             @@shard2.destroy
-            if @@shard3
-              @@shard3.drop_database
-              @@shard3.destroy
-            end
           end
           @@shard2.database_server.destroy
           exit status if status
@@ -111,13 +98,7 @@ module Switchman
         dup = @@shard2.dup
         dup.id = @@shard2.id
         dup.save!
-        if @@shard3
-          dup = @@shard3.dup
-          dup.id = @@shard3.id
-          dup.save!
-        end
         @shard1, @shard2 = @@shard1, @@shard2
-        @shard3 = @@shard3 ? @@shard3 : Shard.default
       end
 
       klass.before do
@@ -146,6 +127,13 @@ module Switchman
             shard.activate do
               ::ActiveRecord::Base.connection.rollback_transaction if ::ActiveRecord::Base.connection.transaction_open?
             end
+          end
+        end
+        # clean up after specs
+        DatabaseServer.all.each do |ds|
+          if ds.fake? && ds != @shard2.database_server
+            ds.shards.delete_all unless use_transactional_tests
+            ds.destroy
           end
         end
       end

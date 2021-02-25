@@ -6,24 +6,17 @@ module Switchman
       module ClassMethods
         delegate :shard, to: :all
 
+        SHARDED_MODELS = [ ::ActiveRecord::Base ]
+
         def find_ids_in_ranges(opts={}, &block)
           opts.reverse_merge!(:loose => true)
           all.find_ids_in_ranges(opts, &block)
         end
 
-        def shard_category
-          connection_specification_name.to_sym
-        end
-
-        def shard_category=(category)
-          categories = Shard.const_get(:CATEGORIES)
-          if categories[shard_category]
-            categories[shard_category].delete(self)
-            categories.delete(shard_category) if categories[shard_category].empty?
-          end
-          categories[category] ||= []
-          categories[category] << self
-          self.connection_specification_name = category.to_s
+        def sharded_model
+          self.abstract_class = true
+          SHARDED_MODELS << self
+          Shard.initialize_sharding unless self == UnshardedRecord
         end
 
         def integral_id?
@@ -36,7 +29,7 @@ module Switchman
         def transaction(**)
           if self != ::ActiveRecord::Base && current_scope
             current_scope.activate do
-              db = Shard.current(shard_category).database_server
+              db = Shard.current(connection_classes).database_server
               if ::GuardRail.environment != db.guard_rail_environment
                 db.unguard { super }
               else
@@ -44,7 +37,7 @@ module Switchman
               end
             end
           else
-            db = Shard.current(shard_category).database_server
+            db = Shard.current(connection_classes).database_server
             if ::GuardRail.environment != db.guard_rail_environment
               db.unguard { super }
             else
@@ -72,29 +65,38 @@ module Switchman
         end
 
         def clear_query_caches_for_current_thread
-          ::ActiveRecord::Base.connection_handlers.each_value do |handler|
-            handler.connection_pool_list.each do |pool|
+          ::ActiveRecord::Base.connection_handler.connection_pool_list.each do |pool|
               pool.connection(switch_shard: false).clear_query_cache if pool.active_connection?
-            end
           end
         end
+
+        # significant change: _don't_ check if klasses.include?(Base)
+        # i.e. other sharded models don't inherit the current shard of Base
+        def current_shard
+          connected_to_stack.reverse_each do |hash|
+            return hash[:shard] if hash[:shard] && hash[:klasses].include?(connection_classes)
+          end
+  
+          default_shard
+        end
+  
       end
 
       def self.included(klass)
-        klass.extend(ClassMethods)
+        klass.singleton_class.prepend(ClassMethods)
         klass.set_callback(:initialize, :before) do
           unless @shard
             if self.class.sharded_primary_key?
-              @shard = Shard.shard_for(self[self.class.primary_key], Shard.current(self.class.shard_category))
+              @shard = Shard.shard_for(self[self.class.primary_key], Shard.current(self.class.connection_classes))
             else
-              @shard = Shard.current(self.class.shard_category)
+              @shard = Shard.current(self.class.connection_classes)
             end
           end
         end
       end
 
       def shard
-        @shard || Shard.current(self.class.shard_category) || Shard.default
+        @shard || Shard.current(self.class.connection_classes) || Shard.default
       end
 
       def shard=(new_shard)
@@ -118,7 +120,7 @@ module Switchman
       end
 
       def destroy
-        self.class.shard(shard, :implicit).scoping { super }
+        shard.activate(self.class.connection_classes) { super }
       end
 
       def clone
@@ -131,13 +133,13 @@ module Switchman
       end
 
       def transaction(**kwargs, &block)
-        shard.activate(self.class.shard_category) do
+        shard.activate(self.class.connection_classes) do
           self.class.transaction(**kwargs, &block)
         end
       end
 
       def hash
-        self.class.sharded_primary_key? ? self.class.hash ^ Shard.global_id_for(id).hash : super
+        self.class.sharded_primary_key? ? self.class.hash ^ global_id.hash : super
       end
 
       def to_param
@@ -158,7 +160,7 @@ module Switchman
       end
 
       def update_columns(*)
-        db = Shard.current(self.class.shard_category).database_server
+        db = Shard.current(self.class.connection_classes).database_server
         if ::GuardRail.environment != db.guard_rail_environment
           return db.unguard { super }
         else
@@ -168,22 +170,22 @@ module Switchman
 
       protected
 
-      # see also AttributeMethods#shard_category_code_for_reflection
-      def shard_category_for_reflection(reflection)
+      # see also AttributeMethods#connection_classes_code_for_reflection
+      def connection_classes_for_reflection(reflection)
         if reflection
           if reflection.options[:polymorphic]
             begin
-              read_attribute(reflection.foreign_type)&.constantize&.shard_category || :primary
+              read_attribute(reflection.foreign_type)&.constantize&.connection_classes
             rescue NameError
               # in case someone is abusing foreign_type to not point to an actual class
-              :primary
+              ::ActiveRecord::Base
             end
           else
             # otherwise we can just return a symbol for the statically known type of the association
-            reflection.klass.shard_category
+            reflection.klass.connection_classes
           end
         else
-          shard_category
+          connection_classes
         end
       end
     end

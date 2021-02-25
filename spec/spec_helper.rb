@@ -47,7 +47,7 @@ end
 def where_value(value)
   case value
   when ::Arel::Nodes::Casted
-    value.val
+    value.value
   when ::Arel::Nodes::BindParam
     where_value(value.value)
   when ::ActiveRecord::Relation::QueryAttribute

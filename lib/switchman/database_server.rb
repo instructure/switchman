@@ -13,6 +13,10 @@ module Switchman
         database_servers.values
       end
 
+      def all_roles
+        @all_roles ||= all.map(&:roles).flatten.uniq
+      end
+
       def find(id_or_all)
         return self.all if id_or_all == :all
         return id_or_all.map { |id| self.database_servers[id || ::Rails.env] }.compact.uniq if id_or_all.is_a?(Array)
@@ -30,6 +34,10 @@ module Switchman
         server = DatabaseServer.new(id.to_s, settings)
         server.instance_variable_set(:@fake, true)
         database_servers[server.id] = server
+        ::ActiveRecord::Base.configurations.configurations <<
+          ::ActiveRecord::DatabaseConfigurations::HashConfig.new(::Rails.env, "#{server.id}/primary", settings)
+        Shard.initialize_sharding
+        server
       end
 
       def server_for_new_shard
@@ -38,27 +46,64 @@ module Switchman
         servers[rand(servers.length)]
       end
 
+      # internal
+
+      def reference_role(role)
+        unless all_roles.include?(role)
+          @all_roles << role
+          Shard.initialize_sharding
+        end
+      end
+
       private
+
       def database_servers
         unless @database_servers
           @database_servers = {}.with_indifferent_access
           ::ActiveRecord::Base.configurations.configurations.each do |config|
-            @database_servers[config.env_name] = DatabaseServer.new(config.env_name, config.config)
+            if config.name.include?('/')
+              name, role = config.name.split('/')
+            else
+              name, role = config.env_name, config.name
+            end
+
+            if role == 'primary'
+              @database_servers[name] = DatabaseServer.new(config.env_name, config.configuration_hash)
+            else
+              @database_servers[name].roles << role
+            end
           end
         end
         @database_servers
       end
     end
 
+    attr_reader :roles
+
     def initialize(id = nil, config = {})
       @id = id
       @config = config.deep_symbolize_keys
       @configs = {}
+      @roles = [:primary]
+    end
+
+    def connects_to_hash
+      self.class.all_roles.map do |role|
+        config_role = role
+        config_role = :primary unless roles.include?(role)
+        config_name = :"#{id}/#{config_role}"
+        config_name = :primary if id == ::Rails.env && config_role == :primary
+        [role.to_sym, config_name]
+      end.to_h
     end
 
     def destroy
-      raise "database servers should be set up in database.yml" unless ::Rails.env.test?
       self.class.send(:database_servers).delete(self.id) if self.id
+      Shard.sharded_models.each do |klass|
+        self.class.all_roles.each do |role|
+          klass.connection_handler.remove_connection_pool(klass.connection_specification_name, role: role, shard: self.id.to_sym)
+        end
+      end
     end
 
     def fake?
@@ -105,49 +150,19 @@ module Switchman
       guard!(old_env)
     end
 
-    def shareable?
-      @shareable_environment_key ||= []
-      environment = guard_rail_environment
-      explicit_user = ::GuardRail.global_config[:username]
-      return @shareable if @shareable_environment_key == [environment, explicit_user]
-      @shareable_environment_key = [environment, explicit_user]
-      if explicit_user
-        username = explicit_user
-      else
-        config = self.config(environment)
-        config = config.first if config.is_a?(Array)
-        username = config[:username]
-      end
-      @shareable = username !~ /%?\{[a-zA-Z0-9_]+\}/
-    end
-
     def shards
-      if self.id == ::Rails.env
-        Shard.where("database_server_id IS NULL OR database_server_id=?", self.id)
+      if id == ::Rails.env
+        Shard.where("database_server_id IS NULL OR database_server_id=?", id)
       else
-        Shard.where(:database_server_id => self.id)
+        Shard.where(database_server_id: id)
       end
     end
 
-    def pool_key
-      self.id == ::Rails.env ? nil : self.id
-    end
-
-    def create_new_shard(options = {})
+    def create_new_shard(id: nil, name: nil, schema: true)
       raise NotImplementedError.new("Cannot create new shards when sharding isn't initialized") unless Shard.default.is_a?(Shard)
 
-      name = options[:name]
-      create_schema = options[:schema]
-      # look for another shard associated with this db
-      other_shard = self.shards.where("name<>':memory:' OR name IS NULL").order(:id).first
-
-      case config[:adapter]
-        when 'postgresql'
-          create_statement = lambda { "CREATE SCHEMA #{name}" }
-          password = " PASSWORD #{::ActiveRecord::Base.connection.quote(config[:password])}" if config[:password]
-        else
-          create_statement = lambda { "CREATE DATABASE #{name}" }
-      end
+      create_statement = lambda { "CREATE SCHEMA #{name}" }
+      password = " PASSWORD #{::ActiveRecord::Base.connection.quote(config[:password])}" if config[:password]
       sharding_config = Switchman.config
       config_create_statement = sharding_config[config[:adapter]]&.[](:create_statement)
       config_create_statement ||= sharding_config[:create_statement]
@@ -158,72 +173,52 @@ module Switchman
         }
       end
 
-      create_shard = lambda do
-        shard_id = options.fetch(:id) do
-          case config[:adapter]
-            when 'postgresql'
-              id_seq = Shard.connection.quote(Shard.connection.quote_table_name('switchman_shards_id_seq'))
-              next_id = Shard.connection.select_value("SELECT nextval(#{id_seq})")
-              next_id.to_i
-            else
-              nil
-          end
-        end
+      id ||= begin
+        id_seq = Shard.connection.quote(Shard.connection.quote_table_name('switchman_shards_id_seq'))
+        next_id = Shard.connection.select_value("SELECT nextval(#{id_seq})")
+        next_id.to_i
+      end
 
-        if name.nil?
-          base_name = self.config[:database].to_s % self.config
-          base_name = nil if base_name == ':memory:'
-          base_name << '_' if base_name
-          base_id = shard_id || SecureRandom.uuid
-          name = "#{base_name}shard_#{base_id}"
-        end
+      name ||= "#{config[:database]}_shard_#{id}"
 
-        shard = Shard.create!(:id => shard_id,
-                              :name => name,
-                              :database_server => self)
+      Shard.connection.transaction do
+        shard = Shard.create!(id: id,
+                              name: name,
+                              database_server_id: self.id)
         schema_already_existed = false
 
         begin
           self.class.creating_new_shard = true
-          shard.activate(*Shard.categories) do
-            ::GuardRail.activate(:deploy) do
-              begin
-                if create_statement
-                  if (::ActiveRecord::Base.connection.select_value("SELECT 1 FROM pg_namespace WHERE nspname=#{::ActiveRecord::Base.connection.quote(name)}"))
-                    schema_already_existed = true
-                    raise "This schema already exists; cannot overwrite"
-                  end
-                  Array(create_statement.call).each do |stmt|
-                    ::ActiveRecord::Base.connection.execute(stmt)
-                  end
-                  # have to disconnect and reconnect to the correct db
-                  if self.shareable? && other_shard
-                    other_shard.activate { ::ActiveRecord::Base.connection }
-                  else
-                    ::ActiveRecord::Base.connection_pool.current_pool.disconnect!
-                  end
+          DatabaseServer.reference_role(:deploy)
+          ::ActiveRecord::Base.connected_to(shard: self.id.to_sym, role: :deploy) do
+            begin
+              if create_statement
+                if (::ActiveRecord::Base.connection.select_value("SELECT 1 FROM pg_namespace WHERE nspname=#{::ActiveRecord::Base.connection.quote(name)}"))
+                  schema_already_existed = true
+                  raise "This schema already exists; cannot overwrite"
                 end
-                old_proc = ::ActiveRecord::Base.connection.raw_connection.set_notice_processor {} if config[:adapter] == 'postgresql'
-                old_verbose = ::ActiveRecord::Migration.verbose
-                ::ActiveRecord::Migration.verbose = false
-
-                unless create_schema == false
-                  reset_column_information
-
-                  if ::ActiveRecord::Base.connection.supports_ddl_transactions?
-                    ::ActiveRecord::Base.connection.transaction(requires_new: true) do
-                      ::ActiveRecord::Base.connection.migration_context.migrate
-                    end
-                  else
-                    migrate.call
-                  end
-                  reset_column_information
-                  ::ActiveRecord::Base.descendants.reject { |m| m == Shard || !m.table_exists? }.each(&:define_attribute_methods)
+                Array(create_statement.call).each do |stmt|
+                  ::ActiveRecord::Base.connection.execute(stmt)
                 end
-              ensure
-                ::ActiveRecord::Migration.verbose = old_verbose
-                ::ActiveRecord::Base.connection.raw_connection.set_notice_processor(&old_proc) if old_proc
               end
+              old_proc = ::ActiveRecord::Base.connection.raw_connection.set_notice_processor {} if config[:adapter] == 'postgresql'
+              old_verbose = ::ActiveRecord::Migration.verbose
+              ::ActiveRecord::Migration.verbose = false
+
+              unless schema == false
+                shard.activate do
+                  reset_column_information
+
+                  ::ActiveRecord::Base.connection.transaction(requires_new: true) do
+                    ::ActiveRecord::Base.connection.migration_context.migrate
+                  end
+                  reset_column_information
+                  ::ActiveRecord::Base.descendants.reject { |m| m <= UnshardedRecord || !m.table_exists? }.each(&:define_attribute_methods)
+                end
+              end
+            ensure
+              ::ActiveRecord::Migration.verbose = old_verbose
+              ::ActiveRecord::Base.connection.raw_connection.set_notice_processor(&old_proc) if old_proc
             end
           end
           shard
@@ -232,21 +227,11 @@ module Switchman
           unless schema_already_existed
             shard.drop_database rescue nil
           end
-          reset_column_information unless create_schema == false rescue nil
+          reset_column_information unless schema == false rescue nil
           raise
         ensure
           self.class.creating_new_shard = false
         end
-      end
-
-      if Shard.connection.supports_ddl_transactions? && self.shareable? && other_shard
-        Shard.transaction do
-          other_shard.activate do
-            ::ActiveRecord::Base.connection.transaction(&create_shard)
-          end
-        end
-      else
-        create_shard.call
       end
     end
 
@@ -258,18 +243,14 @@ module Switchman
     end
 
     def shard_name(shard)
-      if config[:shard_name]
-        config[:shard_name]
-      elsif config[:adapter] == 'postgresql'
-        if shard == :bootstrap
-          # rescue nil because the database may not exist yet; if it doesn't,
-          # it will shortly, and this will be re-invoked
-          ::ActiveRecord::Base.connection.current_schemas.first rescue nil
-        else
-          shard.activate { ::ActiveRecord::Base.connection_pool.default_schema }
-        end
+      return config[:shard_name] if config[:shard_name]
+
+      if shard == :bootstrap
+        # rescue nil because the database may not exist yet; if it doesn't,
+        # it will shortly, and this will be re-invoked
+        ::ActiveRecord::Base.connection.current_schemas.first rescue nil
       else
-        config[:database]
+        shard.activate { ::ActiveRecord::Base.connection_pool.default_schema }
       end
     end
 
@@ -283,9 +264,9 @@ module Switchman
     end
 
     private
+
     def reset_column_information
-      ::ActiveRecord::Base.descendants.reject { |m| m == Shard }.each(&:reset_column_information)
-      ::ActiveRecord::Base.connection_handler.switchman_connection_pool_proxies.each { |pool| pool.schema_cache.clear! }
+      ::ActiveRecord::Base.descendants.reject { |m| m <= UnshardedRecord }.each(&:reset_column_information)
     end
   end
 end

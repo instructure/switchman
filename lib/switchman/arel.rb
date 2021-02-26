@@ -10,23 +10,27 @@ module Switchman
 
     module Visitors
       module ToSql
-        def visit_Arel_Nodes_TableAlias *args
+        # rubocop:disable Naming/MethodName
+
+        def visit_Arel_Nodes_TableAlias(*args)
           o, collector = args
           collector = visit o.relation, collector
-          collector << " "
+          collector << ' '
           collector << quote_local_table_name(o.name)
         end
 
-        def visit_Arel_Attributes_Attribute *args
+        def visit_Arel_Attributes_Attribute(*args)
           o = args.first
           join_name = o.relation.table_alias || o.relation.name
           result = "#{quote_local_table_name join_name}.#{quote_column_name o.name}"
-          result = args.last << result
-          result
+          args.last << result
         end
 
-        def quote_local_table_name name
+        # rubocop:enable Naming/MethodName
+
+        def quote_local_table_name(name)
           return name if ::Arel::Nodes::SqlLiteral === name
+
           @connection.quote_local_table_name(name)
         end
       end

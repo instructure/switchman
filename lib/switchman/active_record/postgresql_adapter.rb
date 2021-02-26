@@ -9,22 +9,22 @@ module Switchman
 
         option_string = options.sum do |key, value|
           case key
-            when :owner
-              " OWNER = \"#{value}\""
-            when :template
-              " TEMPLATE = \"#{value}\""
-            when :encoding
-              " ENCODING = '#{value}'"
-            when :collation
-              " LC_COLLATE = '#{value}'"
-            when :ctype
-              " LC_CTYPE = '#{value}'"
-            when :tablespace
-              " TABLESPACE = \"#{value}\""
-            when :connection_limit
-              " CONNECTION LIMIT = #{value}"
-            else
-              ""
+          when :owner
+            " OWNER = \"#{value}\""
+          when :template
+            " TEMPLATE = \"#{value}\""
+          when :encoding
+            " ENCODING = '#{value}'"
+          when :collation
+            " LC_COLLATE = '#{value}'"
+          when :ctype
+            " LC_CTYPE = '#{value}'"
+          when :tablespace
+            " TABLESPACE = \"#{value}\""
+          when :connection_limit
+            " CONNECTION LIMIT = #{value}"
+          else
+            ''
           end
         end
 
@@ -37,10 +37,10 @@ module Switchman
       end
 
       def current_schemas
-        select_values("SELECT * FROM unnest(current_schemas(false))")
+        select_values('SELECT * FROM unnest(current_schemas(false))')
       end
 
-      def tables(name = nil)
+      def tables(_name = nil)
         query(<<-SQL, 'SCHEMA').map { |row| row[0] }
           SELECT tablename
           FROM pg_tables
@@ -50,18 +50,15 @@ module Switchman
 
       def extract_schema_qualified_name(string)
         name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(string.to_s)
-        if string && !name.schema
-          name.instance_variable_set(:@schema, shard.name)
-        end
+        name.instance_variable_set(:@schema, shard.name) if string && !name.schema
         [name.schema, name.identifier]
       end
 
       def view_exists?(name)
         name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)
         return false unless name.identifier
-        if !name.schema
-          name.instance_variable_set(:@schema, shard.name)
-        end
+
+        name.instance_variable_set(:@schema, shard.name) unless name.schema
 
         select_values(<<-SQL, 'SCHEMA').any?
           SELECT c.relname
@@ -86,37 +83,37 @@ module Switchman
           ORDER BY i.relname
         SQL
 
-
         result.map do |row|
           index_name = row[0]
           unique = row[1] == true || row[1] == 't'
-          indkey = row[2].split(" ")
+          indkey = row[2].split
           inddef = row[3]
           oid = row[4]
 
-          columns = Hash[query(<<-SQL, "SCHEMA")]
+          columns = Hash[query(<<-SQL, 'SCHEMA')] # rubocop:disable Style/HashConversion
           SELECT a.attnum, a.attname
           FROM pg_attribute a
           WHERE a.attrelid = #{oid}
-          AND a.attnum IN (#{indkey.join(",")})
+          AND a.attnum IN (#{indkey.join(',')})
           SQL
 
           column_names = columns.stringify_keys.values_at(*indkey).compact
 
-          unless column_names.empty?
-            # add info on sort order for columns (only desc order is explicitly specified, asc is the default)
-            desc_order_columns = inddef.scan(/(\w+) DESC/).flatten
-            orders = desc_order_columns.any? ? Hash[desc_order_columns.map {|order_column| [order_column, :desc]}] : {}
-            where = inddef.scan(/WHERE (.+)$/).flatten[0]
-            using = inddef.scan(/USING (.+?) /).flatten[0].to_sym
+          next if column_names.empty?
 
-            ::ActiveRecord::ConnectionAdapters::IndexDefinition.new(table_name, index_name, unique, column_names, orders: orders, where: where, using: using)
-          end
+          # add info on sort order for columns (only desc order is explicitly specified, asc is the default)
+          desc_order_columns = inddef.scan(/(\w+) DESC/).flatten
+          orders = desc_order_columns.any? ? Hash[desc_order_columns.map { |order_column| [order_column, :desc] }] : {} # rubocop:disable Style/HashConversion
+          where = inddef.scan(/WHERE (.+)$/).flatten[0]
+          using = inddef.scan(/USING (.+?) /).flatten[0].to_sym
+
+          ::ActiveRecord::ConnectionAdapters::IndexDefinition.new(table_name, index_name, unique, column_names,
+                                                                  orders: orders, where: where, using: using)
         end.compact
       end
 
       def index_name_exists?(table_name, index_name, _default = nil)
-        exec_query(<<-SQL, 'SCHEMA').rows.first[0].to_i > 0
+        exec_query(<<-SQL, 'SCHEMA').rows.first[0].to_i.positive?
             SELECT COUNT(*)
             FROM pg_class t
             INNER JOIN pg_index d ON t.oid = d.indrelid
@@ -137,14 +134,13 @@ module Switchman
 
       def quote_table_name(name)
         return quote_local_table_name(name) if @use_local_table_name
+
         name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)
-        if !name.schema
-          name.instance_variable_set(:@schema, shard.name)
-        end
+        name.instance_variable_set(:@schema, shard.name) unless name.schema
         name.quoted
       end
 
-      def with_local_table_name(enable = true)
+      def with_local_table_name(enable = true) # rubocop:disable Style/OptionalBooleanParameter
         old_value = @use_local_table_name
         @use_local_table_name = enable
         yield
@@ -153,7 +149,6 @@ module Switchman
       end
 
       def foreign_keys(table_name)
-
         # mostly copy-pasted from AR - only change is to the nspname condition for qualified names support
         fk_info = select_all <<-SQL.strip_heredoc
           SELECT t2.oid::regclass::text AS to_table, a1.attname AS column, a2.attname AS primary_key, c.conname AS name, c.confupdtype AS on_update, c.confdeltype AS on_delete
@@ -182,9 +177,7 @@ module Switchman
           # strip the schema name from to_table if it matches
           to_table = row['to_table']
           to_table_qualified_name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(to_table)
-          if to_table_qualified_name.schema == shard.name
-            to_table = to_table_qualified_name.identifier
-          end
+          to_table = to_table_qualified_name.identifier if to_table_qualified_name.schema == shard.name
 
           ::ActiveRecord::ConnectionAdapters::ForeignKeyDefinition.new(table_name, to_table, options)
         end
@@ -192,7 +185,7 @@ module Switchman
 
       def add_index_options(_table_name, _column_name, **)
         index, algorithm, if_not_exists = super
-        algorithm = nil if DatabaseServer.creating_new_shard && algorithm == "CONCURRENTLY"
+        algorithm = nil if DatabaseServer.creating_new_shard && algorithm == 'CONCURRENTLY'
         [index, algorithm, if_not_exists]
       end
 

@@ -17,16 +17,15 @@ module Switchman
           base_config = config.except(*roles)
 
           name = "#{env_name}/primary"
-          name = "primary" if env_name == default_env
+          name = 'primary' if env_name == default_env
           base_db = build_db_config_from_raw_config(env_name, name, base_config)
-          [ base_db ] + roles.map do |role|
-            build_db_config_from_raw_config(env_name, "#{env_name}/#{role}", base_config.merge(config[role]).merge(replica: true))
+          [base_db] + roles.map do |role|
+            build_db_config_from_raw_config(env_name, "#{env_name}/#{role}",
+                                            base_config.merge(config[role]).merge(replica: true))
           end
         end
 
-        unless db_configs.find(&:for_current_env?)
-          db_configs << environment_url_config(default_env, "primary", {})
-        end
+        db_configs << environment_url_config(default_env, 'primary', {}) unless db_configs.find(&:for_current_env?)
 
         merge_db_environment_variables(default_env, db_configs.compact)
       end

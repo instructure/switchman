@@ -1,0 +1,66 @@
+require:
+  - rubocop-rake
+  - rubocop-rspec
+
+AllCops:
+  TargetRubyVersion: 2.6
+  NewCops: enable
+  Exclude:
+    - 'bin/*'
+    - 'lib/switchman/open4.rb'
+
+Layout/DotPosition:
+  EnforcedStyle: trailing
+Layout/LineLength:
+  Enabled: false
+Lint/EmptyBlock:
+  Enabled: false
+Lint/InheritException:
+  Enabled: false
+RSpec/AnyInstance:
+  Enabled: false
+RSpec/BeforeAfterAll:
+  Enabled: false
+RSpec/DescribedClass:
+  Enabled: false
+RSpec/ExampleLength:
+  Enabled: false
+RSpec/ExpectInHook:
+  Enabled: false
+RSpec/InstanceVariable:
+  Enabled: false
+RSpec/MessageSpies:
+  Enabled: false
+RSpec/MultipleExpectations:
+  Enabled: false
+RSpec/NestedGroups:
+  Enabled: false
+RSpec/StubbedMock:
+  Enabled: false
+RSpec/VerifiedDoubles:
+  Enabled: false
+Style/CaseEquality:
+  Enabled: false
+Style/ClassVars:
+  Enabled: false
+Style/DocumentDynamicEvalDefinition:
+  Enabled: false
+Style/Documentation:
+  Enabled: false
+Style/FormatStringToken:
+  EnforcedStyle: template
+Style/ParallelAssignment:
+  Enabled: false
+Style/PerlBackrefs:
+  Enabled: false
+Style/RescueModifier:
+  Enabled: false
+Style/RescueStandardError:
+  EnforcedStyle: implicit
+Style/SpecialGlobalVars:
+  Enabled: false
+Style/StringConcatenation:
+  Enabled: false
+
+Metrics:
+  Enabled: false

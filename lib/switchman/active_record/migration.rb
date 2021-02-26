@@ -4,27 +4,17 @@ module Switchman
   module ActiveRecord
     module Migration
       module Compatibility
-        module V5_0
+        module V5_0 # rubocop:disable Naming/ClassAndModuleCamelCase
           def create_table(*args, **options)
-            unless options.key?(:id)
-              options[:id] = :bigserial
-            end
-            if block_given?
-              super do |td|
-                yield td
-              end
-            else
-              super
-            end
+            options[:id] = :bigserial unless options.key?(:id)
+            super
           end
         end
       end
 
       def connection
         conn = super
-        if conn.shard != ::ActiveRecord::Base.connection_pool.shard
-          ::ActiveRecord::Base.connection_pool.switch_database(conn)
-        end
+        ::ActiveRecord::Base.connection_pool.switch_database(conn) if conn.shard != ::ActiveRecord::Base.connection_pool.shard
         conn
       end
     end
@@ -39,6 +29,7 @@ module Switchman
     module MigrationContext
       def migrations
         return @migrations if instance_variable_defined?(:@migrations)
+
         migrations_cache = Thread.current[:migrations_cache] ||= {}
         key = Digest::MD5.hexdigest(migration_files.sort.join(','))
         @migrations = migrations_cache[key] ||= super

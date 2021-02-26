@@ -7,13 +7,13 @@ module Switchman
         def create(connection, &block)
           relation = block.call ::ActiveRecord::StatementCache::Params.new
 
-          query_builder, binds = connection.cacheable_query(self, relation.arel)
+          _query_builder, binds = connection.cacheable_query(self, relation.arel)
           bind_map = ::ActiveRecord::StatementCache::BindMap.new(binds)
           new(relation.arel, bind_map, relation.klass)
         end
       end
 
-      def initialize(arel, bind_map, klass=nil)
+      def initialize(arel, bind_map, klass = nil)
         @arel = arel
         @bind_map = bind_map
         @klass = klass
@@ -29,7 +29,7 @@ module Switchman
         params, connection = args
         klass = @klass
         target_shard = nil
-        if primary_index = bind_map.primary_value_index
+        if (primary_index = bind_map.primary_value_index)
           primary_value = params[primary_index]
           target_shard = Shard.local_id_for(primary_value)[1]
         end
@@ -52,13 +52,13 @@ module Switchman
         # performs id transposition here instead of query_methods.rb
         def bind(values, current_shard, target_shard)
           bas = @bound_attributes.dup
-          @indexes.each_with_index do |offset,i|
+          @indexes.each_with_index do |offset, i|
             ba = bas[offset]
-            if ba.is_a?(::ActiveRecord::Relation::QueryAttribute) && ba.value.sharded
-              new_value = Shard.relative_id_for(values[i], current_shard, target_shard || current_shard)
-            else
-              new_value = values[i]
-            end
+            new_value = if ba.is_a?(::ActiveRecord::Relation::QueryAttribute) && ba.value.sharded
+                          Shard.relative_id_for(values[i], current_shard, target_shard || current_shard)
+                        else
+                          values[i]
+                        end
             bas[offset] = ba.with_cast_value(new_value)
           end
           bas
@@ -68,9 +68,7 @@ module Switchman
           primary_ba_index = @bound_attributes.index do |ba|
             ba.is_a?(::ActiveRecord::Relation::QueryAttribute) && ba.value.primary
           end
-          if primary_ba_index
-            @indexes.index(primary_ba_index)
-          end
+          @indexes.index(primary_ba_index) if primary_ba_index
         end
       end
     end

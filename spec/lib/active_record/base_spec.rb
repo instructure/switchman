@@ -1,37 +1,37 @@
 # frozen_string_literal: true
 
-require "spec_helper"
+require 'spec_helper'
 
 module Switchman
   module ActiveRecord
     describe Base do
       include RSpecHelper
 
-      describe "hash" do
-        it "should work with unsharded models" do
+      describe 'hash' do
+        it 'works with unsharded models' do
           root = Root.create!
           expected = Root.hash ^ root.id.hash
           expect(root.hash).to eq expected
         end
       end
 
-      describe "find_ids_in_ranges" do
+      describe 'find_ids_in_ranges' do
         before :all do
           @ids = []
-          10.times { @ids << User.create!().id }
+          10.times { @ids << User.create!.id }
         end
 
-        it "should return ids from the table in ranges" do
+        it 'returns ids from the table in ranges' do
           batches = []
-          User.where(id: @ids).find_ids_in_ranges(:batch_size => 4) do |*found_ids|
+          User.where(id: @ids).find_ids_in_ranges(batch_size: 4) do |*found_ids|
             batches << found_ids
           end
-          expect(batches).to eq [ [@ids[0], @ids[3]],
-                              [@ids[4], @ids[7]],
-                              [@ids[8], @ids[9]] ]
+          expect(batches).to eq [[@ids[0], @ids[3]],
+                                 [@ids[4], @ids[7]],
+                                 [@ids[8], @ids[9]]]
         end
 
-        it "should work with scopes" do
+        it 'works with scopes' do
           user = User.create!
           user2 = User.create!
           user2.destroy
@@ -40,44 +40,44 @@ module Switchman
           end
         end
 
-        it "should accept an option to start searching at a given id" do
+        it 'accepts an option to start searching at a given id' do
           batches = []
-          User.where(id: @ids).find_ids_in_ranges(:batch_size => 4, :start_at => @ids[3]) do |*found_ids|
+          User.where(id: @ids).find_ids_in_ranges(batch_size: 4, start_at: @ids[3]) do |*found_ids|
             batches << found_ids
           end
-          expect(batches).to eq [ [@ids[3], @ids[6]], [@ids[7], @ids[9]] ]
+          expect(batches).to eq [[@ids[3], @ids[6]], [@ids[7], @ids[9]]]
         end
 
-        it "should accept an option to end at a given id" do
+        it 'accepts an option to end at a given id' do
           batches = []
-          User.where(id: @ids).find_ids_in_ranges(:batch_size => 4, :end_at => @ids[5]) do |*found_ids|
+          User.where(id: @ids).find_ids_in_ranges(batch_size: 4, end_at: @ids[5]) do |*found_ids|
             batches << found_ids
           end
-          expect(batches).to eq [ [@ids[0], @ids[3]], [@ids[4], @ids[5]] ]
+          expect(batches).to eq [[@ids[0], @ids[3]], [@ids[4], @ids[5]]]
         end
 
-        it "should accept both options to start and end at given ids" do
+        it 'accepts both options to start and end at given ids' do
           batches = []
-          User.where(id: @ids).find_ids_in_ranges(:batch_size => 4, :start_at => @ids[2], :end_at => @ids[7]) do |*found_ids|
+          User.where(id: @ids).find_ids_in_ranges(batch_size: 4, start_at: @ids[2], end_at: @ids[7]) do |*found_ids|
             batches << found_ids
           end
-          expect(batches).to eq [ [@ids[2], @ids[5]], [@ids[6], @ids[7]] ]
+          expect(batches).to eq [[@ids[2], @ids[5]], [@ids[6], @ids[7]]]
         end
       end
 
-      describe "to_param" do
-        it "should return nil if no id" do
+      describe 'to_param' do
+        it 'returns nil if no id' do
           user = User.new
           expect(user.to_param).to be_nil
         end
 
-        it "should return the id even if not persisted" do
+        it 'returns the id even if not persisted' do
           user = User.new
           user.id = 1
           expect(user.to_param).to eq '1'
         end
 
-        it "should return local id if in the current shard" do
+        it 'returns local id if in the current shard' do
           user = User.create!
           expect(user.to_param).to eq user.local_id.to_s
           @shard1.activate do
@@ -86,7 +86,7 @@ module Switchman
           end
         end
 
-        it "should return a short form global id if not in the current shard" do
+        it 'returns a short form global id if not in the current shard' do
           user = nil
           @shard1.activate do
             user = User.create!
@@ -96,7 +96,7 @@ module Switchman
           end
         end
 
-        it "should use to_param in url helpers" do
+        it 'uses to_param in url helpers' do
           helpers = ::Rails.application.routes.url_helpers
           user = nil
           appendage = nil
@@ -107,7 +107,8 @@ module Switchman
 
             expect(helpers.user_path(user)).to eq "/users/#{user.local_id}"
             expect(helpers.user_appendages_path(user)).to eq "/users/#{user.local_id}/appendages"
-            expect(helpers.user_appendage_path(user, appendage)).to eq "/users/#{user.local_id}/appendages/#{appendage.local_id}"
+            expect(helpers.user_appendage_path(user,
+                                               appendage)).to eq "/users/#{user.local_id}/appendages/#{appendage.local_id}"
             expect(helpers.user_test1_path(user)).to eq "/users/#{user.local_id}"
             expect(helpers.user_test2_path(user)).to eq "/users/#{user.local_id}/test2"
           end
@@ -118,27 +119,29 @@ module Switchman
 
             expect(helpers.user_path(user)).to eq "/users/#{user_short_id}"
             expect(helpers.user_appendages_path(user)).to eq "/users/#{user_short_id}/appendages"
-            expect(helpers.user_appendage_path(user, appendage)).to eq "/users/#{user_short_id}/appendages/#{appendage_short_id}"
+            expect(helpers.user_appendage_path(user,
+                                               appendage)).to eq "/users/#{user_short_id}/appendages/#{appendage_short_id}"
             expect(helpers.user_test1_path(user)).to eq "/users/#{user_short_id}"
             expect(helpers.user_test2_path(user)).to eq "/users/#{user_short_id}/test2"
 
             appendage2 = Appendage.create!
-            expect(helpers.user_appendage_path(user, appendage2)).to eq "/users/#{user_short_id}/appendages/#{appendage2.local_id}"
+            expect(helpers.user_appendage_path(user,
+                                               appendage2)).to eq "/users/#{user_short_id}/appendages/#{appendage2.local_id}"
           end
         end
       end
 
-      describe "shard=" do
-        it "should adjust foreign ids when shard is changed" do
+      describe 'shard=' do
+        it 'adjusts foreign ids when shard is changed' do
           user = User.create!
           appendage = Appendage.new
           appendage.user_id = user.id
           appendage.shard = @shard1
-          expect(appendage.attributes["user_id"]).to eq user.global_id
+          expect(appendage.attributes['user_id']).to eq user.global_id
         end
       end
 
-      describe ".unscoped" do
+      describe '.unscoped' do
         it "doesn't capture the shard permanently (block form)" do
           @shard1.activate do
             User.unscoped do
@@ -161,8 +164,8 @@ module Switchman
         end
       end
 
-      describe "#quoted_id" do
-        it "transposes correctly" do
+      describe '#quoted_id' do
+        it 'transposes correctly' do
           user = @shard1.activate { User.create! }
           expect(user.quoted_id).to eq user.global_id.to_s
           @shard1.activate do
@@ -171,9 +174,9 @@ module Switchman
         end
       end
 
-      it "should not change scopes when saving STI objects" do
+      it 'does not change scopes when saving STI objects' do
         a1 = Appendage.create!
-        a2 = Appendage.create!(:type => "Arm")
+        a2 = Appendage.create!(type: 'Arm')
 
         a2.should_test_scoping = true
         a2.save!

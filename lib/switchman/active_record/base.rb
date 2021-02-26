@@ -6,23 +6,24 @@ module Switchman
       module ClassMethods
         delegate :shard, to: :all
 
-        SHARDED_MODELS = [ ::ActiveRecord::Base ]
+        SHARDED_MODELS = [::ActiveRecord::Base].freeze
 
-        def find_ids_in_ranges(opts={}, &block)
-          opts.reverse_merge!(:loose => true)
+        def find_ids_in_ranges(opts = {}, &block)
+          opts.reverse_merge!(loose: true)
           all.find_ids_in_ranges(opts, &block)
         end
 
         def sharded_model
           self.abstract_class = true
-          SHARDED_MODELS << self
+          sharded_models = SHARDED_MODELS.dup
+          sharded_models << self
+          ClassMethods.send(:remove_const, :SHARDED_MODELS)
+          ClassMethods.const_set(:SHARDED_MODELS, sharded_models)
           Shard.initialize_sharding unless self == UnshardedRecord
         end
 
         def integral_id?
-          if @integral_id == nil
-            @integral_id = columns_hash[primary_key]&.type == :integer
-          end
+          @integral_id = columns_hash[primary_key]&.type == :integer if @integral_id.nil?
           @integral_id
         end
 
@@ -30,18 +31,18 @@ module Switchman
           if self != ::ActiveRecord::Base && current_scope
             current_scope.activate do
               db = Shard.current(connection_classes).database_server
-              if ::GuardRail.environment != db.guard_rail_environment
-                db.unguard { super }
-              else
+              if ::GuardRail.environment == db.guard_rail_environment
                 super
+              else
+                db.unguard { super }
               end
             end
           else
             db = Shard.current(connection_classes).database_server
-            if ::GuardRail.environment != db.guard_rail_environment
-              db.unguard { super }
-            else
+            if ::GuardRail.environment == db.guard_rail_environment
               super
+            else
+              db.unguard { super }
             end
           end
         end
@@ -66,7 +67,7 @@ module Switchman
 
         def clear_query_caches_for_current_thread
           ::ActiveRecord::Base.connection_handler.connection_pool_list.each do |pool|
-              pool.connection(switch_shard: false).clear_query_cache if pool.active_connection?
+            pool.connection(switch_shard: false).clear_query_cache if pool.active_connection?
           end
         end
 
@@ -76,22 +77,19 @@ module Switchman
           connected_to_stack.reverse_each do |hash|
             return hash[:shard] if hash[:shard] && hash[:klasses].include?(connection_classes)
           end
-  
+
           default_shard
         end
-  
       end
 
       def self.included(klass)
         klass.singleton_class.prepend(ClassMethods)
         klass.set_callback(:initialize, :before) do
-          unless @shard
-            if self.class.sharded_primary_key?
-              @shard = Shard.shard_for(self[self.class.primary_key], Shard.current(self.class.connection_classes))
-            else
-              @shard = Shard.current(self.class.connection_classes)
-            end
-          end
+          @shard ||= if self.class.sharded_primary_key?
+                       Shard.shard_for(self[self.class.primary_key], Shard.current(self.class.connection_classes))
+                     else
+                       Shard.current(self.class.connection_classes)
+                     end
         end
       end
 
@@ -100,13 +98,14 @@ module Switchman
       end
 
       def shard=(new_shard)
-        raise ::ActiveRecord::ReadOnlyRecord if !self.new_record? || @shard_set_in_stone
-        if shard != new_shard
-          attributes.each do |attr, value|
-            self[attr] = Shard.relative_id_for(value, shard, new_shard) if self.class.sharded_column?(attr)
-          end
-          @shard = new_shard
+        raise ::ActiveRecord::ReadOnlyRecord if !new_record? || @shard_set_in_stone
+
+        return if shard == new_shard
+
+        attributes.each do |attr, value|
+          self[attr] = Shard.relative_id_for(value, shard, new_shard) if self.class.sharded_column?(attr)
         end
+        @shard = new_shard
       end
 
       def save(*, **)
@@ -128,7 +127,7 @@ module Switchman
         # TODO: adjust foreign keys
         # don't use the setter, cause the foreign keys are already
         # relative to this shard
-        result.instance_variable_set(:@shard, self.shard)
+        result.instance_variable_set(:@shard, shard)
         result
       end
 
@@ -144,7 +143,7 @@ module Switchman
 
       def to_param
         short_id = Shard.short_id_for(id)
-        short_id && short_id.to_s
+        short_id&.to_s
       end
 
       def initialize_dup(*args)
@@ -155,16 +154,17 @@ module Switchman
 
       def quoted_id
         return super unless self.class.sharded_primary_key?
+
         # do this the Rails 4.2 way, so that if Shard.current != self.shard, the id gets transposed
         self.class.connection.quote(id)
       end
 
       def update_columns(*)
         db = Shard.current(self.class.connection_classes).database_server
-        if ::GuardRail.environment != db.guard_rail_environment
-          return db.unguard { super }
-        else
+        if ::GuardRail.environment == db.guard_rail_environment
           super
+        else
+          db.unguard { super }
         end
       end
 

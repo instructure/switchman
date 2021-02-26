@@ -10,13 +10,11 @@ module Switchman
       end
 
       def shard_stack
-        if shard_stack = Thread.current.thread_variable_get(tls_key)
-          shard_stack
-        else
+        unless (shard_stack = Thread.current.thread_variable_get(tls_key))
           shard_stack = Concurrent::Array.new
           Thread.current.thread_variable_set(tls_key, shard_stack)
-          shard_stack
         end
+        shard_stack
       end
 
       def default_schema
@@ -28,14 +26,15 @@ module Switchman
 
       def checkout_new_connection
         conn = super
-        conn.shard = self.shard
+        conn.shard = shard
         conn
       end
 
       def connection(switch_shard: true)
         conn = super()
         raise NonExistentShardError if shard.new_record?
-        switch_database(conn) if conn.shard != self.shard && switch_shard
+
+        switch_database(conn) if conn.shard != shard && switch_shard
         conn
       end
 
@@ -48,9 +47,7 @@ module Switchman
       def remove_shard!(shard)
         synchronize do
           # The shard might be currently active, so we need to update our own shard
-          if self.shard == shard
-            self.shard = Shard.default
-          end
+          self.shard = Shard.default if self.shard == shard
           # Update out any connections that may be using this shard
           @connections.each do |conn|
             # This will also update the connection's shard to the default shard
@@ -60,9 +57,7 @@ module Switchman
       end
 
       def switch_database(conn)
-        if !@schemas && conn.adapter_name == 'PostgreSQL' && !self.shard.database_server.config[:shard_name]
-          @schemas = conn.current_schemas
-        end
+        @schemas = conn.current_schemas if !@schemas && conn.adapter_name == 'PostgreSQL' && !shard.database_server.config[:shard_name]
 
         conn.shard = shard
       end

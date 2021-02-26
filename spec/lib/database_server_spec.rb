@@ -1,34 +1,33 @@
 # frozen_string_literal: true
 
-require "spec_helper"
+require 'spec_helper'
 
 module Switchman
   describe DatabaseServer do
-    describe "#create_new_shard" do
+    describe '#create_new_shard' do
       include RSpecHelper
 
-      def maybe_activate(shard)
-        shard.activate { yield } if shard
+      def maybe_activate(shard, &block)
+        shard&.activate(&block)
         yield unless shard
       end
 
-      adapter = ::ActiveRecord::Base.connection.adapter_name
       def create_shard(server)
         new_shard = server.create_new_shard
         expect(new_shard).not_to be_new_record
-        expect(new_shard.name).to match /shard_\d+/
+        expect(new_shard.name).to match(/shard_\d+/)
         # They should share a connection pool
         if server == Shard.default.database_server
-          expect(User.connection_pool).to eq new_shard.activate { User.connection_pool }
+          expect(User.connection_pool).to eq(new_shard.activate { User.connection_pool })
           expect(User.connection_pool).to eq Shard.connection_pool
         else
-          expect(User.connection_pool).not_to eq new_shard.activate { User.connection_pool }
+          expect(User.connection_pool).not_to eq(new_shard.activate { User.connection_pool })
         end
         # The tables should be created, ready to use
-        new_shard.activate {
+        new_shard.activate do
           a = User.create!
           expect(a).not_to be_new_record
-        }
+        end
       ensure
         if new_shard
           new_shard.drop_database
@@ -36,7 +35,9 @@ module Switchman
         end
       end
 
-      it "should be able to create a new shard from a db server that doesn't have any shards" do
+      let(:exception_class) { Class.new(Exception) }
+
+      it "is able to create a new shard from a db server that doesn't have any shards" do
         # So, it's really the same server, but we want separate connections
         db = DatabaseServer.create(Shard.default.database_server.config)
         begin
@@ -46,34 +47,34 @@ module Switchman
         end
       end
 
-      class MyException < Exception; end
-      it "should not use a temp name" do
+      it 'does not use a temp name' do
         db = DatabaseServer.new(nil, adapter: 'postgresql')
         expect(Shard).to receive(:create!) do |hash|
-          expect(hash[:name]).to eq "new_shard"
+          expect(hash[:name]).to eq 'new_shard'
           expect(hash[:database_server_id]).to eq db.id
           expect(hash[:id]).not_to be_nil
-         raise MyException
+          raise exception_class
         end
-        expect { db.create_new_shard(name: "new_shard") }.to raise_error(MyException)
+        expect { db.create_new_shard(name: 'new_shard') }.to raise_error(exception_class)
       end
     end
 
-    describe "#config" do
-      it "should return subenvs" do
+    describe '#config' do
+      it 'returns subenvs' do
         base_config = { database: 'db',
                         secondary: [nil, { database: 'secondary' }],
-                        deploy: { username: 'deploy' }}
+                        deploy: { username: 'deploy' } }
         ds = DatabaseServer.new(nil, base_config)
         expect(ds.config).to eq base_config
         expect(ds.config(:secondary)).to eq [{ database: 'db', deploy: base_config[:deploy] },
-                                     { database: 'secondary', deploy: base_config[:deploy] }]
-        expect(ds.config(:deploy)).to eq({ database: 'db', username: 'deploy', secondary: base_config[:secondary], deploy: base_config[:deploy] })
+                                             { database: 'secondary', deploy: base_config[:deploy] }]
+        expect(ds.config(:deploy)).to eq({ database: 'db', username: 'deploy', secondary: base_config[:secondary],
+                                           deploy: base_config[:deploy] })
       end
     end
 
-    describe "#guard_rail_environment" do
-      it "should inherit from GuardRail.environment" do
+    describe '#guard_rail_environment' do
+      it 'inherits from GuardRail.environment' do
         ds = DatabaseServer.new
         expect(ds.guard_rail_environment).to eq :primary
         ::GuardRail.activate(:secondary) do
@@ -81,7 +82,7 @@ module Switchman
         end
       end
 
-      it "should override GuardRail.environment when explicitly set" do
+      it 'overrides GuardRail.environment when explicitly set' do
         ds = DatabaseServer.new
         ds.guard!
         expect(ds.guard_rail_environment).to eq :secondary
@@ -100,7 +101,7 @@ module Switchman
       end
     end
 
-    describe "#cache_store" do
+    describe '#cache_store' do
       before do
         @db = DatabaseServer.new
         @default_store = ::ActiveSupport::Cache.lookup_store(:null_store)
@@ -113,17 +114,17 @@ module Switchman
         Switchman.config[:cache_map] = @original_map
       end
 
-      it "should prefer the cache specific to the database" do
+      it 'prefers the cache specific to the database' do
         expect(@db.cache_store.object_id).to eq @db_store.object_id
       end
 
-      it "should fallback to Rails.cache_without_sharding if no specific cache" do
+      it 'fallbacks to Rails.cache_without_sharding if no specific cache' do
         Switchman.config[:cache_map].delete(@db.id)
         expect(@db.cache_store.object_id).to eq @default_store.object_id
       end
     end
 
-    describe ".server_for_new_shard" do
+    describe '.server_for_new_shard' do
       # just to avoid ActiveRecord trying to begin a transaction on dbs that don't exist
       self.use_transactional_tests = false
 
@@ -141,24 +142,26 @@ module Switchman
           pool_manager = klass.connection_handler.send(:get_pool_manager, klass.name)
           pool_manager.shard_names.each do |shard|
             next if DatabaseServer.find(shard.to_s)
+
             pool_manager.role_names.each do |role|
-              klass.connection_handler.remove_connection_pool(klass.connection_specification_name, role: role, shard: shard)
+              klass.connection_handler.remove_connection_pool(klass.connection_specification_name, role: role,
+                                                                                                   shard: shard)
             end
           end
         end
         Shard.initialize_sharding
       end
 
-      it "should return the default server if that's the only one around" do
+      it "returns the default server if that's the only one around" do
         expect(DatabaseServer.server_for_new_shard).to eq db1
       end
 
-      it "should return on open server" do
+      it 'returns on open server' do
         db1.config[:open] = true
         expect(DatabaseServer.server_for_new_shard).to eq db1
       end
 
-      it "should return another server if it's the only one open" do
+      it "returns another server if it's the only one open" do
         db2 = DatabaseServer.create({ open: true, adapter: 'postgresql' })
         4.times { expect(DatabaseServer.server_for_new_shard).to eq db2 }
         db2.config.delete(:open)
@@ -166,7 +169,7 @@ module Switchman
         4.times { expect(DatabaseServer.server_for_new_shard).to eq db1 }
       end
 
-      it "should return multiple open servers" do
+      it 'returns multiple open servers' do
         db2 = DatabaseServer.create({ open: true, adapter: 'postgresql' })
         db1.config[:open] = true
         dbs = []
@@ -178,10 +181,10 @@ module Switchman
       end
     end
 
-    describe "#primary_shard" do
-      it "works even without a shards table" do
+    describe '#primary_shard' do
+      it 'works even without a shards table' do
         expect(Shard.default).to be_a(DefaultShard)
-        expect(Shard.default.database_server).to receive(:shards).never
+        expect(Shard.default.database_server).not_to receive(:shards)
         expect(Shard.default.database_server.primary_shard).to eq Shard.default
       end
     end

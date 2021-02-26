@@ -4,7 +4,6 @@ module Switchman
   module ActiveRecord
     module AttributeMethods
       module ClassMethods
-
         def sharded_primary_key?
           !(self <= UnshardedRecord) && integral_id?
         end
@@ -12,14 +11,16 @@ module Switchman
         def sharded_foreign_key?(column_name)
           reflection = reflection_for_integer_attribute(column_name.to_s)
           return false unless reflection
+
           reflection.options[:polymorphic] || reflection.klass.sharded_primary_key?
         end
 
         def sharded_column?(column_name)
           column_name = column_name.to_s
           @sharded_column_values ||= {}
-          unless @sharded_column_values.has_key?(column_name)
-            @sharded_column_values[column_name] = (column_name == primary_key && sharded_primary_key?) || sharded_foreign_key?(column_name)
+          unless @sharded_column_values.key?(column_name)
+            @sharded_column_values[column_name] =
+              (column_name == primary_key && sharded_primary_key?) || sharded_foreign_key?(column_name)
           end
           @sharded_column_values[column_name]
         end
@@ -29,13 +30,13 @@ module Switchman
         def reflection_for_integer_attribute(attr_name)
           attr_name = attr_name.to_s
           columns_hash[attr_name] && columns_hash[attr_name].type == :integer &&
-              reflections.find { |_, r| r.belongs_to? && r.foreign_key.to_s == attr_name }&.last
+            reflections.find { |_, r| r.belongs_to? && r.foreign_key.to_s == attr_name }&.last
         rescue ::ActiveRecord::StatementInvalid
           # this is for when models are referenced in initializers before migrations have been run
-          raise if connection.open_transactions > 0
+          raise if connection.open_transactions.positive?
         end
 
-        def define_method_global_attribute(attr_name, owner: )
+        def define_method_global_attribute(attr_name, owner:)
           if sharded_column?(attr_name)
             owner << <<-RUBY
               def global_#{attr_name}
@@ -47,7 +48,7 @@ module Switchman
           end
         end
 
-        def define_method_local_attribute(attr_name, owner: )
+        def define_method_local_attribute(attr_name, owner:)
           if sharded_column?(attr_name)
             owner << <<-RUBY
               def local_#{attr_name}
@@ -89,11 +90,12 @@ module Switchman
           end
         end
 
-        def define_method_original_attribute(attr_name, owner: )
+        def define_method_original_attribute(attr_name, owner:)
           if sharded_column?(attr_name)
             reflection = reflection_for_integer_attribute(attr_name)
-            if attr_name == "id"
+            if attr_name == 'id'
               return if method_defined?(:original_id)
+
               owner = CodeGenerator.new(self, __LINE__ + 4)
             end
 
@@ -117,6 +119,7 @@ module Switchman
 
         def define_method_unsharded_column(attr_name, prefix, owner)
           return if columns_hash["#{prefix}_#{attr_name}"]
+
           owner << <<-RUBY
             def #{prefix}_#{attr_name}
               raise NoMethodError, "undefined method `#{prefix}_#{attr_name}'; are you missing an association?"
@@ -127,13 +130,14 @@ module Switchman
 
       def self.included(klass)
         klass.singleton_class.include(ClassMethods)
-        klass.attribute_method_prefix "global_", "local_", "original_"
+        klass.attribute_method_prefix 'global_', 'local_', 'original_'
       end
 
       # ensure that we're using the sharded attribute method
       # and not the silly one in AR::AttributeMethods::PrimaryKey
       def id
-        return super if self.is_a?(Shard)
+        return super if is_a?(Shard)
+
         self.class.define_attribute_methods
         super
       end

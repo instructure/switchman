@@ -1,4 +1,6 @@
 #!/usr/bin/env rake
+# frozen_string_literal: true
+
 begin
   require 'bundler/setup'
 rescue LoadError
@@ -19,7 +21,7 @@ RDoc::Task.new(:rdoc) do |rdoc|
   rdoc.rdoc_files.include('lib/**/*.rb')
 end
 
-APP_RAKEFILE = File.expand_path("../spec/dummy/Rakefile", __FILE__)
+APP_RAKEFILE = File.expand_path('spec/dummy/Rakefile', __dir__)
 load 'rails/tasks/engine.rake'
 
 Bundler::GemHelper.install_tasks
@@ -27,4 +29,10 @@ Bundler::GemHelper.install_tasks
 require 'rspec/core/rake_task'
 RSpec::Core::RakeTask.new
 
-task :default => :spec
+require 'rubocop/rake_task'
+
+RuboCop::RakeTask.new do |task|
+  task.options = ['-S']
+end
+
+task default: %i[spec rubocop]

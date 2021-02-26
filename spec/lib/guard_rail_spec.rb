@@ -1,14 +1,15 @@
 # frozen_string_literal: true
 
-require "spec_helper"
+require 'spec_helper'
 
 module Switchman
   describe GuardRail do
     include RSpecHelper
 
-    it "should connect to the first working secondary" do
+    it 'connects to the first working secondary' do
       ds = DatabaseServer.create(Shard.default.database_server.config.merge(
-        :secondary => [{ host: 'some.postgres.server' }, nil]))
+                                   secondary: [{ host: 'some.postgres.server' }, nil]
+                                 ))
       ds.guard!
       s = ds.shards.create!
       s.activate do
@@ -17,62 +18,56 @@ module Switchman
       end
     end
 
-    it "should unguard the appropriate connection when the scope changes connections" do
-      begin
-        Shard.default.database_server.guard!
-        @shard2.activate do
-          expect(Shard.default.database_server.guard_rail_environment).to eq :secondary
-          expect(::GuardRail.environment).to eq :primary
-
-          expect(Shard.default.database_server).to receive(:unguard).once
-          User.shard(Shard.default).update_all(updated_at: nil)
-        end
-      ensure
-        Shard.default.database_server.unguard!
-      end
-    end
-
-    it "should unguard for FOR UPDATE queries" do
-      begin
-        Shard.default.database_server.guard!
+    it 'unguards the appropriate connection when the scope changes connections' do
+      Shard.default.database_server.guard!
+      @shard2.activate do
         expect(Shard.default.database_server.guard_rail_environment).to eq :secondary
+        expect(::GuardRail.environment).to eq :primary
 
-        u = User.create!
-        expect(Shard.default.database_server).to receive(:unguard).once.and_return([])
-        User.lock.first
-        expect(Shard.default.database_server).to receive(:unguard).once.and_return([])
-        expect { u.lock! }.to raise_error(::ActiveRecord::RecordNotFound)
-      ensure
-        Shard.default.database_server.unguard!
+        expect(Shard.default.database_server).to receive(:unguard).once
+        User.shard(Shard.default).update_all(updated_at: nil)
       end
+    ensure
+      Shard.default.database_server.unguard!
     end
 
-    it "should not get confused about a single guarded server" do
-      begin
-        Shard.default.database_server.guard!
-        # have to unstub long enough to create this
-        allow(::Rails.env).to receive(:test?).and_call_original
-        ds = DatabaseServer.create(adapter: 'postgresql', host: 'notguarded', secondary: { host: 'guarded' })
-        allow(::Rails.env).to receive(:test?).and_return(false)
-        s = ds.shards.create!
-        s.activate do
-          expect(User.connection_pool.db_config.configuration_hash[:host]).to eq 'notguarded'
-        end
-      ensure
-        Shard.default.database_server.unguard!
-      end
+    it 'unguards for FOR UPDATE queries' do
+      Shard.default.database_server.guard!
+      expect(Shard.default.database_server.guard_rail_environment).to eq :secondary
+
+      u = User.create!
+      expect(Shard.default.database_server).to receive(:unguard).once.and_return([])
+      User.lock.first
+      expect(Shard.default.database_server).to receive(:unguard).once.and_return([])
+      expect { u.lock! }.to raise_error(::ActiveRecord::RecordNotFound)
+    ensure
+      Shard.default.database_server.unguard!
     end
 
-    it "should track all activated environments" do
+    it 'does not get confused about a single guarded server' do
+      Shard.default.database_server.guard!
+      # have to unstub long enough to create this
+      allow(::Rails.env).to receive(:test?).and_call_original
+      ds = DatabaseServer.create(adapter: 'postgresql', host: 'notguarded', secondary: { host: 'guarded' })
+      allow(::Rails.env).to receive(:test?).and_return(false)
+      s = ds.shards.create!
+      s.activate do
+        expect(User.connection_pool.db_config.configuration_hash[:host]).to eq 'notguarded'
+      end
+    ensure
+      Shard.default.database_server.unguard!
+    end
+
+    it 'tracks all activated environments' do
       ::GuardRail.activate(:secondary) {}
       ::GuardRail.activate(:custom) {}
       expect(DatabaseServer.all_roles).to include(*%i[primary secondary custom])
     end
 
-    context "non-transactional" do
+    context 'without transaction' do
       self.use_transactional_tests = ::ActiveRecord::Base.connection.supports_ddl_transactions?
 
-      it "should really disconnect all envs" do
+      it 'really disconnect all envs' do
         ::ActiveRecord::Base.connection
         expect(::ActiveRecord::Base.connection_pool).to be_connected
         @shard1.activate do
@@ -120,7 +115,7 @@ module Switchman
         ::ActiveRecord::Base.connection_pool.instance_variable_get(:@thread_cached_conns).size
       end
 
-      it "should really return active connections to the pool in all envs" do
+      it 'reallies return active connections to the pool in all envs' do
         ::ActiveRecord::Base.connection
         expect(actual_connection_count).not_to eq 0
         @shard1.activate do
@@ -164,7 +159,7 @@ module Switchman
         end
       end
 
-      it "should not establish connections when switching environments" do
+      it 'does not establish connections when switching environments' do
         ::ActiveRecord::Base.clear_all_connections!
         expect(::ActiveRecord::Base.connection_pool).not_to be_connected
         ::GuardRail.activate(:secondary) {}

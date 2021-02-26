@@ -5,7 +5,10 @@ module Switchman
     def initialize(*args)
       # Shard.current can throw this when switchman isn't working right; if we try to
       # do our stuff here, it'll cause a SystemStackError, which is a pain to deal with
-      return super if self.is_a?(::ActiveRecord::ConnectionNotEstablished)
+      if is_a?(::ActiveRecord::ConnectionNotEstablished)
+        super
+        return
+      end
 
       @active_shards = Shard.sharded_models.map do |klass|
         [klass, Shard.current(klass)]

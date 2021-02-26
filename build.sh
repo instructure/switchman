@@ -30,12 +30,16 @@ function test_ruby_version() {
       "rvm-exec $ruby_version bundle exec appraisal bundle install --jobs 5"
     docker-compose run app /bin/bash -lc \
         "rvm-exec $ruby_version bundle exec appraisal rspec --format doc"
+    docker-compose run app /bin/bash -lc \
+        "rvm-exec $ruby_version bundle exec appraisal rubocop"
   else
     for appraisal_version in $* ; do
       docker-compose run --rm app /bin/bash -lc \
         "rvm-exec $ruby_version bundle exec appraisal $appraisal_version bundle install --jobs 5"
       docker-compose run app /bin/bash -lc \
         "rvm-exec $ruby_version bundle exec appraisal $appraisal_version rspec --format doc"
+      docker-compose run app /bin/bash -lc \
+        "rvm-exec $ruby_version bundle exec appraisal $appraisal_version rubocop"
     done
   fi
   docker cp $(docker ps --latest --quiet):/app/coverage .

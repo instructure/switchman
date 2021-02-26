@@ -8,15 +8,15 @@ module Switchman
       end
 
       def build_record(*args)
-        self.shard.activate { super }
+        shard.activate { super }
       end
-  
+
       def load_target
-        self.shard.activate { super }
+        shard.activate { super }
       end
 
       def scope
-        shard_value = @reflection.options[:multishard] ? @owner : self.shard
+        shard_value = @reflection.options[:multishard] ? @owner : shard
         @owner.shard.activate { super.shard(shard_value, :association) }
       end
     end
@@ -38,7 +38,7 @@ module Switchman
 
     module BelongsToAssociation
       def replace_keys(record, force: false)
-        if record && record.class.sharded_column?(reflection.association_primary_key(record.class))
+        if record&.class&.sharded_column?(reflection.association_primary_key(record.class))
           foreign_id = record[reflection.association_primary_key(record.class)]
           owner[reflection.foreign_key] = Shard.relative_id_for(foreign_id, record.shard, owner.shard)
         else
@@ -48,7 +48,7 @@ module Switchman
 
       def shard
         if @owner.class.sharded_column?(@reflection.foreign_key) &&
-            foreign_id = @owner[@reflection.foreign_key]
+           (foreign_id = @owner[@reflection.foreign_key])
           Shard.shard_for(foreign_id, @owner.shard)
         else
           super
@@ -59,22 +59,19 @@ module Switchman
     module ForeignAssociation
       # significant change:
       #   * transpose the key to the correct shard
-      def set_owner_attributes(record)
+      def set_owner_attributes(record) # rubocop:disable Naming/AccessorMethodName
         return if options[:through]
 
         key = owner._read_attribute(reflection.join_foreign_key)
         key = Shard.relative_id_for(key, owner.shard, shard)
         record._write_attribute(reflection.join_primary_key, key)
 
-        if reflection.type
-          record._write_attribute(reflection.type, owner.class.polymorphic_name)
-        end
+        record._write_attribute(reflection.type, owner.class.polymorphic_name) if reflection.type
       end
     end
 
     module Extension
-      def self.build(_model, _reflection)
-      end
+      def self.build(_model, _reflection); end
 
       def self.valid_options
         [:multishard]
@@ -89,10 +86,10 @@ module Switchman
         def records_for(ids)
           scope.where(association_key_name => ids).load do |record|
             global_key = if record.class.connection_classes == UnshardedRecord
-                            convert_key(record[association_key_name])
-                          else
-                            Shard.global_id_for(record[association_key_name], record.shard)
-                          end
+                           convert_key(record[association_key_name])
+                         else
+                           Shard.global_id_for(record[association_key_name], record.shard)
+                         end
             owner = owners_by_key[convert_key(global_key)].first
             association = owner.association(reflection.name)
             association.set_inverse_instance(record)
@@ -113,7 +110,7 @@ module Switchman
             # determine the shard to search for each owner
             if reflection.macro == :belongs_to
               # for belongs_to, it's the shard of the foreign_key
-              partition_proc = ->(owner) do
+              partition_proc = lambda do |owner|
                 if owner.class.sharded_column?(owner_key_name)
                   Shard.shard_for(owner[owner_key_name], owner.shard)
                 else
@@ -123,20 +120,14 @@ module Switchman
             elsif !reflection.options[:multishard]
               # for non-multishard associations, it's *just* the owner's shard
               partition_proc = ->(owner) { owner.shard }
-            else
-              # for multishard associations, it's the owner object itself
-              # (all associated shards)
-
-              # this is the default behavior of partition_by_shard, so just let it be nil
-              # to avoid the proc call
-              # partition_proc = ->(owner) { owner }
             end
 
             raw_records = Shard.partition_by_shard(owners, partition_proc) do |partitioned_owners|
               relative_owner_keys = partitioned_owners.map do |owner|
                 key = owner[owner_key_name]
                 if key && owner.class.sharded_column?(owner_key_name)
-                  key = Shard.relative_id_for(key, owner.shard, Shard.current(klass.connection_classes))
+                  key = Shard.relative_id_for(key, owner.shard,
+                                              Shard.current(klass.connection_classes))
                 end
                 convert_key(key)
               end
@@ -150,7 +141,10 @@ module Switchman
             assignments = false
 
             owner_key = record[association_key_name]
-            owner_key = Shard.global_id_for(owner_key, record.shard) if owner_key && record.class.sharded_column?(association_key_name)
+            if owner_key && record.class.sharded_column?(association_key_name)
+              owner_key = Shard.global_id_for(owner_key,
+                                              record.shard)
+            end
 
             owners_by_key[convert_key(owner_key)].each do |owner|
               entries = (@records_by_owner[owner] ||= [])

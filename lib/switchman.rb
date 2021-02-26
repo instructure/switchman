@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require "guard_rail"
-require "switchman/open4"
-require "switchman/engine"
+require 'guard_rail'
+require 'switchman/open4'
+require 'switchman/engine'
 
 module Switchman
   def self.config

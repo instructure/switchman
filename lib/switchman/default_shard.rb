@@ -4,17 +4,44 @@ require 'switchman/database_server'
 
 module Switchman
   class DefaultShard
-    def id; 'default'; end
+    def id
+      'default'
+    end
     alias cache_key id
-    def activate(*classes); yield; end
+    def activate(*_classes)
+      yield
+    end
+
     def activate!(*classes); end
-    def default?; true; end
-    def primary?; true; end
-    def relative_id_for(local_id, target = nil); local_id; end
-    def global_id_for(local_id); local_id; end
-    def database_server_id; nil; end
-    def database_server; DatabaseServer.find(nil); end
-    def new_record?; false; end
+
+    def default?
+      true
+    end
+
+    def primary?
+      true
+    end
+
+    def relative_id_for(local_id, _target = nil)
+      local_id
+    end
+
+    def global_id_for(local_id)
+      local_id
+    end
+
+    def database_server_id
+      nil
+    end
+
+    def database_server
+      DatabaseServer.find(nil)
+    end
+
+    def new_record?
+      false
+    end
+
     def name
       unless instance_variable_defined?(:@name)
         @name = nil # prevent taking this branch on recursion
@@ -22,18 +49,27 @@ module Switchman
       end
       @name
     end
-    def description; ::Rails.env; end
+
+    def description
+      ::Rails.env
+    end
+
     # The default's shard is always the default shard
-    def shard; self; end
-    def _dump(depth)
+    def shard
+      self
+    end
+
+    def _dump(_depth)
       ''
     end
-    def self._load(str)
+
+    def self._load(_str)
       Shard.default
     end
 
-    def ==(rhs)
-      return true if rhs.is_a?(DefaultShard) || (rhs.is_a?(Shard) && rhs[:default])
+    def ==(other)
+      return true if other.is_a?(DefaultShard) || (other.is_a?(Shard) && other[:default])
+
       super
     end
 

@@ -8,10 +8,8 @@ module Switchman
           store = super
           # can't use defined?, because it's a _ruby_ autoloaded constant,
           # so just checking that will cause it to get required
-          if store.class.name == "ActiveSupport::Cache::RedisCacheStore" && !::ActiveSupport::Cache::RedisCacheStore.ancestors.include?(RedisCacheStore)
-            ::ActiveSupport::Cache::RedisCacheStore.prepend(RedisCacheStore)
-          end
-          store.options[:namespace] ||= lambda { Shard.current.default? ? nil : "shard_#{Shard.current.id}" }
+          ::ActiveSupport::Cache::RedisCacheStore.prepend(RedisCacheStore) if store.instance_of?(ActiveSupport::Cache::RedisCacheStore) && !::ActiveSupport::Cache::RedisCacheStore.ancestors.include?(RedisCacheStore)
+          store.options[:namespace] ||= -> { Shard.current.default? ? nil : "shard_#{Shard.current.id}" }
           store
         end
       end
@@ -22,7 +20,7 @@ module Switchman
           # unfortunately, it uses the keys command, which is extraordinarily inefficient in a large redis instance
           # fortunately, we can assume we control the entire instance, because we set up the namespacing, so just
           # always unset it temporarily for clear calls
-          namespace = nil
+          namespace = nil # rubocop:disable Lint/ShadowedArgument
           super
         end
       end

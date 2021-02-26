@@ -1,25 +1,23 @@
 # frozen_string_literal: true
 
 class Appendage < ActiveRecord::Base
-  belongs_to :user, :required => false
+  belongs_to :user, required: false
   has_many :digits
 
-  has_many :features, :as => :owner
+  has_many :features, as: :owner
 
-  scope :has_no_value, -> { where(:value => nil) }
-  scope :has_value, -> { where("appendages.value IS NOT NULL") }
+  scope :has_no_value, -> { where(value: nil) }
+  scope :has_value, -> { where('appendages.value IS NOT NULL') }
 
-  attr_writer :should_test_scoping
+  attr_writer :should_test_scoping, :associated_shards
   attr_reader :all_appendages
+
   after_save :test_scoping
 
   def test_scoping
-    if @should_test_scoping
-      @all_appendages = Appendage.all.to_a
-    end
+    @all_appendages = Appendage.all.to_a if @should_test_scoping
   end
 
-  attr_writer :associated_shards
   class << self
     attr_accessor :associated_shards_map
   end
@@ -29,6 +27,6 @@ class Appendage < ActiveRecord::Base
   end
 
   def associated_shards
-    self.class.associated_shards_for(self.global_id) || @associated_shards || [self.shard]
+    self.class.associated_shards_for(global_id) || @associated_shards || [shard]
   end
 end

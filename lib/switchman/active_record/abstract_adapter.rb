@@ -45,6 +45,7 @@ module Switchman
 
       def id_value_for_database(value)
         return super unless value.class.sharded_primary_key?
+
         # do this the Rails 4.2 way, so that if Shard.current != self.shard, the id gets transposed
         quote(value.id)
       end

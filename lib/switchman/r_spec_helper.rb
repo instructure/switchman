@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "switchman/test_helper"
+require 'switchman/test_helper'
 
 module Switchman
   # including this module in your specs will give you several shards to
@@ -28,14 +28,15 @@ module Switchman
       root_group.prepend_before(:all) do |group|
         next if @@shard1
         next if @@sharding_failed
+
         # if we aren't actually going to run a sharding group/example,
         # don't set it up after all
         groups = group.class.descendant_filtered_examples.map(&:example_group).uniq
-        next unless groups.any?{ |group| RSpecHelper.included_in?(group) }
+        next unless groups.any? { |descendant_group| RSpecHelper.included_in?(descendant_group) }
 
-        puts "Setting up sharding for all specs..."
+        puts 'Setting up sharding for all specs...'
         Shard.delete_all
-        Switchman.cache.delete("default_shard")
+        Switchman.cache.delete('default_shard')
 
         @@shard1, @@shard2 = TestHelper.recreate_persistent_test_shards
         @@default_shard = Shard.default
@@ -47,15 +48,15 @@ module Switchman
             @@shard1 = @@shard1.create_new_shard
             @@shard2 = @@shard2.create_new_shard
           rescue => e
-            $stderr.puts "Sharding setup FAILED!:"
+            warn 'Sharding setup FAILED!:'
             while e
-              $stderr.puts "\n#{e}\n"
-              $stderr.puts e.backtrace
+              warn "\n#{e}\n"
+              warn e.backtrace
               e = e.respond_to?(:cause) ? e.cause : nil
             end
             @@sharding_failed = true
-            (@@shard1&.drop_database) rescue nil
-            (@@shard2&.drop_database) rescue nil
+            @@shard1&.drop_database rescue nil
+            @@shard2&.drop_database rescue nil
             @@shard1 = @@shard2 = nil
             Shard.delete_all
             Shard.default(reload: true)
@@ -65,14 +66,14 @@ module Switchman
         # we'll re-persist in the group's `before :all`; we don't want them to exist
         # in the db before then
         Shard.delete_all
-        Switchman.cache.delete("default_shard")
+        Switchman.cache.delete('default_shard')
         Shard.default(reload: true)
-        puts "Done!"
+        puts 'Done!'
 
         at_exit do
           # preserve rspec's exit status
-          status= $!.is_a?(::SystemExit) ? $!.status : nil
-          puts "Tearing down sharding for all specs"
+          status = $!.is_a?(::SystemExit) ? $!.status : nil
+          puts 'Tearing down sharding for all specs'
           @@shard1.database_server.destroy unless @@shard1.database_server == Shard.default.database_server
           unless @@keep_the_shards
             @@shard1.drop_database
@@ -87,10 +88,11 @@ module Switchman
 
       klass.before(:all) do
         next if @@sharding_failed
+
         dup = @@default_shard.dup
         dup.id = @@default_shard.id
         dup.save!
-        Switchman.cache.delete("default_shard")
+        Switchman.cache.delete('default_shard')
         Shard.default(reload: true)
         dup = @@shard1.dup
         dup.id = @@shard1.id
@@ -102,7 +104,8 @@ module Switchman
       end
 
       klass.before do
-        raise "Sharding did not set up correctly" if @@sharding_failed
+        raise 'Sharding did not set up correctly' if @@sharding_failed
+
         Shard.clear_cache
         if use_transactional_tests
           Shard.default(reload: true)
@@ -120,6 +123,7 @@ module Switchman
 
       klass.after do
         next if @@sharding_failed
+
         if use_transactional_tests
           shards = [@shard2]
           shards << @shard1 unless @shard1.database_server == Shard.default.database_server
@@ -140,7 +144,7 @@ module Switchman
 
       klass.after(:all) do
         Shard.connection.update("TRUNCATE #{Shard.quoted_table_name} CASCADE")
-        Switchman.cache.delete("default_shard")
+        Switchman.cache.delete('default_shard')
         Shard.default(reload: true)
       end
     end

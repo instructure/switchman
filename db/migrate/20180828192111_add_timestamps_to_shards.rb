@@ -10,10 +10,10 @@ class AddTimestampsToShards < ActiveRecord::Migration[4.2]
     change_column_null :switchman_shards, :updated_at, false
     change_column_null :switchman_shards, :created_at, false
 
-    if Switchman::Shard.current.default?
-      Switchman::Shard.connection.schema_cache.clear!
-      Switchman::Shard.reset_column_information
-      Switchman::Shard.columns
-    end
+    return unless Switchman::Shard.current.default?
+
+    Switchman::Shard.connection.schema_cache.clear!
+    Switchman::Shard.reset_column_information
+    Switchman::Shard.columns
   end
 end

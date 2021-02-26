@@ -13,7 +13,7 @@ module Switchman
         # disallow assigning to ActionController::Base.cache_store or
         # ActionController::Base#cache_store for the same reasons we disallow
         # assigning to Rails.cache
-        def cache_store=(cache)
+        def cache_store=(_cache)
           raise NoMethodError
         end
       end

@@ -17,15 +17,20 @@ module Switchman
       def shard_value
         @values[:shard]
       end
+
       def shard_source_value
         @values[:shard_source]
       end
+
       def shard_value=(value)
         raise ::ActiveRecord::ImmutableRelation if @loaded
+
         @values[:shard] = value
       end
+
       def shard_source_value=(value)
         raise ::ActiveRecord::ImmutableRelation if @loaded
+
         @values[:shard_source] = value
       end
 
@@ -35,11 +40,13 @@ module Switchman
 
       def shard!(value, source = :explicit)
         raise ArgumentError, "shard can't be nil" unless value
-        old_primary_shard = self.primary_shard
+
+        old_primary_shard = primary_shard
         self.shard_value = value
         self.shard_source_value = source
-        if (old_primary_shard != self.primary_shard || source == :to_a)
-          transpose_clauses(old_primary_shard, self.primary_shard, source == :to_a)
+        if old_primary_shard != primary_shard || source == :to_a
+          transpose_clauses(old_primary_shard, primary_shard,
+                            remove_nonlocal_primary_keys: source == :to_a)
         end
         self
       end
@@ -79,17 +86,17 @@ module Switchman
       end
 
       def or(other)
-        super(other.shard(self.primary_shard))
+        super(other.shard(primary_shard))
       end
 
       private
 
-      [:where, :having].each do |type|
+      %i[where having].each do |type|
         class_eval <<-RUBY, __FILE__, __LINE__ + 1
-        def transpose_#{type}_clauses(source_shard, target_shard, remove_nonlocal_primary_keys)
+        def transpose_#{type}_clauses(source_shard, target_shard, remove_nonlocal_primary_keys:)
           unless (predicates = #{type}_clause.send(:predicates)).empty?
             new_predicates = transpose_predicates(predicates, source_shard,
-                                                              target_shard, remove_nonlocal_primary_keys)
+                                                              target_shard, remove_nonlocal_primary_keys: remove_nonlocal_primary_keys)
             if new_predicates != predicates
               self.#{type}_clause = #{type}_clause.dup
               if new_predicates != predicates
@@ -101,9 +108,9 @@ module Switchman
         RUBY
       end
 
-      def transpose_clauses(source_shard, target_shard, remove_nonlocal_primary_keys = false)
-        transpose_where_clauses(source_shard, target_shard, remove_nonlocal_primary_keys)
-        transpose_having_clauses(source_shard, target_shard, remove_nonlocal_primary_keys)
+      def transpose_clauses(source_shard, target_shard, remove_nonlocal_primary_keys: false)
+        transpose_where_clauses(source_shard, target_shard, remove_nonlocal_primary_keys: remove_nonlocal_primary_keys)
+        transpose_having_clauses(source_shard, target_shard, remove_nonlocal_primary_keys: remove_nonlocal_primary_keys)
       end
 
       def infer_shards_from_primary_key(predicates)
@@ -115,44 +122,45 @@ module Switchman
             predicate.left.relation.is_a?(::Arel::Table) && predicate.left.relation.klass == klass &&
             klass.primary_key == predicate.left.name
         end
-        if primary_key
-          right = primary_key.is_a?(::Arel::Nodes::HomogeneousIn) ? primary_key.values : primary_key.right
+        return unless primary_key
 
-          case right
-          when Array
-            id_shards = Set.new
-            right.each do |value|
-              local_id, id_shard = Shard.local_id_for(value)
-              id_shard ||= Shard.current(klass.connection_classes) if local_id
-              id_shards << id_shard if id_shard
-            end
-            if id_shards.empty?
-              return
-            elsif id_shards.length == 1
-              id_shard = id_shards.first
-            # prefer to not change the shard
-            elsif id_shards.include?(primary_shard)
-              id_shards.delete(primary_shard)
-              self.shard_value = [primary_shard] + id_shards.to_a
-              return
-            else
-              id_shards = id_shards.to_a
-              transpose_clauses(primary_shard, id_shards.first)
-              self.shard_value = id_shards
-              return
-            end
-          when ::Arel::Nodes::BindParam
-            local_id, id_shard = Shard.local_id_for(right.value.value_before_type_cast)
+        right = primary_key.is_a?(::Arel::Nodes::HomogeneousIn) ? primary_key.values : primary_key.right
+
+        case right
+        when Array
+          id_shards = Set.new
+          right.each do |value|
+            local_id, id_shard = Shard.local_id_for(value)
             id_shard ||= Shard.current(klass.connection_classes) if local_id
-          else
-            local_id, id_shard = Shard.local_id_for(right)
-            id_shard ||= Shard.current(klass.connection_classes) if local_id
+            id_shards << id_shard if id_shard
           end
+          return if id_shards.empty?
 
-          return if !id_shard || id_shard == primary_shard
-          transpose_clauses(primary_shard, id_shard)
-          self.shard_value = id_shard
+          if id_shards.length == 1
+            id_shard = id_shards.first
+          # prefer to not change the shard
+          elsif id_shards.include?(primary_shard)
+            id_shards.delete(primary_shard)
+            self.shard_value = [primary_shard] + id_shards.to_a
+            return
+          else
+            id_shards = id_shards.to_a
+            transpose_clauses(primary_shard, id_shards.first)
+            self.shard_value = id_shards
+            return
+          end
+        when ::Arel::Nodes::BindParam
+          local_id, id_shard = Shard.local_id_for(right.value.value_before_type_cast)
+          id_shard ||= Shard.current(klass.connection_classes) if local_id
+        else
+          local_id, id_shard = Shard.local_id_for(right)
+          id_shard ||= Shard.current(klass.connection_classes) if local_id
         end
+
+        return if !id_shard || id_shard == primary_shard
+
+        transpose_clauses(primary_shard, id_shard)
+        self.shard_value = id_shard
       end
 
       def transposable_attribute_type(relation, column)
@@ -175,6 +183,7 @@ module Switchman
       def sharded_primary_key?(relation, column)
         column = column.to_s
         return column == 'id' if relation.klass == ::ActiveRecord::Base
+
         relation.klass.primary_key == column && relation.klass.integral_id?
       end
 
@@ -185,6 +194,7 @@ module Switchman
           break if reflection
         end
         return Shard.current(klass.connection_classes) if reflection.options[:polymorphic]
+
         Shard.current(reflection.klass.connection_classes)
       end
 
@@ -204,9 +214,7 @@ module Switchman
           values.grep(ActiveRecord::Relation) do |rel|
             # serialize subqueries against the same shard as the outer query is currently
             # targeted to run against
-            if rel.shard_source_value == :implicit && rel.primary_shard != primary_shard
-              rel.shard!(primary_shard)
-            end
+            rel.shard!(primary_shard) if rel.shard_source_value == :implicit && rel.primary_shard != primary_shard
           end
 
           super
@@ -215,7 +223,7 @@ module Switchman
 
           predicates = where_clause.send(:predicates)
           infer_shards_from_primary_key(predicates) if shard_source_value == :implicit && shard_value.is_a?(Shard)
-          predicates = transpose_predicates(predicates, nil, primary_shard, false)
+          predicates = transpose_predicates(predicates, nil, primary_shard)
           where_clause.instance_variable_set(:@predicates, predicates)
           where_clause
         else
@@ -234,18 +242,20 @@ module Switchman
       def transpose_predicates(predicates,
                                source_shard,
                                target_shard,
-                               remove_nonlocal_primary_keys = false)
+                               remove_nonlocal_primary_keys: false)
         predicates.map do |predicate|
-          transpose_single_predicate(predicate, source_shard, target_shard, remove_nonlocal_primary_keys)
+          transpose_single_predicate(predicate, source_shard, target_shard,
+                                     remove_nonlocal_primary_keys: remove_nonlocal_primary_keys)
         end
       end
 
       def transpose_single_predicate(predicate,
                                      source_shard,
                                      target_shard,
-                                     remove_nonlocal_primary_keys = false)
+                                     remove_nonlocal_primary_keys: false)
         if predicate.is_a?(::Arel::Nodes::Grouping)
           return predicate unless predicate.expr.is_a?(::Arel::Nodes::Or)
+
           # Dang, we have an OR.  OK, that means we have other epxressions below this
           # level, perhaps many, that may need transposition.
           # the left side and right side must each be treated as predicate lists and
@@ -255,66 +265,60 @@ module Switchman
           left_node = or_expr.left
           right_node = or_expr.right
           new_left_predicates = transpose_single_predicate(left_node, source_shard,
-                                                              target_shard, remove_nonlocal_primary_keys)
-          if new_left_predicates != left_node
-            or_expr.instance_variable_set(:@left, new_left_predicates)
-          end
+                                                           target_shard, remove_nonlocal_primary_keys: remove_nonlocal_primary_keys)
+          or_expr.instance_variable_set(:@left, new_left_predicates) if new_left_predicates != left_node
           new_right_predicates = transpose_single_predicate(right_node, source_shard,
-                                                              target_shard, remove_nonlocal_primary_keys)
-          if new_right_predicates != right_node
-            or_expr.instance_variable_set(:@right, new_right_predicates)
-          end
+                                                            target_shard, remove_nonlocal_primary_keys: remove_nonlocal_primary_keys)
+          or_expr.instance_variable_set(:@right, new_right_predicates) if new_right_predicates != right_node
           return predicate
         end
         return predicate unless predicate.is_a?(::Arel::Nodes::Binary) || predicate.is_a?(::Arel::Nodes::HomogeneousIn)
         return predicate unless predicate.left.is_a?(::Arel::Attributes::Attribute)
+
         relation, column = relation_and_column(predicate.left)
         return predicate unless (type = transposable_attribute_type(relation, column))
 
         remove = true if type == :primary &&
-            remove_nonlocal_primary_keys &&
-            predicate.left.relation.klass == klass &&
-            predicate.is_a?(::Arel::Nodes::Equality)
+                         remove_nonlocal_primary_keys &&
+                         predicate.left.relation.klass == klass &&
+                         predicate.is_a?(::Arel::Nodes::Equality)
 
         current_source_shard =
-            if source_shard
-              source_shard
-            elsif type == :primary
-              Shard.current(klass.connection_classes)
-            elsif type == :foreign
-              source_shard_for_foreign_key(relation, column)
-            end
+          if source_shard
+            source_shard
+          elsif type == :primary
+            Shard.current(klass.connection_classes)
+          elsif type == :foreign
+            source_shard_for_foreign_key(relation, column)
+          end
 
-        if predicate.is_a?(::Arel::Nodes::HomogeneousIn)
-          right = predicate.values
-        else
-          right = predicate.right
-        end
+        right = if predicate.is_a?(::Arel::Nodes::HomogeneousIn)
+                  predicate.values
+                else
+                  predicate.right
+                end
 
         new_right_value =
           case right
           when Array
-            right.map {|val| transpose_predicate_value(val, current_source_shard, target_shard, type, remove) }
+            right.map { |val| transpose_predicate_value(val, current_source_shard, target_shard, type, remove) }
           else
             transpose_predicate_value(right, current_source_shard, target_shard, type, remove)
           end
 
-          out_predicate = if new_right_value == right
+        if new_right_value == right
+          predicate
+        elsif predicate.right.is_a?(::Arel::Nodes::Casted)
+          if new_right_value == right.value
             predicate
-          elsif predicate.right.is_a?(::Arel::Nodes::Casted)
-            if new_right_value == right.value
-              predicate
-            else
-              predicate.class.new(predicate.left, right.class.new(new_right_value, right.attribute))
-            end
           else
-            if predicate.is_a?(::Arel::Nodes::HomogeneousIn)
-              predicate.class.new(new_right_value, predicate.attribute, predicate.type)
-            else
-              predicate.class.new(predicate.left, new_right_value)
-            end
+            predicate.class.new(predicate.left, right.class.new(new_right_value, right.attribute))
           end
-        return out_predicate
+        elsif predicate.is_a?(::Arel::Nodes::HomogeneousIn)
+          predicate.class.new(new_right_value, predicate.attribute, predicate.type)
+        else
+          predicate.class.new(predicate.left, new_right_value)
+        end
       end
 
       def transpose_predicate_value(value, current_shard, target_shard, attribute_type, remove_non_local_ids)
@@ -328,11 +332,11 @@ module Switchman
           else
             local_id = Shard.relative_id_for(current_id, current_shard, target_shard) || current_id
             local_id = [] if remove_non_local_ids && local_id.is_a?(Integer) && local_id > Shard::IDS_PER_SHARD
-            if current_id != local_id
+            if current_id == local_id
               # make a new bind param
-              ::Arel::Nodes::BindParam.new(query_att.class.new(query_att.name, local_id, query_att.type))
-            else
               value
+            else
+              ::Arel::Nodes::BindParam.new(query_att.class.new(query_att.name, local_id, query_att.type))
             end
           end
         else

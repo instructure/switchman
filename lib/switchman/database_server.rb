@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "securerandom"
+require 'securerandom'
 
 module Switchman
   class DatabaseServer
@@ -18,15 +18,17 @@ module Switchman
       end
 
       def find(id_or_all)
-        return self.all if id_or_all == :all
-        return id_or_all.map { |id| self.database_servers[id || ::Rails.env] }.compact.uniq if id_or_all.is_a?(Array)
+        return all if id_or_all == :all
+        return id_or_all.map { |id| database_servers[id || ::Rails.env] }.compact.uniq if id_or_all.is_a?(Array)
+
         database_servers[id_or_all || ::Rails.env]
       end
 
       def create(settings = {})
-        raise "database servers should be set up in database.yml" unless ::Rails.env.test?
+        raise 'database servers should be set up in database.yml' unless ::Rails.env.test?
+
         id = settings[:id]
-        if !id
+        unless id
           @id ||= 0
           @id += 1
           id = @id
@@ -43,16 +45,17 @@ module Switchman
       def server_for_new_shard
         servers = all.select { |s| s.config[:open] }
         return find(nil) if servers.empty?
+
         servers[rand(servers.length)]
       end
 
       # internal
 
       def reference_role(role)
-        unless all_roles.include?(role)
-          @all_roles << role
-          Shard.initialize_sharding
-        end
+        return if all_roles.include?(role)
+
+        @all_roles << role
+        Shard.initialize_sharding
       end
 
       private
@@ -98,10 +101,11 @@ module Switchman
     end
 
     def destroy
-      self.class.send(:database_servers).delete(self.id) if self.id
+      self.class.send(:database_servers).delete(id) if id
       Shard.sharded_models.each do |klass|
         self.class.all_roles.each do |role|
-          klass.connection_handler.remove_connection_pool(klass.connection_specification_name, role: role, shard: self.id.to_sym)
+          klass.connection_handler.remove_connection_pool(klass.connection_specification_name, role: role,
+                                                                                               shard: id.to_sym)
         end
       end
     end
@@ -112,14 +116,15 @@ module Switchman
 
     def config(environment = :primary)
       @configs[environment] ||= begin
-        if @config[environment].is_a?(Array)
+        case @config[environment]
+        when Array
           @config[environment].map do |config|
             config = @config.merge((config || {}).symbolize_keys)
             # make sure GuardRail doesn't get any brilliant ideas about choosing the first possible server
             config.delete(environment)
             config
           end
-        elsif @config[environment].is_a?(Hash)
+        when Hash
           @config.merge(@config[environment])
         else
           @config
@@ -152,16 +157,19 @@ module Switchman
 
     def shards
       if id == ::Rails.env
-        Shard.where("database_server_id IS NULL OR database_server_id=?", id)
+        Shard.where('database_server_id IS NULL OR database_server_id=?', id)
       else
         Shard.where(database_server_id: id)
       end
     end
 
     def create_new_shard(id: nil, name: nil, schema: true)
-      raise NotImplementedError.new("Cannot create new shards when sharding isn't initialized") unless Shard.default.is_a?(Shard)
+      unless Shard.default.is_a?(Shard)
+        raise NotImplementedError,
+              "Cannot create new shards when sharding isn't initialized"
+      end
 
-      create_statement = lambda { "CREATE SCHEMA #{name}" }
+      create_statement = -> { "CREATE SCHEMA #{name}" }
       password = " PASSWORD #{::ActiveRecord::Base.connection.quote(config[:password])}" if config[:password]
       sharding_config = Switchman.config
       config_create_statement = sharding_config[config[:adapter]]&.[](:create_statement)
@@ -169,7 +177,7 @@ module Switchman
       if config_create_statement
         create_commands = Array(config_create_statement).dup
         create_statement = lambda {
-          create_commands.map { |statement| statement.gsub('%{name}', name).gsub('%{password}', password || '') }
+          create_commands.map { |statement| format(statement, name: name, password: password) }
         }
       end
 
@@ -191,42 +199,43 @@ module Switchman
           self.class.creating_new_shard = true
           DatabaseServer.reference_role(:deploy)
           ::ActiveRecord::Base.connected_to(shard: self.id.to_sym, role: :deploy) do
-            begin
-              if create_statement
-                if (::ActiveRecord::Base.connection.select_value("SELECT 1 FROM pg_namespace WHERE nspname=#{::ActiveRecord::Base.connection.quote(name)}"))
-                  schema_already_existed = true
-                  raise "This schema already exists; cannot overwrite"
-                end
-                Array(create_statement.call).each do |stmt|
-                  ::ActiveRecord::Base.connection.execute(stmt)
-                end
+            if create_statement
+              if ::ActiveRecord::Base.connection.select_value("SELECT 1 FROM pg_namespace WHERE nspname=#{::ActiveRecord::Base.connection.quote(name)}")
+                schema_already_existed = true
+                raise 'This schema already exists; cannot overwrite'
               end
-              old_proc = ::ActiveRecord::Base.connection.raw_connection.set_notice_processor {} if config[:adapter] == 'postgresql'
-              old_verbose = ::ActiveRecord::Migration.verbose
-              ::ActiveRecord::Migration.verbose = false
-
-              unless schema == false
-                shard.activate do
-                  reset_column_information
-
-                  ::ActiveRecord::Base.connection.transaction(requires_new: true) do
-                    ::ActiveRecord::Base.connection.migration_context.migrate
-                  end
-                  reset_column_information
-                  ::ActiveRecord::Base.descendants.reject { |m| m <= UnshardedRecord || !m.table_exists? }.each(&:define_attribute_methods)
-                end
+              Array(create_statement.call).each do |stmt|
+                ::ActiveRecord::Base.connection.execute(stmt)
               end
-            ensure
-              ::ActiveRecord::Migration.verbose = old_verbose
-              ::ActiveRecord::Base.connection.raw_connection.set_notice_processor(&old_proc) if old_proc
             end
+            if config[:adapter] == 'postgresql'
+              old_proc = ::ActiveRecord::Base.connection.raw_connection.set_notice_processor do
+              end
+            end
+            old_verbose = ::ActiveRecord::Migration.verbose
+            ::ActiveRecord::Migration.verbose = false
+
+            unless schema == false
+              shard.activate do
+                reset_column_information
+
+                ::ActiveRecord::Base.connection.transaction(requires_new: true) do
+                  ::ActiveRecord::Base.connection.migration_context.migrate
+                end
+                reset_column_information
+                ::ActiveRecord::Base.descendants.reject do |m|
+                  m <= UnshardedRecord || !m.table_exists?
+                end.each(&:define_attribute_methods)
+              end
+            end
+          ensure
+            ::ActiveRecord::Migration.verbose = old_verbose
+            ::ActiveRecord::Base.connection.raw_connection.set_notice_processor(&old_proc) if old_proc
           end
           shard
         rescue
           shard.destroy
-          unless schema_already_existed
-            shard.drop_database rescue nil
-          end
+          shard.drop_database rescue nil unless schema_already_existed
           reset_column_information unless schema == false rescue nil
           raise
         ensure
@@ -236,9 +245,7 @@ module Switchman
     end
 
     def cache_store
-      unless @cache_store
-        @cache_store = Switchman.config[:cache_map][self.id] || Switchman.config[:cache_map][::Rails.env]
-      end
+      @cache_store ||= Switchman.config[:cache_map][id] || Switchman.config[:cache_map][::Rails.env]
       @cache_store
     end
 

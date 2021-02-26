@@ -8,6 +8,7 @@ class AddBackDefaultStringLimitsSwitchman < ActiveRecord::Migration[4.2]
 
   def add_string_limit_if_missing(table, column)
     return if column_exists?(table, column, :string, limit: 255)
+
     change_column table, column, :string, limit: 255
   end
 end

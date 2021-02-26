@@ -8,24 +8,26 @@ module Switchman
     config.active_record.legacy_connection_handling = false
     config.active_record.writing_role = :primary
 
-    config.autoload_once_paths << File.expand_path("app/models", config.paths.path)
+    config.autoload_once_paths << File.expand_path('app/models', config.paths.path)
 
     def self.lookup_stores(cache_store_config)
       result = {}
       cache_store_config.each do |key, value|
         next if value.is_a?(String)
+
         result[key] = ::ActiveSupport::Cache.lookup_store(value)
       end
 
-      cache_store_config.each do |key, value|
+      cache_store_config.each do |key, value| # rubocop:disable Style/CombinableLoops
         next unless value.is_a?(String)
+
         result[key] = result[value]
       end
       result
     end
 
-    initializer 'switchman.initialize_cache', :before => 'initialize_cache' do
-      require "switchman/active_support/cache"
+    initializer 'switchman.initialize_cache', before: 'initialize_cache' do
+      require 'switchman/active_support/cache'
       ::ActiveSupport::Cache.singleton_class.prepend(ActiveSupport::Cache::ClassMethods)
 
       # if we haven't already setup our cache map out-of-band, set it up from
@@ -35,9 +37,7 @@ module Switchman
       # to fill just the Rails.env entry in the cache map.
       unless Switchman.config[:cache_map].present?
         cache_store_config = ::Rails.configuration.cache_store
-        unless cache_store_config.is_a?(Hash)
-          cache_store_config = {::Rails.env => cache_store_config}
-        end
+        cache_store_config = { ::Rails.env => cache_store_config } unless cache_store_config.is_a?(Hash)
 
         Switchman.config[:cache_map] = Engine.lookup_stores(cache_store_config)
       end
@@ -46,7 +46,7 @@ module Switchman
       # config.cache_store) didn't have an entry for Rails.env, add one using
       # lookup_store(nil); matches the behavior of Rails' default
       # initialize_cache initializer when config.cache_store is nil.
-      unless Switchman.config[:cache_map].has_key?(::Rails.env)
+      unless Switchman.config[:cache_map].key?(::Rails.env)
         value = ::ActiveSupport::Cache.lookup_store(nil)
         Switchman.config[:cache_map][::Rails.env] = value
       end
@@ -55,7 +55,7 @@ module Switchman
         store.middleware if store.respond_to?(:middleware)
       end.compact.uniq
       middlewares.each do |middleware|
-        config.middleware.insert_before("Rack::Runtime", middleware)
+        config.middleware.insert_before('Rack::Runtime', middleware)
       end
 
       # prevent :initialize_cache from trying to (or needing to) set
@@ -66,35 +66,35 @@ module Switchman
       ::Rails.cache = Switchman.config[:cache_map][::Rails.env]
     end
 
-    initializer 'switchman.extend_ar', :before => "active_record.initialize_database" do
+    initializer 'switchman.extend_ar', before: 'active_record.initialize_database' do
       ::ActiveSupport.on_load(:active_record) do
-        require "switchman/active_record/abstract_adapter"
-        require "switchman/active_record/association"
-        require "switchman/active_record/attribute_methods"
-        require "switchman/active_record/base"
-        require "switchman/active_record/calculations"
-        require "switchman/active_record/connection_pool"
-        require "switchman/active_record/database_configurations"
-        require "switchman/active_record/database_configurations/database_config"
-        require "switchman/active_record/finder_methods"
-        require "switchman/active_record/log_subscriber"
-        require "switchman/active_record/migration"
-        require "switchman/active_record/model_schema"
-        require "switchman/active_record/persistence"
-        require "switchman/active_record/predicate_builder"
-        require "switchman/active_record/query_cache"
-        require "switchman/active_record/query_methods"
-        require "switchman/active_record/reflection"
-        require "switchman/active_record/relation"
-        require "switchman/active_record/spawn_methods"
-        require "switchman/active_record/statement_cache"
-        require "switchman/active_record/tasks/database_tasks"
-        require "switchman/active_record/type_caster"
-        require "switchman/arel"
-        require "switchman/call_super"
-        require "switchman/rails"
-        require "switchman/guard_rail/relation"
-        require "switchman/standard_error"
+        require 'switchman/active_record/abstract_adapter'
+        require 'switchman/active_record/association'
+        require 'switchman/active_record/attribute_methods'
+        require 'switchman/active_record/base'
+        require 'switchman/active_record/calculations'
+        require 'switchman/active_record/connection_pool'
+        require 'switchman/active_record/database_configurations'
+        require 'switchman/active_record/database_configurations/database_config'
+        require 'switchman/active_record/finder_methods'
+        require 'switchman/active_record/log_subscriber'
+        require 'switchman/active_record/migration'
+        require 'switchman/active_record/model_schema'
+        require 'switchman/active_record/persistence'
+        require 'switchman/active_record/predicate_builder'
+        require 'switchman/active_record/query_cache'
+        require 'switchman/active_record/query_methods'
+        require 'switchman/active_record/reflection'
+        require 'switchman/active_record/relation'
+        require 'switchman/active_record/spawn_methods'
+        require 'switchman/active_record/statement_cache'
+        require 'switchman/active_record/tasks/database_tasks'
+        require 'switchman/active_record/type_caster'
+        require 'switchman/arel'
+        require 'switchman/call_super'
+        require 'switchman/rails'
+        require 'switchman/guard_rail/relation'
+        require 'switchman/standard_error'
 
         ::StandardError.include(StandardError)
 
@@ -164,12 +164,10 @@ module Switchman
     end
 
     def self.foreign_key_check(name, type, limit: nil)
-      if name.to_s =~ /_id\z/ && type.to_s == 'integer' && limit.to_i < 8
-        puts "WARNING: All foreign keys need to be 8-byte integers. #{name} looks like a foreign key. If so, please add the option: `:limit => 8`"
-      end
+      puts "WARNING: All foreign keys need to be 8-byte integers. #{name} looks like a foreign key. If so, please add the option: `:limit => 8`" if name.to_s =~ /_id\z/ && type.to_s == 'integer' && limit.to_i < 8
     end
 
-    initializer 'switchman.extend_connection_adapters', :after => "active_record.initialize_database" do
+    initializer 'switchman.extend_connection_adapters', after: 'active_record.initialize_database' do
       ::ActiveSupport.on_load(:active_record) do
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.descendants.each do |klass|
           klass.prepend(ActiveRecord::AbstractAdapter::ForeignKeyCheck)
@@ -179,7 +177,7 @@ module Switchman
         ::ActiveRecord::ConnectionAdapters::TableDefinition.prepend(ActiveRecord::TableDefinition)
 
         if defined?(::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter)
-          require "switchman/active_record/postgresql_adapter"
+          require 'switchman/active_record/postgresql_adapter'
           ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(ActiveRecord::PostgreSQLAdapter)
         end
 
@@ -194,21 +192,20 @@ module Switchman
       end
     end
 
-    initializer 'switchman.extend_guard_rail', :before => "switchman.extend_ar" do
+    initializer 'switchman.extend_guard_rail', before: 'switchman.extend_ar' do
       ::ActiveSupport.on_load(:active_record) do
-        require "switchman/guard_rail"
+        require 'switchman/guard_rail'
 
         ::GuardRail.singleton_class.prepend(GuardRail::ClassMethods)
       end
     end
 
-    initializer 'switchman.extend_controller', :after => "guard_rail.extend_ar" do
+    initializer 'switchman.extend_controller', after: 'guard_rail.extend_ar' do
       ::ActiveSupport.on_load(:action_controller) do
-        require "switchman/action_controller/caching"
+        require 'switchman/action_controller/caching'
 
         ::ActionController::Base.include(ActionController::Caching)
       end
     end
-
   end
 end

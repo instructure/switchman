@@ -11,6 +11,7 @@ module Switchman
             Shard.create!(default: true)
           rescue
             raise unless dont_create
+
             # database doesn't exist yet, presumably cause we're creating it right now
             return [nil, nil]
           end
@@ -49,8 +50,8 @@ module Switchman
             shard1.destroy
             shard2.drop_database rescue nil
             shard2.destroy
-            shard1 = server1.create_new_shard(:name => server1.config[:shard1])
-            shard2 = server2.create_new_shard(:name => server1.config[:shard2])
+            shard1 = server1.create_new_shard(name: server1.config[:shard1])
+            shard2 = server2.create_new_shard(name: server1.config[:shard2])
           end
           [shard1, shard2]
         else
@@ -59,11 +60,12 @@ module Switchman
       end
 
       private
+
       def find_existing_test_shard(server, name)
         if server == Shard.default.database_server
           server.shards.where(name: name).first
         else
-          shard = Shard.where("database_server_id IS NOT NULL AND name=?", name).first
+          shard = Shard.where('database_server_id IS NOT NULL AND name=?', name).first
           # if somehow databases got created in a different order, change the shard to match
           shard.database_server = server if shard
           shard

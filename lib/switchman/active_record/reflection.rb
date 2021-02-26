@@ -30,9 +30,7 @@ module Switchman
         # HasManyAssociation, losing its proper `klass`
         def association_scope_cache(klass, owner, &block)
           key = self
-          if polymorphic?
-            key = [key, owner._read_attribute(@foreign_type)]
-          end
+          key = [key, owner._read_attribute(@foreign_type)] if polymorphic?
           key = [key, shard(owner).id].flatten
           klass.cached_find_by_statement(key, &block)
         end

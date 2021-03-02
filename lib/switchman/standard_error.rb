@@ -8,7 +8,7 @@ module Switchman
     end
 
     def current_shard(category = :primary)
-      @active_shards[category] || Shard.default
+      @active_shards&.[](category) || Shard.default
     end
   end
 end

@@ -78,10 +78,6 @@ module Switchman
         end
       end
 
-      def or(other)
-        super(other.shard(self.primary_shard))
-      end
-
       private
 
       if ::Rails.version >= '5.2'
@@ -246,135 +242,92 @@ module Switchman
                                binds: nil,
                                dup_binds_on_mutation: false)
         result = predicates.map do |predicate|
-          transposed, binds = transpose_single_predicate(predicate, source_shard, target_shard, remove_nonlocal_primary_keys,
-                                     binds: binds, dup_binds_on_mutation: dup_binds_on_mutation)
-          transposed
+          next predicate unless predicate.is_a?(::Arel::Nodes::Binary)
+          next predicate unless predicate.left.is_a?(::Arel::Attributes::Attribute)
+          relation, column = relation_and_column(predicate.left)
+          next predicate unless (type = transposable_attribute_type(relation, column))
+
+          remove = true if type == :primary &&
+              remove_nonlocal_primary_keys &&
+              predicate.left.relation.model == klass &&
+              predicate.is_a?(::Arel::Nodes::Equality)
+
+          current_source_shard =
+              if source_shard
+                source_shard
+              elsif type == :primary
+                Shard.current(klass.shard_category)
+              elsif type == :foreign
+                source_shard_for_foreign_key(relation, column)
+              end
+
+          if ::Rails.version >= "5.2"
+            new_right_value =
+              case predicate.right
+              when Array
+                predicate.right.map {|val| transpose_predicate_value(val, current_source_shard, target_shard, type, remove) }
+              else
+                transpose_predicate_value(predicate.right, current_source_shard, target_shard, type, remove)
+              end
+          else
+            new_right_value = case predicate.right
+            when Array
+              local_ids = []
+              predicate.right.each do |value|
+                local_id = Shard.relative_id_for(value, current_source_shard, target_shard)
+                next unless local_id
+                unless remove && local_id > Shard::IDS_PER_SHARD
+                  if value.is_a?(::Arel::Nodes::Casted)
+                    if local_id == value.val
+                      local_id = value
+                    elsif local_id != value
+                      local_id = value.class.new(local_id, value.attribute)
+                    end
+                  end
+                  local_ids << local_id
+                end
+              end
+              local_ids
+            when ::Arel::Nodes::BindParam
+              # look for a bind param with a matching column name
+              if binds && bind = binds.detect{|b| b&.name.to_s == predicate.left.name.to_s}
+                # before we mutate, dup
+                if dup_binds_on_mutation
+                  binds = binds.map(&:dup)
+                  dup_binds_on_mutation = false
+                  bind = binds.find { |b| b&.name.to_s == predicate.left.name.to_s }
+                end
+                if bind.value.is_a?(::ActiveRecord::StatementCache::Substitute)
+                  bind.value.sharded = true # mark for transposition later
+                  bind.value.primary = true if type == :primary
+                else
+                  local_id = Shard.relative_id_for(bind.value, current_source_shard, target_shard)
+                  local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
+                  bind.instance_variable_set(:@value, local_id)
+                  bind.instance_variable_set(:@value_for_database, nil)
+                end
+              end
+              predicate.right
+            else
+              local_id = Shard.relative_id_for(predicate.right, current_source_shard, target_shard) || predicate.right
+              local_id = [] if remove && local_id.is_a?(Integer) && local_id > Shard::IDS_PER_SHARD
+              local_id
+            end
+          end
+          if new_right_value == predicate.right
+            predicate
+          elsif predicate.right.is_a?(::Arel::Nodes::Casted)
+            if new_right_value == predicate.right.val
+              predicate
+            else
+              predicate.class.new(predicate.left, predicate.right.class.new(new_right_value, predicate.right.attribute))
+            end
+          else
+            predicate.class.new(predicate.left, new_right_value)
+          end
         end
         result = [result, binds]
         result
-      end
-
-      def transpose_single_predicate(predicate,
-                                     source_shard,
-                                     target_shard,
-                                     remove_nonlocal_primary_keys = false,
-                                     binds: nil,
-                                     dup_binds_on_mutation: false)
-        if predicate.is_a?(::Arel::Nodes::Grouping)
-          return predicate, binds unless predicate.expr.is_a?(::Arel::Nodes::Or)
-          # Dang, we have an OR.  OK, that means we have other epxressions below this
-          # level, perhaps many, that may need transposition.
-          # the left side and right side must each be treated as predicate lists and
-          # transformed in kind, if neither of them changes we can just return the grouping as is.
-          # hold on, it's about to get recursive...
-          #
-          # TODO: "binds" is getting passed up and down
-          # this stack purely because of the necessary handling for rails <5.2
-          #  Dropping support for 5.2 means we can remove the "binds" argument from
-          # all of this and yank the conditional below where we monkey with their instance state.
-          or_expr = predicate.expr
-          left_node = or_expr.left
-          right_node = or_expr.right
-          left_predicates = left_node.children
-          right_predicates = right_node.children
-          new_left_predicates, binds = transpose_predicates(left_predicates, source_shard,
-                                                               target_shard, remove_nonlocal_primary_keys,
-                                                               binds: binds, dup_binds_on_mutation: dup_binds_on_mutation)
-          new_right_predicates, binds = transpose_predicates(right_predicates, source_shard,
-                                                               target_shard, remove_nonlocal_primary_keys,
-                                                               binds: binds, dup_binds_on_mutation: dup_binds_on_mutation)
-          if new_left_predicates != left_predicates
-            left_node.instance_variable_set(:@children, new_left_predicates)
-          end
-          if new_right_predicates != right_predicates
-            right_node.instance_variable_set(:@children, new_right_predicates)
-          end
-          return predicate, binds
-        end
-        return predicate, binds unless predicate.is_a?(::Arel::Nodes::Binary)
-        return predicate, binds unless predicate.left.is_a?(::Arel::Attributes::Attribute)
-        relation, column = relation_and_column(predicate.left)
-        return predicate, binds unless (type = transposable_attribute_type(relation, column))
-
-        remove = true if type == :primary &&
-            remove_nonlocal_primary_keys &&
-            predicate.left.relation.model == klass &&
-            predicate.is_a?(::Arel::Nodes::Equality)
-
-        current_source_shard =
-            if source_shard
-              source_shard
-            elsif type == :primary
-              Shard.current(klass.shard_category)
-            elsif type == :foreign
-              source_shard_for_foreign_key(relation, column)
-            end
-
-        if ::Rails.version >= "5.2"
-          new_right_value =
-            case predicate.right
-            when Array
-              predicate.right.map {|val| transpose_predicate_value(val, current_source_shard, target_shard, type, remove) }
-            else
-              transpose_predicate_value(predicate.right, current_source_shard, target_shard, type, remove)
-            end
-        else
-          new_right_value = case predicate.right
-          when Array
-            local_ids = []
-            predicate.right.each do |value|
-              local_id = Shard.relative_id_for(value, current_source_shard, target_shard)
-              next unless local_id
-              unless remove && local_id > Shard::IDS_PER_SHARD
-                if value.is_a?(::Arel::Nodes::Casted)
-                  if local_id == value.val
-                    local_id = value
-                  elsif local_id != value
-                    local_id = value.class.new(local_id, value.attribute)
-                  end
-                end
-                local_ids << local_id
-              end
-            end
-            local_ids
-          when ::Arel::Nodes::BindParam
-            # look for a bind param with a matching column name
-            if binds && bind = binds.detect{|b| b&.name.to_s == predicate.left.name.to_s}
-              # before we mutate, dup
-              if dup_binds_on_mutation
-                binds = binds.map(&:dup)
-                dup_binds_on_mutation = false
-                bind = binds.find { |b| b&.name.to_s == predicate.left.name.to_s }
-              end
-              if bind.value.is_a?(::ActiveRecord::StatementCache::Substitute)
-                bind.value.sharded = true # mark for transposition later
-                bind.value.primary = true if type == :primary
-              else
-                local_id = Shard.relative_id_for(bind.value, current_source_shard, target_shard)
-                local_id = [] if remove && local_id > Shard::IDS_PER_SHARD
-                bind.instance_variable_set(:@value, local_id)
-                bind.instance_variable_set(:@value_for_database, nil)
-              end
-            end
-            predicate.right
-          else
-            local_id = Shard.relative_id_for(predicate.right, current_source_shard, target_shard) || predicate.right
-            local_id = [] if remove && local_id.is_a?(Integer) && local_id > Shard::IDS_PER_SHARD
-            local_id
-          end
-        end
-        out_predicate = if new_right_value == predicate.right
-          predicate
-        elsif predicate.right.is_a?(::Arel::Nodes::Casted)
-          if new_right_value == predicate.right.val
-            predicate
-          else
-            predicate.class.new(predicate.left, predicate.right.class.new(new_right_value, predicate.right.attribute))
-          end
-        else
-          predicate.class.new(predicate.left, new_right_value)
-        end
-        return out_predicate, binds
       end
 
       def transpose_predicate_value(value, current_shard, target_shard, attribute_type, remove_non_local_ids)

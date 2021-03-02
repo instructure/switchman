@@ -23,28 +23,6 @@ docker-compose run --rm app /bin/bash -lc \
   "rvm-exec 2.5 bundle exec rake db:drop db:create db:migrate"
 docker-compose run --rm app /bin/bash -lc \
   "rvm-exec 2.5 bundle exec rspec spec/lib/rails_spec.rb"
-docker-compose run --rm app /bin/bash -lc \
-  "rvm-exec 2.5 bundle exec rspec spec/lib/active_record/query_methods_spec.rb"
-```
-
-Note that these will only run against one version of active record^. You can use
-the "appraise" keyword to run against specific versions listed in the Appraisals file,
-or all of them by using "appraisal" with no argument:
-
-```bash
-docker-compose run --rm app /bin/bash -lc \
-  "rvm-exec 2.5 bundle exec appraisal activerecord-6.0 rspec"
-docker-compose run --rm app /bin/bash -lc \
-  "rvm-exec 2.5 bundle exec appraisal rspec"
-```
-
-Or you can boot a bash terminal one time interactively, and then run what you want inside there:
-
-```bash
-docker-compose run --rm app /bin/bash
-rvm-exec 2.5 bundle exec rake db:drop db:create db:migrate
-rvm-exec 2.5 bundle exec appraisal activerecord-6.0 rspec
-rvm-exec 2.5 bundle exec appraisal rspec
 ```
 
 If you'd like to mount your git checkout within the docker container running

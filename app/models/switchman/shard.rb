@@ -20,32 +20,7 @@ module Switchman
 
     class << self
       def sharded_models
-        # for initialization reasons, this is stored over yonder
-        ActiveRecord::Base::ClassMethods::SHARDED_MODELS
-      end
-
-      def initialize_sharding
-        full_connects_to_hash = DatabaseServer.all.map { |db| [db.id.to_sym, db.connects_to_hash] }.to_h
-        sharded_models.each do |klass|
-          connects_to_hash = full_connects_to_hash.deep_dup
-          if klass == UnshardedRecord
-            # no need to mention other databases for the unsharded category
-            connects_to_hash = { ::Rails.env.to_sym => DatabaseServer.find(nil).connects_to_hash }
-          end
-
-          # prune things we're already connected to
-          if klass.connection_specification_name == klass.name
-            connects_to_hash.each do |(db_name, role_hash)|
-              role_hash.each_key do |role|
-                role_hash.delete(role) if klass.connection_handler.retrieve_connection_pool(
-                  klass.connection_specification_name, role: role, shard: db_name
-                )
-              end
-            end
-          end
-
-          klass.connects_to shards: connects_to_hash
-        end
+        @sharded_models ||= [::ActiveRecord::Base, UnshardedRecord].freeze
       end
 
       def default(reload: false, with_fallback: false)
@@ -523,6 +498,35 @@ module Switchman
       end
 
       private
+
+      def add_sharded_model(klass)
+        @sharded_models = (sharded_models + [klass]).freeze
+        initialize_sharding
+      end
+
+      def initialize_sharding
+        full_connects_to_hash = DatabaseServer.all.map { |db| [db.id.to_sym, db.connects_to_hash] }.to_h
+        sharded_models.each do |klass|
+          connects_to_hash = full_connects_to_hash.deep_dup
+          if klass == UnshardedRecord
+            # no need to mention other databases for the unsharded category
+            connects_to_hash = { ::Rails.env.to_sym => DatabaseServer.find(nil).connects_to_hash }
+          end
+
+          # prune things we're already connected to
+          if klass.connection_specification_name == klass.name
+            connects_to_hash.each do |(db_name, role_hash)|
+              role_hash.each_key do |role|
+                role_hash.delete(role) if klass.connection_handler.retrieve_connection_pool(
+                  klass.connection_specification_name, role: role, shard: db_name
+                )
+              end
+            end
+          end
+
+          klass.connects_to shards: connects_to_hash
+        end
+      end
 
       # in-process caching
       def cached_shards

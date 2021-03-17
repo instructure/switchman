@@ -4,12 +4,12 @@ module Switchman
   module GuardRail
     module ClassMethods
       def activate(role)
-        DatabaseServer.reference_role(role)
+        DatabaseServer.send(:reference_role, role)
         super
       end
 
       def activate!(role)
-        DatabaseServer.reference_role(role)
+        DatabaseServer.send(:reference_role, role)
         super
       end
     end

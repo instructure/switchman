@@ -181,7 +181,7 @@ module Switchman
           ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(ActiveRecord::PostgreSQLAdapter)
         end
 
-        Shard.initialize_sharding
+        Shard.send(:initialize_sharding)
       end
     end
 

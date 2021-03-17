@@ -149,7 +149,7 @@ module Switchman
             end
           end
         end
-        Shard.initialize_sharding
+        Shard.send(:initialize_sharding)
       end
 
       it "returns the default server if that's the only one around" do

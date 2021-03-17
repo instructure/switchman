@@ -6,8 +6,6 @@ module Switchman
       module ClassMethods
         delegate :shard, to: :all
 
-        SHARDED_MODELS = [::ActiveRecord::Base].freeze
-
         def find_ids_in_ranges(opts = {}, &block)
           opts.reverse_merge!(loose: true)
           all.find_ids_in_ranges(opts, &block)
@@ -15,11 +13,10 @@ module Switchman
 
         def sharded_model
           self.abstract_class = true
-          sharded_models = SHARDED_MODELS.dup
-          sharded_models << self
-          ClassMethods.send(:remove_const, :SHARDED_MODELS)
-          ClassMethods.const_set(:SHARDED_MODELS, sharded_models)
-          Shard.initialize_sharding unless self == UnshardedRecord
+
+          return if self == UnshardedRecord
+
+          Shard.send(:add_sharded_model, self)
         end
 
         def integral_id?

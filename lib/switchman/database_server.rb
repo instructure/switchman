@@ -38,7 +38,7 @@ module Switchman
         database_servers[server.id] = server
         ::ActiveRecord::Base.configurations.configurations <<
           ::ActiveRecord::DatabaseConfigurations::HashConfig.new(::Rails.env, "#{server.id}/primary", settings)
-        Shard.initialize_sharding
+        Shard.send(:initialize_sharding)
         server
       end
 
@@ -49,16 +49,14 @@ module Switchman
         servers[rand(servers.length)]
       end
 
-      # internal
+      private
 
       def reference_role(role)
         return if all_roles.include?(role)
 
         @all_roles << role
-        Shard.initialize_sharding
+        Shard.send(:initialize_sharding)
       end
-
-      private
 
       def database_servers
         unless @database_servers
@@ -197,7 +195,7 @@ module Switchman
 
         begin
           self.class.creating_new_shard = true
-          DatabaseServer.reference_role(:deploy)
+          DatabaseServer.send(:reference_role, :deploy)
           ::ActiveRecord::Base.connected_to(shard: self.id.to_sym, role: :deploy) do
             if create_statement
               if ::ActiveRecord::Base.connection.select_value("SELECT 1 FROM pg_namespace WHERE nspname=#{::ActiveRecord::Base.connection.quote(name)}")

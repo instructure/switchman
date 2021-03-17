@@ -10,9 +10,12 @@ module Switchman
         return
       end
 
-      @active_shards = Shard.sharded_models.map do |klass|
-        [klass, Shard.current(klass)]
-      end.compact.to_h
+      if defined?(Shard)
+        @active_shards = Shard.sharded_models.map do |klass|
+          [klass, Shard.current(klass)]
+        end.compact.to_h
+      end
+
       super
     end
 

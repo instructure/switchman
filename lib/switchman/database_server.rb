@@ -113,7 +113,7 @@ module Switchman
     end
 
     def config(environment = :primary)
-      @configs[environment] ||= begin
+      @configs[environment] ||=
         case @config[environment]
         when Array
           @config[environment].map do |config|
@@ -127,7 +127,6 @@ module Switchman
         else
           @config
         end
-      end
     end
 
     def guard_rail_environment

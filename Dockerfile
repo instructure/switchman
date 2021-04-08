@@ -6,7 +6,7 @@ USER root
 RUN chown -R docker:docker /app
 USER docker
 
-RUN /bin/bash -lc "rvm-exec 2.6 gem install bundler -v 2.2.11 && rvm-exec 2.7 gem install bundler -v 2.2.11"
+RUN /bin/bash -lc "rvm 2.6,2.7,3.0 do gem install bundler -v 2.2.15"
 
 COPY --chown=docker:docker switchman.gemspec Gemfile /app/
 COPY --chown=docker:docker lib/switchman/version.rb /app/lib/switchman/version.rb

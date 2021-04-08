@@ -10,6 +10,6 @@ class AddDefaultShardIndex < ActiveRecord::Migration[4.2]
               else
                 {}
               end
-    add_index :switchman_shards, :default, options
+    add_index :switchman_shards, :default, **options
   end
 end

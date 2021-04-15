@@ -84,6 +84,10 @@ module Switchman
       @schema_cache
     end
 
+    def set_schema_cache(cache)
+      @schema_cache.copy_values(cache)
+    end
+
     %w{release_connection
        disconnect!
        flush!

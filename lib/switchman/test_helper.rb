@@ -19,7 +19,7 @@ module Switchman
         end
 
         server1 = Shard.default.database_server
-        server2 = DatabaseServer.create(Shard.default.database_server.config)
+        server2 = DatabaseServer.create(Shard.default.database_server.config.merge(server2: true))
 
         if server1 == Shard.default.database_server && server1.config[:shard1] && server1.config[:shard2]
           # look for the shards in the db already

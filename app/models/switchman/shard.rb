@@ -690,6 +690,7 @@ module Switchman
         Switchman.cache.delete(['shard', id].join('/'))
         Switchman.cache.delete('default_shard') if default?
       end
+      self.class.clear_cache
     end
 
     def default_name

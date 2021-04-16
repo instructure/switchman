@@ -127,6 +127,13 @@ module Switchman
       it "should raise an error for non-ids" do
         expect { Shard.lookup('jacob') }.to raise_error(ArgumentError)
       end
+
+      it "clears the in-process cache when a shard is destroyed" do
+        s = Shard.create!(name: "shard_to_destroy")
+        expect(Shard.lookup(s.id)).to eq s
+        s.destroy
+        expect(Shard.lookup(s.id)).to be_nil
+      end
     end
 
     describe ".find_cached" do

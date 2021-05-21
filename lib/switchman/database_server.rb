@@ -213,7 +213,7 @@ module Switchman
             ::ActiveRecord::Migration.verbose = false
 
             unless schema == false
-              shard.activate do
+              shard.activate(*Shard.sharded_models) do
                 reset_column_information
 
                 ::ActiveRecord::Base.connection.transaction(requires_new: true) do

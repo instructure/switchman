@@ -141,6 +141,54 @@ module Switchman
         self.class.define_attribute_methods
         super
       end
+
+      # these are called if the specific methods haven't been defined yet
+      def attribute(attr_name)
+        return super unless self.class.sharded_column?(attr_name)
+
+        reflection = self.class.send(:reflection_for_integer_attribute, attr_name)
+        ::Switchman::Shard.relative_id_for(super, shard, ::Switchman::Shard.current(connection_classes_for_reflection(reflection)))
+      end
+
+      def attribute=(attr_name, new_value)
+        unless self.class.sharded_column?(attr_name)
+          super
+          return
+        end
+
+        reflection = self.class.send(:reflection_for_integer_attribute, attr_name)
+        super(::Switchman::Shard.relative_id_for(new_value, ::Switchman::Shard.current(connection_classes_for_reflection(reflection)), shard))
+      end
+
+      def global_attribute(attr_name)
+        if self.class.sharded_column?(attr_name)
+          ::Switchman::Shard.global_id_for(attribute(attr_name), shard)
+        else
+          attribute(attr_name)
+        end
+      end
+
+      def local_attribute(attr_name)
+        if self.class.sharded_column?(attr_name)
+          ::Switchman::Shard.local_id_for(attribute(attr_name), shard).first
+        else
+          attribute(attr_name)
+        end
+      end
+
+      private
+
+      def connection_classes_for_reflection(reflection)
+        if reflection
+          if reflection.options[:polymorphic]
+            read_attribute(reflection.foreign_type)&.constantize&.connection_classes
+          else
+            reflection.klass.connection_classes
+          end
+        else
+          self.class.connection_classes
+        end
+      end
     end
   end
 end

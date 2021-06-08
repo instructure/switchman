@@ -113,25 +113,55 @@ module Switchman
           end
         else
           result_count = 0
+          can_order = false
           result = Shard.with_each_shard(shards, [klass.connection_classes]) do
             # don't even query other shards if we're already past the limit
-            next if limit_value && result_count >= limit_value
+            next if limit_value && result_count >= limit_value && order_values.empty?
 
             relation = shard(Shard.current(klass.connection_classes), :to_a)
-            # do a minimal query
-            relation = relation.limit(limit_value - result_count) if limit_value && !result_count.zero?
+            # do a minimal query if possible
+            relation = relation.limit(limit_value - result_count) if limit_value && !result_count.zero? && order_values.empty?
 
             shard_results = relation.activate(&block)
 
             if shard_results.present?
-              # we don't presume to know how to merge and sort results from multiple shards
-              raise OrderOnMultiShardQuery if !order_values.empty? && result_count.positive?
+              can_order ||= can_order_cross_shard_results? unless order_values.empty?
+              raise OrderOnMultiShardQuery if !can_order && !order_values.empty? && result_count.positive?
 
               result_count += shard_results.is_a?(Array) ? shard_results.length : 1
             end
             shard_results
           end
+
+          result = reorder_cross_shard_results(result) if can_order
           result.slice!(limit_value..-1) if limit_value
+          result
+        end
+      end
+
+      def can_order_cross_shard_results?
+        # we only presume to be able to post-sort the most basic of orderings
+        order_values.all? { |ov| ov.is_a?(::Arel::Nodes::Ordering) && ov.expr.is_a?(::Arel::Attributes::Attribute) }
+      end
+
+      def reorder_cross_shard_results(results)
+        results.sort! do |l, r|
+          result = 0
+          order_values.each do |ov|
+            a = l.attribute(ov.expr.name)
+            b = r.attribute(ov.expr.name)
+            next if a == b
+
+            if a.nil? || b.nil?
+              result = 1 if a.nil?
+              result *= -1 if ov.is_a?(::Arel::Nodes::Descending)
+            else
+              result = a <=> b
+            end
+
+            result *= -1 if ov.is_a?(::Arel::Nodes::Descending)
+            break unless result.zero?
+          end
           result
         end
       end

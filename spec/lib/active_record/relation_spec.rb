@@ -18,7 +18,7 @@ module Switchman
         end
 
         it 'raises an error if you have a sort order on a multi-shard query' do
-          expect { User.where(id: [@user1.id, @user2.id]).order(:id).to_a }.to raise_error(OrderOnMultiShardQuery)
+          expect { User.where(id: [@user1.id, @user2.id]).order(::Arel.sql('id')).to_a }.to raise_error(OrderOnMultiShardQuery)
         end
 
         it 'implements cross-shard limit' do
@@ -28,6 +28,22 @@ module Switchman
         it 'implement cross-shard limit on non-boundary' do
           @user3 = @shard1.activate { User.create! }
           expect(User.where(id: [@user1.id, @user2.id, @user3.id]).limit(2).to_a.length).to eq 2
+        end
+
+        context 'with cross-shard sorting' do
+          it 'handles a basic case' do
+            expect(User.where(id: [@user1.id, @user2.id]).order(id: :desc)).to eq [@user1, @user2].sort_by(&:id).reverse
+          end
+
+          it 'sorts nulls last' do
+            @user3 = User.create!
+            expect(User.where(id: [@user1.id, @user2.id, @user3.id]).order(:name).to_a).to eq [@user1, @user2, @user3]
+          end
+
+          it 'sorts the full set, even with a limit' do
+            @user3 = @shard1.activate { User.create!(name: 'a') }
+            expect(User.where(id: [@user1.id, @user2.id, @user3.id]).order(:name).limit(2).to_a).to eq [@user3, @user1]
+          end
         end
       end
 

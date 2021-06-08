@@ -133,6 +133,42 @@ module Switchman
           end
         end
 
+        it 'removes the non-pertinent primary keys when transposing for to_a' do
+          relation = User.where(id: [@user1, @user2])
+          original_method = User.connection.method(:exec_query)
+          expect(User.connection).to receive(:exec_query).twice do |sql, type, binds|
+            if ::Rails.version >= '5.2'
+              if Shard.current.default?
+                expect(binds.map(&:value)).to eq [@user1.id]
+              else
+                expect(binds.map(&:value)).to eq [@user2.id]
+              end
+            else
+              if Shard.current.default?
+                expect(sql).to match /\(#{@user1.id}\)/
+              else
+                expect(sql).to match /\(#{@user2.id}\)/
+              end
+            end
+            original_method.call(sql, type, binds)
+          end
+          relation.to_a
+        end
+
+        it "doesn't even query a shard if no primary keys are useful" do
+          relation = User.where(id: [@user1, @user2]).shard([Shard.default, @shard2])
+          original_method = User.connection.method(:exec_query)
+          expect(User.connection).to receive(:exec_query).once do |sql, type, binds|
+            if ::Rails.version >= '5.2'
+              expect(binds.map(&:value)).to eq [@user1.id]
+            else
+              expect(sql).to match /\(#{@user1.id}\)/
+            end
+            original_method.call(sql, type, binds)
+          end
+          relation.to_a
+        end
+
         it "doesn't choke on valid objects with no id" do
           u = User.new
           User.where.not(id: u).shard([Shard.default, @shard1]).to_a

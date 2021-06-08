@@ -250,7 +250,7 @@ module Switchman
           remove = true if type == :primary &&
               remove_nonlocal_primary_keys &&
               predicate.left.relation.model == klass &&
-              predicate.is_a?(::Arel::Nodes::Equality)
+              (predicate.is_a?(::Arel::Nodes::Equality) || predicate.is_a?(::Arel::Nodes::In))
 
           current_source_shard =
               if source_shard
@@ -265,7 +265,7 @@ module Switchman
             new_right_value =
               case predicate.right
               when Array
-                predicate.right.map {|val| transpose_predicate_value(val, current_source_shard, target_shard, type, remove) }
+                predicate.right.map {|val| transpose_predicate_value(val, current_source_shard, target_shard, type, remove).presence }.compact
               else
                 transpose_predicate_value(predicate.right, current_source_shard, target_shard, type, remove)
               end
@@ -340,7 +340,7 @@ module Switchman
             value
           else
             local_id = Shard.relative_id_for(current_id, current_shard, target_shard) || current_id
-            local_id = [] if remove_non_local_ids && local_id.is_a?(Integer) && local_id > Shard::IDS_PER_SHARD
+            return nil if remove_non_local_ids && local_id.is_a?(Integer) && local_id > Shard::IDS_PER_SHARD
             if current_id != local_id
               # make a new bind param
               ::Arel::Nodes::BindParam.new(query_att.class.new(query_att.name, local_id, query_att.type))

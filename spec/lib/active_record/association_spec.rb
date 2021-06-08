@@ -519,6 +519,14 @@ module Switchman
               Appendage.associated_shards_map = nil
             end
           end
+
+          it "can preload a has_many to an unsharded model" do
+            u = User.create!
+            r = u.roots.create!
+            u2 = User.preload(:roots).where(id: u.id).take
+            expect(u2.association(:roots)).to be_loaded
+            expect(u2.roots.to_a).to eq [r]
+          end
         end
 
         describe "polymorphic associations" do

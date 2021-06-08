@@ -87,7 +87,7 @@ module Switchman
           # Copypasta from Activerecord but with added global_id_for goodness.
           def records_for(ids)
             scope.where(association_key_name => ids).load do |record|
-              global_key = if record.class.shard_category == :unsharded
+              global_key = if model.shard_category == :unsharded
                              convert_key(record[association_key_name])
                            else
                              Shard.global_id_for(record[association_key_name], record.shard)

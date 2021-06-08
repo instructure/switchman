@@ -16,6 +16,10 @@ module Switchman
         it "should activate multiple shards if necessary" do
           expect(User.where(:id => [@user1.id, @user2.id]).sort_by(&:id)).to eq [@user1, @user2].sort_by(&:id)
         end
+
+        it 'raises an error if you have a sort order on a multi-shard query' do
+          expect { User.where(id: [@user1.id, @user2.id]).order(:id).to_a }.to raise_error(OrderOnMultiShardQuery)
+        end
       end
 
       describe "#update_all" do

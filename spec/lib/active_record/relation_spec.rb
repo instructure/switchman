@@ -20,6 +20,15 @@ module Switchman
         it 'raises an error if you have a sort order on a multi-shard query' do
           expect { User.where(id: [@user1.id, @user2.id]).order(:id).to_a }.to raise_error(OrderOnMultiShardQuery)
         end
+
+        it 'implements cross-shard limit' do
+          expect(User.where(id: [@user1.id, @user2.id]).limit(1).to_a).to eq [@user1]
+        end
+
+        it 'implement cross-shard limit on non-boundary' do
+          @user3 = @shard1.activate { User.create! }
+          expect(User.where(id: [@user1.id, @user2.id, @user3.id]).limit(2).to_a.length).to eq 2
+        end
       end
 
       describe "#update_all" do

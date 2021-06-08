@@ -106,19 +106,27 @@ module Switchman
             shards.first.activate(klass.shard_category) { yield(self, shards.first) }
           end
         else
-          has_prior_results = false
-          # TODO: implement local limit to avoid querying extra shards
-          Shard.with_each_shard(shards, [klass.shard_category]) do
-            shard_results = shard(Shard.current(klass.shard_category), :to_a).activate(&block)
+          result_count = 0
+          result = Shard.with_each_shard(shards, [klass.shard_category]) do
+            # don't even query other shards if we're already past the limit
+            next if limit_value && result_count >= limit_value
+
+            relation = shard(Shard.current(klass.shard_category), :to_a)
+            # do a minimal query
+            relation = relation.limit(limit_value - result_count) if limit_value && !result_count.zero?
+
+            shard_results = relation.activate(&block)
 
             if shard_results.present?
               # we don't presume to know how to merge and sort results from multiple shards
-              raise OrderOnMultiShardQuery if !order_values.empty? && has_prior_results
+              raise OrderOnMultiShardQuery if !order_values.empty? && result_count.positive?
 
-              has_prior_results = true
+              result_count += shard_results.is_a?(Array) ? shard_results.length : 1
             end
             shard_results
           end
+          result.slice!(limit_value..-1) if limit_value
+          result
         end
       end
     end

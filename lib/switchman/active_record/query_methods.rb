@@ -281,7 +281,7 @@ module Switchman
         remove = true if type == :primary &&
                          remove_nonlocal_primary_keys &&
                          predicate.left.relation.klass == klass &&
-                         predicate.is_a?(::Arel::Nodes::Equality)
+                         (predicate.is_a?(::Arel::Nodes::Equality) || predicate.is_a?(::Arel::Nodes::HomogeneousIn))
 
         current_source_shard =
           if source_shard
@@ -301,7 +301,7 @@ module Switchman
         new_right_value =
           case right
           when Array
-            right.map { |val| transpose_predicate_value(val, current_source_shard, target_shard, type, remove) }
+            right.map { |val| transpose_predicate_value(val, current_source_shard, target_shard, type, remove).presence }.compact
           else
             transpose_predicate_value(right, current_source_shard, target_shard, type, remove)
           end
@@ -315,7 +315,13 @@ module Switchman
             predicate.class.new(predicate.left, right.class.new(new_right_value, right.attribute))
           end
         elsif predicate.is_a?(::Arel::Nodes::HomogeneousIn)
-          predicate.class.new(new_right_value, predicate.attribute, predicate.type)
+          # switch to a regular In, so that Relation::WhereClause#contradiction? knows about it
+          if new_right_value.empty?
+            klass = predicate.type == :in ? ::Arel::Nodes::In : ::Arel::Nodes::NotIn
+            klass.new(predicate.attribute, new_right_value)
+          else
+            predicate.class.new(new_right_value, predicate.attribute, predicate.type)
+          end
         else
           predicate.class.new(predicate.left, new_right_value)
         end

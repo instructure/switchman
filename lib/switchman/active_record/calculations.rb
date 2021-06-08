@@ -50,7 +50,7 @@ module Switchman
 
       def calculate_simple_average(column_name, distinct)
         # See activerecord#execute_simple_calculation
-        relation = reorder(nil)
+        relation = except(:order)
         column = aggregate_column(column_name)
         relation.select_values = [operation_over_aggregate_column(column, 'average', distinct).as('average'),
                                   operation_over_aggregate_column(column, 'count', distinct).as('count')]

@@ -12,9 +12,13 @@ module Switchman
         @user2 = @shard1.activate { User.create!(name: 'user2') }
       end
 
-      describe '#exec_queries' do
+      describe '#records' do
         it 'activates multiple shards if necessary' do
           expect(User.where(id: [@user1.id, @user2.id]).sort_by(&:id)).to eq [@user1, @user2].sort_by(&:id)
+        end
+
+        it 'raises an error if you have a sort order on a multi-shard query' do
+          expect { User.where(id: [@user1.id, @user2.id]).order(:id).to_a }.to raise_error(OrderOnMultiShardQuery)
         end
       end
 

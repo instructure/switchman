@@ -17,4 +17,6 @@ module Switchman
   def self.cache=(cache)
     @cache = cache
   end
+
+  class OrderOnMultiShardQuery < RuntimeError; end
 end

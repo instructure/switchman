@@ -62,7 +62,7 @@ module Switchman
       %I{update_all delete_all}.each do |method|
         class_eval <<-RUBY, __FILE__, __LINE__ + 1
           def #{method}(*args)
-            result = self.activate { |relation| relation.call_super(#{method.inspect}, Relation, *args) }
+            result = self.activate(unordered: true) { |relation| relation.call_super(#{method.inspect}, Relation, *args) }
             result = result.sum if result.is_a?(Array)
             result
           end
@@ -97,7 +97,7 @@ module Switchman
         end
       end
 
-      def activate(&block)
+      def activate(unordered: false, &block)
         shards = all_shards
         if (Array === shards && shards.length == 1)
           if shards.first == DefaultShard || shards.first == Shard.current(klass.shard_category)
@@ -118,7 +118,7 @@ module Switchman
 
             shard_results = relation.activate(&block)
 
-            if shard_results.present?
+            if shard_results.present? && !unordered
               can_order ||= can_order_cross_shard_results? unless order_values.empty?
               raise OrderOnMultiShardQuery if !can_order && !order_values.empty? && result_count.positive?
 

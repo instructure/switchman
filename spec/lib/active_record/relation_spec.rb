@@ -21,6 +21,10 @@ module Switchman
           expect { User.where(id: [@user1.id, @user2.id]).order(::Arel.sql('id')).to_a }.to raise_error(OrderOnMultiShardQuery)
         end
 
+        it "doesn't whine about sort order when doing unordered operations" do
+          expect(User.where(id: [@user1.id, @user2.id]).update_all(name: 'a')).to eq 2
+        end
+
         it 'implements cross-shard limit' do
           expect(User.where(id: [@user1.id, @user2.id]).limit(1).to_a).to eq [@user1]
         end

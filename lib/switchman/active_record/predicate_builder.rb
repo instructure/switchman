@@ -15,7 +15,7 @@ module Switchman
         def convert_to_id(value)
           case value
           when ::ActiveRecord::Base
-            value.send(primary_key)
+            value.id
           else
             super
           end

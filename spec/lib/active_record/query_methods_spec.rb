@@ -275,6 +275,18 @@ module Switchman
           # the original scope should be unmodified
           expect(scope.to_a).to eq [appendage]
         end
+
+        it 'translates polymorphic conditions' do
+          u = @shard1.activate { User.create! }
+          f = Feature.create!(owner: u)
+          expect(Feature.find_by(owner: u)).to eq f
+          @shard1.activate do
+            expect(Feature.shard(Shard.default).find_by(owner: u)).to eq f
+          end
+          @shard2.activate do
+            expect(Feature.shard(Shard.default).find_by(owner: u)).to eq f
+          end
+        end
       end
 
       describe 'with table aliases' do

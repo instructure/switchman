@@ -233,6 +233,10 @@ module Switchman
         connection.with_local_table_name { super }
       end
 
+      def table_name_matches?(from)
+        connection.with_global_table_name { super }
+      end
+
       # semi-private
       public
       def transpose_predicates(predicates,

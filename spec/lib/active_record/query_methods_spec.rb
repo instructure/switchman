@@ -100,7 +100,15 @@ module Switchman
         end
 
         it "doesn't burn when plucking out of a complex query with a FROM clause" do
-          all_ids = User.joins(:appendages).from("(select * from users) as \"users\"").pluck(:id)
+          # Rails can't recognize that the FROM clause is really from the users table, so
+          # won't automatically prefix symbol selects. so we have to do it manually
+          User.joins(:appendages).from('(select * from users) as "users"').pluck('users.id')
+        end
+
+        it "doesn't burn when plucking out of a complex query with a relational FROM clause" do
+          # however, in this case we explicitly tell Rails about the table alias, and it
+          # realizes it matches "users", so _does_ prefix symbol selects
+          User.joins(:appendages).from(User.all, :users).pluck(:id)
         end
 
         it "doesn't burn in the ORDER BY clause", :focus do
@@ -290,6 +298,11 @@ module Switchman
 
       it "should be able to construct eager_load queries" do
         expect(User.eager_load(:appendages).first.association(:appendages).loaded?).to eq true
+      end
+
+      it "includes table name in select clause even with an explicit from" do
+        skip "this just can't be fixed in Rails 5.1 and 5.2" unless ::Rails.version >= '6'
+        expect(User.from(User.quoted_table_name).select(:id).to_sql).to eq %{SELECT "users"."id" FROM #{User.quoted_table_name}}
       end
     end
   end

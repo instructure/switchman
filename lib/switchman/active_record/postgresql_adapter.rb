@@ -215,6 +215,10 @@ module Switchman
         name.quoted
       end
 
+      def with_global_table_name(&block)
+        with_local_table_name(false, &block)
+      end
+
       def with_local_table_name(enable = true)
         old_value = @use_local_table_name
         @use_local_table_name = enable

@@ -48,6 +48,10 @@ module Switchman
             @user3 = @shard1.activate { User.create!(name: 'a') }
             expect(User.where(id: [@user1.id, @user2.id, @user3.id]).order(:name).limit(2).to_a).to eq [@user3, @user1]
           end
+
+          it 'sorts a pluck' do
+            expect(User.where(id: [@user1.id, @user2.id]).order(id: :desc).pluck(:id)).to eq [@user1, @user2].map(&:id).sort.reverse
+          end
         end
       end
 

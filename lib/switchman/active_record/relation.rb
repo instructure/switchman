@@ -148,8 +148,12 @@ module Switchman
         results.sort! do |l, r|
           result = 0
           order_values.each do |ov|
-            a = l.attribute(ov.expr.name)
-            b = r.attribute(ov.expr.name)
+            if l.is_a?(::ActiveRecord::Base)
+              a = l.attribute(ov.expr.name)
+              b = r.attribute(ov.expr.name)
+            else
+              a, b = l, r
+            end
             next if a == b
 
             if a.nil? || b.nil?

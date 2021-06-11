@@ -142,6 +142,7 @@ module Switchman
 
         ::ActiveRecord::Relation::WhereClauseFactory.prepend(ActiveRecord::WhereClauseFactory)
         ::ActiveRecord::PredicateBuilder::AssociationQueryValue.prepend(ActiveRecord::PredicateBuilder::AssociationQueryValue)
+        ::ActiveRecord::PredicateBuilder::PolymorphicArrayValue.prepend(ActiveRecord::PredicateBuilder::AssociationQueryValue)
         ::ActiveRecord::TypeCaster::Map.include(ActiveRecord::TypeCaster::Map)
         ::ActiveRecord::TypeCaster::Connection.include(ActiveRecord::TypeCaster::Connection)
 

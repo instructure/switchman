@@ -246,6 +246,18 @@ module Switchman
                                binds: nil,
                                dup_binds_on_mutation: false)
         result = predicates.map do |predicate|
+          if ::Rails.version >= '5.2' && predicate.is_a?(::Arel::Nodes::And)
+            new_predicates, _binds = transpose_predicates(predicate.children, source_shard, target_shard,
+              remove_nonlocal_primary_keys,
+              binds: binds,
+              dup_binds_on_mutation: dup_binds_on_mutation)
+            next (if new_predicates == predicate.children
+              predicate
+            else
+              ::Arel::Nodes::And.new(new_predicates)
+            end)
+          end
+
           next predicate unless predicate.is_a?(::Arel::Nodes::Binary)
           next predicate unless predicate.left.is_a?(::Arel::Attributes::Attribute)
           relation, column = relation_and_column(predicate.left)

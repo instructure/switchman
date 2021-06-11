@@ -142,7 +142,9 @@ module Switchman
         results.sort! do |l, r|
           result = 0
           order_values.each do |ov|
-            if l.respond_to?(ov.expr.name)
+            if !l.is_a?(::ActiveRecord::Base)
+              a, b = l, r
+            elsif l.respond_to?(ov.expr.name)
               a = l.send(ov.expr.name)
               b = r.send(ov.expr.name)
             else

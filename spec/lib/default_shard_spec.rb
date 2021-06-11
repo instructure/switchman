@@ -14,7 +14,7 @@ module Switchman
     end
 
     it 'all defaultshards should be equivalent to each other' do
-      expect(DefaultShard.send(:new)).to eq DefaultShard.send(:new)
+      expect(DefaultShard.send(:new)).to eq DefaultShard.send(:new) # rubocop:disable RSpec/IdenticalEqualityAssertion
     end
   end
 end

@@ -17,7 +17,7 @@ module Switchman
       end
 
       def log(*args, &block)
-        super
+        yield
       ensure
         @last_query_at = Time.now
       end

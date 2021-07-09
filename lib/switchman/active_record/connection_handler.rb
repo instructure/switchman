@@ -112,8 +112,20 @@ module Switchman
       end
 
       def remove_connection(spec_name)
+        # also remove pools based on the same spec name that are for shard category purposes
+        # can't just use delete_if, because it's a Concurrent::Map, not a Hash
+        owner_to_pool.keys.each do |k|
+          next if k == spec_name
+
+          v = owner_to_pool[k]
+          owner_to_pool.delete(k) if v.is_a?(ConnectionPoolProxy) && v.spec.name == spec_name
+        end
+
+        # unwrap the pool from inside a ConnectionPoolProxy
         pool = owner_to_pool[spec_name]
         owner_to_pool[spec_name] = pool.default_pool if pool.is_a?(ConnectionPoolProxy)
+
+        # now let Rails do its thing with the data type it expects
         super
       end
 
@@ -128,15 +140,21 @@ module Switchman
             else
               ancestor_pool.spec
             end
-            pool = establish_connection(spec.to_hash)
-            pool.instance_variable_set(:@schema_cache, ancestor_pool.schema_cache) if ancestor_pool.schema_cache
-            pool
-          elsif spec_name != "primary"
+            # avoid copying "duplicate" pools that implement shard categories.
+            # they'll have a spec.name of primary, but a spec_name of something else, like unsharded
+            if spec.name == spec_name
+              pool = establish_connection(spec.to_hash)
+              pool.instance_variable_set(:@schema_cache, ancestor_pool.schema_cache) if ancestor_pool.schema_cache
+              next pool
+            end
+          end
+
+          if spec_name != "primary"
             primary_pool = retrieve_connection_pool("primary")
             if primary_pool.is_a?(ConnectionPoolProxy)
               pool = ConnectionPoolProxy.new(spec_name.to_sym, primary_pool.default_pool, @shard_connection_pools)
               pool.schema_cache.copy_references(primary_pool.schema_cache)
-              pool
+              owner_to_pool[spec_name] = pool
             else
               primary_pool
             end

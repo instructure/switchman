@@ -24,7 +24,7 @@ function test_ruby_version() {
   docker-compose run --rm app /bin/bash -lc \
     "rvm-exec $ruby_version bundle install --jobs 5"
   docker-compose run --rm app /bin/bash -lc \
-    "rvm-exec $ruby_version bundle exec rake db:drop db:create db:migrate"
+    "DISABLE_DATABASE_ENVIRONMENT_CHECK=1 rvm-exec $ruby_version bundle exec rake db:drop db:create db:migrate"
   if [ $# == 0 ] ; then
     docker-compose run --rm app /bin/bash -lc \
       "rvm-exec $ruby_version bundle exec appraisal bundle install --jobs 5"

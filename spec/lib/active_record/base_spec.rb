@@ -138,24 +138,6 @@ module Switchman
         end
       end
 
-      describe ".shard_category=" do
-        it "should set up connection pools correctly for a model on a different db in the default shard" do
-          skip "remove_connection working properly"
-          allow(::Rails.env).to receive(:test?).and_return(false)
-          begin
-            config = { :adapter => 'sqlite3', :database => ':memory:', :something_unique_in_the_spec => true }
-            MirrorUser.establish_connection(config)
-
-            expect(MirrorUser.connection).not_to eq ::ActiveRecord::Base.connection
-            ::GuardRail.activate(:secondary) do
-              expect(MirrorUser.connection).not_to eq ::ActiveRecord::Base.connection
-            end
-          ensure
-            MirrorUser.remove_connection
-          end
-        end
-      end
-
       describe ".unscoped" do
         it "doesn't capture the shard permanently (block form)" do
           @shard1.activate do

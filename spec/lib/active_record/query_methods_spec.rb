@@ -170,9 +170,9 @@ module Switchman
           original_method = User.connection.method(:exec_query)
           expect(User.connection).to receive(:exec_query).twice do |sql, type, binds|
             if Shard.current.default?
-              expect(binds).to eq [@user1.id]
+              expect(binds.map(&:value_before_type_cast)).to eq [@user1.id]
             else
-              expect(binds).to eq [@user2.id]
+              expect(binds.map(&:value_before_type_cast)).to eq [@user2.id]
             end
             original_method.call(sql, type, binds)
           end
@@ -183,7 +183,7 @@ module Switchman
           relation = User.where(id: [@user1, @user2]).shard([Shard.default, @shard2])
           original_method = User.connection.method(:exec_query)
           expect(User.connection).to receive(:exec_query).once do |sql, type, binds|
-            expect(binds).to eq [@user1.id]
+            expect(binds.map(&:value_before_type_cast)).to eq [@user1.id]
             original_method.call(sql, type, binds)
           end
           relation.to_a

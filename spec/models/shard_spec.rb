@@ -241,11 +241,29 @@ module Switchman
         it "properly re-raises a PG exception that's not dumpable" do
           begin
             Shard.with_each_shard([Shard.default, @shard2], parallel: true) do
-              User.connection.execute("die") if Shard.current == @shard2
+              next unless Shard.current == @shard2
+
+              User.connection.execute("die")
             end
           rescue => e
             expect(e.message).to match(/die/)
             expect(e.current_shard).to eq @shard2
+            raised = true
+          end
+          expect(raised).to eq true
+        end
+
+        it "properly re-raises a StackLimitExceeded" do
+          begin
+            Shard.with_each_shard([Shard.default, @shard2], parallel: true) do
+              next unless Shard.current == @shard2
+
+              x = nil
+              x = -> { x.call }
+              x.call
+            end
+          rescue SystemStackError => e
+            expect(e.backtrace.length).to eq 51
             raised = true
           end
           expect(raised).to eq true

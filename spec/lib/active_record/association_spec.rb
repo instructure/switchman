@@ -96,27 +96,47 @@ module Switchman
         expect(a1.user).to eq @user1
       end
 
-      it "uses the shard as part of the association_scope_cache key" do
-        @user1.appendages.to_a # trigger the cache
-        @user2.appendages.to_a # trigger the cache
-
-        keys = User.reflect_on_association('appendages').instance_variable_get(:@association_scope_cache).keys
-        prepared = User.connection.prepared_statements
-        expect(keys).to eq [[prepared, @user1.shard.id], [prepared, @user2.shard.id]]
-      end
-
       it "properly saves a new child STI object onto the parent's shard" do
         user = User.create!
         expect(@shard1.activate { user.appendages.create!(type: 'Arm') }.shard).to eq user.shard
       end
 
-      it "uses the target's shard category's shard as part of the association_scope_cache key" do
-        @user1.roots.to_a # trigger the cache
-        @user2.roots.to_a # trigger the cache
+      if ::Rails.version < '6.0.4'
+        it "uses the shard as part of the association_scope_cache key" do
+          @user1.appendages.to_a # trigger the cache
+          @user2.appendages.to_a # trigger the cache
 
-        keys = User.reflect_on_association('roots').instance_variable_get(:@association_scope_cache).keys
-        prepared = User.connection.prepared_statements
-        expect(keys).to eq [[prepared, Shard.default.id]]
+          keys = User.reflect_on_association('appendages').instance_variable_get(:@association_scope_cache).keys
+          prepared = User.connection.prepared_statements
+          expect(keys).to eq [[prepared, @user1.shard.id], [prepared, @user2.shard.id]]
+        end
+
+        it "uses the target's shard category's shard as part of the association_scope_cache key" do
+          @user1.roots.to_a # trigger the cache
+          @user2.roots.to_a # trigger the cache
+
+          keys = User.reflect_on_association('roots').instance_variable_get(:@association_scope_cache).keys
+          prepared = User.connection.prepared_statements
+          expect(keys).to eq [[prepared, Shard.default.id]]
+        end
+      else
+        it 'uses the shard as part of the association_scope_cache key' do
+          @user1.appendages.to_a # trigger the cache
+          @user2.appendages.to_a # trigger the cache
+
+          reflection = User.reflect_on_association('appendages')
+          keys = Appendage.instance_variable_get(:@find_by_statement_cache)[User.connection.prepared_statements].keys
+          expect(keys).to include([reflection, @user1.shard.id], [reflection, @user2.shard.id])
+        end
+
+        it "uses the target's shard category's shard as part of the association_scope_cache key" do
+          @user1.roots.to_a # trigger the cache
+          @user2.roots.to_a # trigger the cache
+
+          reflection = User.reflect_on_association('roots')
+          keys = Root.instance_variable_get(:@find_by_statement_cache)[User.connection.prepared_statements].keys
+          expect(keys).to eq [[reflection, Shard.default.id]]
+        end
       end
 
       it "should work with has_many through associations" do

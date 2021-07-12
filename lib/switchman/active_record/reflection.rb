@@ -28,15 +28,26 @@ module Switchman
         # this technically belongs on AssociationReflection, but we put it on
         # ThroughReflection as well, instead of delegating to its internal
         # HasManyAssociation, losing its proper `klass`
-        def association_scope_cache(conn, owner, &block)
-          key = conn.prepared_statements
-          if polymorphic?
-            key = [key, owner._read_attribute(@foreign_type)]
+        if ::Rails.version < '6.0.4'
+          def association_scope_cache(conn, owner, &block)
+            key = conn.prepared_statements
+            if polymorphic?
+              key = [key, owner._read_attribute(@foreign_type)]
+            end
+            key = [key, shard(owner).id].flatten
+            @association_scope_cache[key] ||= @scope_lock.synchronize {
+              @association_scope_cache[key] ||= (::Rails.version >= "5.2" ? ::ActiveRecord::StatementCache.create(conn, &block) : block.call)
+            }
           end
-          key = [key, shard(owner).id].flatten
-          @association_scope_cache[key] ||= @scope_lock.synchronize {
-            @association_scope_cache[key] ||= (::Rails.version >= "5.2" ? ::ActiveRecord::StatementCache.create(conn, &block) : block.call)
-          }
+        else
+          def association_scope_cache(klass, owner, &block)
+            key = self
+            if polymorphic?
+              key = [key, owner._read_attribute(@foreign_type)]
+            end
+            key = [key, shard(owner).id].flatten
+            klass.cached_find_by_statement(key, &block)
+          end
         end
       end
 

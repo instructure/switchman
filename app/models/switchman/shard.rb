@@ -18,7 +18,7 @@ module Switchman
           :unsharded => [Shard]
       }
     private_constant :CATEGORIES
-    @connection_specification_name = @shard_category = :unsharded
+    @connection_specification_name = 'unsharded'
 
     if defined?(::ProtectedAttributes)
       attr_accessible :default, :name, :database_server

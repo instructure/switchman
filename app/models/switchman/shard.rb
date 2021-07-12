@@ -243,14 +243,22 @@ module Switchman
 
                 with_each_shard(subscope, classes, exception: exception, &block)
                 exception_pipe.last.close
-              rescue => e
+              rescue Exception => e # rubocop:disable Lint/RescueException
                 begin
                   dumped = Marshal.dump(e)
+                  dumped = nil if dumped.length > 64 * 1024
                 rescue
+                  dumped = nil
+                end
+
+                if dumped.nil?
                   # couldn't dump the exception; create a copy with just
                   # the message and the backtrace
                   e2 = e.class.new(e.message)
-                  e2.set_backtrace(e.backtrace)
+                  backtrace = e.backtrace
+                  # truncate excessively long backtraces
+                  backtrace = backtrace[0...25] + ['...'] + backtrace[-25..] if backtrace.length > 50
+                  e2.set_backtrace(backtrace)
                   e2.instance_variable_set(:@active_shards, e.instance_variable_get(:@active_shards))
                   dumped = Marshal.dump(e2)
                 end

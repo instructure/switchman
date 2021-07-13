@@ -14,7 +14,7 @@ module Switchman
     end
 
     it "should handle an array of secondaries when creating a pool" do
-      spec = Object.new
+      spec = double(name: 'primary')
       spec.instance_variable_set(:@config, adapter: Shard.connection_pool.spec.config[:adapter], database: 'primary', secondary: [ { database: 'secondary1' }, { database: 'secondary2' }])
       default_pool = double(spec: spec, get_schema_cache: nil, set_schema_cache: nil)
       cache = {}

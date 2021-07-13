@@ -118,7 +118,7 @@ module Switchman
           next if k == spec_name
 
           v = owner_to_pool[k]
-          owner_to_pool.delete(k) if v.is_a?(ConnectionPoolProxy) && v.spec.name == spec_name
+          owner_to_pool.delete(k) if v.is_a?(ConnectionPoolProxy) && v.default_pool.spec.name == spec_name
         end
 
         # unwrap the pool from inside a ConnectionPoolProxy

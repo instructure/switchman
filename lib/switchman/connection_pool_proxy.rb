@@ -154,7 +154,7 @@ module Switchman
         end
       end
       spec = ::ActiveRecord::ConnectionAdapters::ConnectionSpecification.new(
-        category,
+        default_pool.spec.name,
         config,
         "#{config[:adapter]}_connection"
       )

@@ -101,7 +101,7 @@ module Switchman
         self.default_shard = ::Rails.env.to_sym
         self.default_role = :primary
 
-        include ActiveRecord::Base
+        prepend ActiveRecord::Base
         include ActiveRecord::AttributeMethods
         include ActiveRecord::Persistence
         singleton_class.prepend ActiveRecord::ModelSchema::ClassMethods

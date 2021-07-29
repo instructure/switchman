@@ -79,15 +79,17 @@ module Switchman
         end
       end
 
-      def self.included(klass)
+      def self.prepended(klass)
         klass.singleton_class.prepend(ClassMethods)
-        klass.set_callback(:initialize, :before) do
-          @shard ||= if self.class.sharded_primary_key?
-                       Shard.shard_for(self[self.class.primary_key], Shard.current(self.class.connection_classes))
-                     else
-                       Shard.current(self.class.connection_classes)
-                     end
-        end
+      end
+
+      def _run_initialize_callbacks
+        @shard ||= if self.class.sharded_primary_key?
+                     Shard.shard_for(self[self.class.primary_key], Shard.current(self.class.connection_classes))
+                   else
+                     Shard.current(self.class.connection_classes)
+                   end
+        super
       end
 
       def shard
@@ -182,7 +184,7 @@ module Switchman
             reflection.klass.connection_classes
           end
         else
-          connection_classes
+          self.class.connection_classes
         end
       end
     end

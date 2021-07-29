@@ -38,11 +38,15 @@ module Switchman
         def define_method_global_attribute(attr_name)
           if sharded_column?(attr_name)
             generated_attribute_methods.module_eval <<-RUBY, __FILE__, __LINE__ + 1
-              def __temp__
+              def __temp_global_attribute__
+                raw_value = original_#{attr_name}
+                return nil if raw_value.nil?
+                return raw_value if raw_value > Shard::IDS_PER_SHARD
+
                 Shard.global_id_for(original_#{attr_name}, shard)
               end
-              alias_method 'global_#{attr_name}', :__temp__
-              undef_method :__temp__
+              alias_method 'global_#{attr_name}', :__temp_global_attribute__
+              undef_method :__temp_global_attribute__
             RUBY
           else
             define_method_unsharded_column(attr_name, 'global')
@@ -52,11 +56,13 @@ module Switchman
         def define_method_local_attribute(attr_name)
           if sharded_column?(attr_name)
             generated_attribute_methods.module_eval <<-RUBY, __FILE__, __LINE__ + 1
-              def __temp__
-                Shard.local_id_for(original_#{attr_name}).first
+              def __temp_local_attribute__
+                raw_value = original_#{attr_name}
+                return nil if raw_value.nil?
+                return raw_value % Shard::IDS_PER_SHARD
               end
-              alias_method 'local_#{attr_name}', :__temp__
-              undef_method :__temp__
+              alias_method 'local_#{attr_name}', :__temp_local_attribute__
+              undef_method :__temp_local_attribute__
             RUBY
           else
             define_method_unsharded_column(attr_name, 'local')
@@ -94,18 +100,23 @@ module Switchman
               # rename the original method to original_
               alias_method 'original_#{attr_name}', '#{attr_name}'
               # and replace with one that transposes the id
-              def __temp__
-                Shard.relative_id_for(original_#{attr_name}, shard, Shard.current(#{shard_category_code_for_reflection(reflection)}))
+              def __temp_relative_attribute__
+                raw_value = original_#{attr_name}
+                return nil if raw_value.nil?
+                current_shard = Shard.current(#{shard_category_code_for_reflection(reflection)})
+                return raw_value if shard == current_shard && raw_value < Shard::IDS_PER_SHARD
+
+                Shard.relative_id_for(raw_value, shard, current_shard)
               end
-              alias_method '#{attr_name}', :__temp__
-              undef_method :__temp__
+              alias_method '#{attr_name}', :__temp_relative_attribute__
+              undef_method :__temp_relative_attribute__
 
               alias_method 'original_#{attr_name}=', '#{attr_name}='
-              def __temp__(new_value)
+              def __temp_relative_attribute_assignment__(new_value)
                 self.original_#{attr_name} = Shard.relative_id_for(new_value, Shard.current(#{shard_category_code_for_reflection(reflection)}), shard)
               end
-              alias_method '#{attr_name}=', :__temp__
-              undef_method :__temp__
+              alias_method '#{attr_name}=', :__temp_relative_attribute_assignment__
+              undef_method :__temp_relative_attribute_assignment__
             RUBY
           else
             define_method_unsharded_column(attr_name, 'global')
@@ -115,11 +126,11 @@ module Switchman
         def define_method_unsharded_column(attr_name, prefix)
           return if columns_hash["#{prefix}_#{attr_name}"]
           generated_attribute_methods.module_eval <<-RUBY, __FILE__, __LINE__ + 1
-              def __temp__
+              def __temp_unsharded_attribute__
                 raise NoMethodError, "undefined method `#{prefix}_#{attr_name}'; are you missing an association?"
               end
-              alias_method '#{prefix}_#{attr_name}', :__temp__
-              undef_method :__temp__
+              alias_method '#{prefix}_#{attr_name}', :__temp_unsharded_attribute__
+              undef_method :__temp_unsharded_attribute__
           RUBY
         end
       end

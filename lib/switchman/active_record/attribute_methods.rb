@@ -40,7 +40,11 @@ module Switchman
           if sharded_column?(attr_name)
             owner << <<-RUBY
               def global_#{attr_name}
-                ::Switchman::Shard.global_id_for(original_#{attr_name}, shard)
+                raw_value = original_#{attr_name}
+                return nil if raw_value.nil?
+                return raw_value if raw_value > ::Switchman::Shard::IDS_PER_SHARD
+
+                ::Switchman::Shard.global_id_for(raw_value, shard)
               end
             RUBY
           else
@@ -52,7 +56,9 @@ module Switchman
           if sharded_column?(attr_name)
             owner << <<-RUBY
               def local_#{attr_name}
-                ::Switchman::Shard.local_id_for(original_#{attr_name}).first
+                raw_value = original_#{attr_name}
+                return nil if raw_value.nil?
+                return raw_value % ::Switchman::Shard::IDS_PER_SHARD
               end
             RUBY
           else
@@ -104,7 +110,12 @@ module Switchman
               alias_method 'original_#{attr_name}', '#{attr_name}'
               # and replace with one that transposes the id
               def #{attr_name}
-                ::Switchman::Shard.relative_id_for(original_#{attr_name}, shard, ::Switchman::Shard.current(#{connection_classes_code_for_reflection(reflection)}))
+                raw_value = original_#{attr_name}
+                return nil if raw_value.nil?
+                current_shard = ::Switchman::Shard.current(#{connection_classes_code_for_reflection(reflection)})
+                return raw_value if shard == current_shard && raw_value < ::Switchman::Shard::IDS_PER_SHARD
+
+                ::Switchman::Shard.relative_id_for(raw_value, shard, current_shard)
               end
 
               alias_method 'original_#{attr_name}=', '#{attr_name}='

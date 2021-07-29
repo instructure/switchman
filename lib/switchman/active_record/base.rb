@@ -80,17 +80,17 @@ module Switchman
         end
       end
 
-      def self.included(klass)
-        klass.extend(ClassMethods)
-        klass.set_callback(:initialize, :before) do
-          unless @shard
-            if self.class.sharded_primary_key?
-              @shard = Shard.shard_for(self[self.class.primary_key], Shard.current(self.class.shard_category))
-            else
-              @shard = Shard.current(self.class.shard_category)
-            end
-          end
+      def self.prepended(klass)
+        klass.singleton_class.prepend(ClassMethods)
+      end
+
+      def _run_initialize_callbacks
+        @shard ||= if self.class.sharded_primary_key?
+          Shard.shard_for(self[self.class.primary_key], Shard.current(self.class.shard_category))
+        else
+          Shard.current(self.class.shard_category)
         end
+        super
       end
 
       def shard

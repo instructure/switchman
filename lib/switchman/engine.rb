@@ -95,7 +95,7 @@ module Switchman
 
         ::StandardError.include(StandardError)
 
-        include ActiveRecord::Base
+        prepend ActiveRecord::Base
         include ActiveRecord::AttributeMethods
         include ActiveRecord::Persistence
         singleton_class.prepend ActiveRecord::ModelSchema::ClassMethods

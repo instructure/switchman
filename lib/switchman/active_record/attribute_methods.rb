@@ -103,8 +103,18 @@ module Switchman
               def __temp_relative_attribute__
                 raw_value = original_#{attr_name}
                 return nil if raw_value.nil?
+
+                abs_raw_value = raw_value.abs
                 current_shard = Shard.current(#{shard_category_code_for_reflection(reflection)})
-                return raw_value if shard == current_shard && raw_value < Shard::IDS_PER_SHARD
+                same_shard = shard == current_shard
+                return raw_value if same_shard && abs_raw_value < Shard::IDS_PER_SHARD
+
+                value_shard_id = abs_raw_value / Shard::IDS_PER_SHARD
+                # this is a stupid case when someone stuffed a global id for the current shard in instead
+                # of a local id
+                return raw_value % Shard::IDS_PER_SHARD if value_shard_id == current_shard.id
+                return raw_value if !same_shard && abs_raw_value > Shard::IDS_PER_SHARD
+                return shard.global_id_for(raw_value) if !same_shard && abs_raw_value < Shard::IDS_PER_SHARD
 
                 Shard.relative_id_for(raw_value, shard, current_shard)
               end

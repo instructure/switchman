@@ -66,21 +66,21 @@ module Switchman
         activated_classes = activate!(shards)
         yield
       ensure
-        activated_classes.each do |klass|
+        activated_classes&.each do |klass|
           klass.connection_pool.shard_stack.pop
           klass.connected_to_stack.pop
         end
       end
 
       def activate!(shards)
-        activated_classes = []
+        activated_classes = nil
         shards.each do |klass, shard|
           next if klass == UnshardedRecord
 
           next unless klass.current_shard != shard.database_server.id.to_sym ||
                       klass.connection_pool.shard != shard
 
-          activated_classes << klass
+          (activated_classes ||= []) << klass
           klass.connected_to_stack << { shard: shard.database_server.id.to_sym, klasses: [klass] }
           klass.connection_pool.shard_stack << shard
         end

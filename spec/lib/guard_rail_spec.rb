@@ -83,6 +83,20 @@ module Switchman
       end
     end
 
+    it "unguards update_record queries when a different shard is active" do
+      Shard.default.database_server.guard!
+      expect(Shard.default.database_server.guard_rail_environment).to eq :secondary
+      expect(@shard2.database_server.guard_rail_environment).to eq :primary
+
+      u = User.create!
+      @shard2.activate do
+        expect(Shard.default.database_server).to receive(:unguard).once.and_return([])
+        u.update_columns(name: 'bob')
+      end
+    ensure
+      Shard.default.database_server.unguard!
+    end
+
     it "should not get confused about a single guarded server" do
       begin
         Shard.default.database_server.guard!

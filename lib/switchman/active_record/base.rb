@@ -158,7 +158,7 @@ module Switchman
       end
 
       def update_columns(*)
-        db = Shard.current(self.class.shard_category).database_server
+        db = shard.database_server
         if ::GuardRail.environment != db.guard_rail_environment
           return db.unguard { super }
         else

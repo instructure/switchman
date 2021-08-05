@@ -11,6 +11,13 @@ module Switchman
       def update_columns(*)
         shard.activate(self.class.connection_classes) { super }
       end
+
+      def delete
+        db = shard.database_server
+        return db.unguard { super } unless ::GuardRail.environment == db.guard_rail_environment
+
+        super
+      end
     end
   end
 end

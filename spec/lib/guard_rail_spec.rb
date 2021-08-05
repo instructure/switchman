@@ -72,6 +72,17 @@ module Switchman
       Shard.default.database_server.unguard!
     end
 
+    it 'unguards delete queries' do
+      Shard.default.database_server.guard!
+      expect(Shard.default.database_server.guard_rail_environment).to eq :secondary
+
+      u = User.create!
+      expect(Shard.default.database_server).to receive(:unguard).once.and_return([])
+      u.delete
+    ensure
+      Shard.default.database_server.unguard!
+    end
+
     it 'tracks all activated environments' do
       ::GuardRail.activate(:secondary) {}
       ::GuardRail.activate(:custom) {}

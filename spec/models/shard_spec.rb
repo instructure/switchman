@@ -136,6 +136,35 @@ module Switchman
       end
     end
 
+    describe '.preload_cache' do
+      it 'works' do
+        Shard.clear_cache
+        expect(Shard).not_to receive(:find_by)
+        Shard.preload_cache
+        new_shard1 = Shard.lookup(@shard1.id)
+        # same logic object, different instance
+        expect(new_shard1).to eq @shard1
+        expect(new_shard1).not_to equal @shard1
+      end
+
+      it 'preserves existing cached objects' do
+        old_shard2 = nil
+
+        @shard1.activate do
+          Shard.clear_cache
+          old_shard2 = Shard.lookup(@shard2.id)
+          Shard.preload_cache
+        end
+
+        new_shard1 = Shard.lookup(@shard1.id)
+        new_shard2 = Shard.lookup(@shard2.id)
+        # exact same object, since it was the current shard we kept it cached
+        expect(new_shard1).to equal @shard1
+        # exact same object, since it was already in the cache
+        expect(new_shard2).to equal old_shard2
+      end
+    end
+
     describe '.find_cached' do
       it "doesn't choke when it encounters columns it doesn't know about" do
         attrs = Shard.default.attributes

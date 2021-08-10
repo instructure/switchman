@@ -87,6 +87,12 @@ module Switchman
         activated_classes
       end
 
+      def active_shards
+        sharded_models.map do |klass|
+          [klass, current(klass)]
+        end.compact.to_h
+      end
+
       def lookup(id)
         id_i = id.to_i
         return current if id_i == current.id || id == 'self'
@@ -101,6 +107,11 @@ module Switchman
           end
         end
         cached_shards[id]
+      end
+
+      def preload_cache
+        cached_shards.reverse_merge!(active_shards.values.index_by(&:id))
+        cached_shards.reverse_merge!(all.index_by(&:id))
       end
 
       def clear_cache

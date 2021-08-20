@@ -32,7 +32,7 @@ module Switchman
       end
 
       # copy/paste; use quote_local_table_name
-      def drop_database(name) #:nodoc:
+      def drop_database(name) # :nodoc:
         execute "DROP DATABASE IF EXISTS #{quote_local_table_name(name)}"
       end
 

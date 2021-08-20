@@ -80,7 +80,7 @@ module Switchman
             puts "Exception from #{e.current_shard.id}: #{e.current_shard.description}" if options[:parallel] != 0
             raise
 
-            #::ActiveRecord::Base.configurations = old_configurations
+            # ::ActiveRecord::Base.configurations = old_configurations
           end
         end
       end

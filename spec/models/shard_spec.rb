@@ -296,30 +296,30 @@ module Switchman
         expect(raised).to eq true
       end
 
-      it "doesn't fork for parallel of 1, with one server" do
+      it "doesn't fork for parallel of 2, with one server" do
         pid = Process.pid
-        Shard.with_each_shard([Shard.default, @shard1], parallel: 1) do
+        Shard.with_each_shard([Shard.default, @shard1], parallel: 2) do
           expect(Process.pid).to eq pid
         end
       end
 
-      it "doesn't fork for parallel of 1, with one server, from a Relation" do
+      it "doesn't fork for parallel of 2, with one server, from a Relation" do
         pid = Process.pid
-        Shard.with_each_shard(Shard.where(id: Shard.default), parallel: 1) do
+        Shard.with_each_shard(Shard.where(id: Shard.default), parallel: 2) do
           expect(Process.pid).to eq pid
         end
       end
 
-      it 'forks for parallel of 1, with multiple servers' do
+      it 'forks for parallel of 2, with multiple servers' do
         pid = Process.pid
-        Shard.with_each_shard([Shard.default, @shard2], parallel: 1) do
+        Shard.with_each_shard([Shard.default, @shard2], parallel: 2) do
           expect(Process.pid).not_to eq pid
         end
       end
 
-      it 'forks for parallel of 1, with multiple servers, from a Relation' do
+      it 'forks for parallel of 2, with multiple servers, from a Relation' do
         pid = Process.pid
-        Shard.with_each_shard(Shard.where(id: [Shard.default, @shard2]), parallel: 1) do
+        Shard.with_each_shard(Shard.where(id: [Shard.default, @shard2]), parallel: 2) do
           expect(Process.pid).not_to eq pid
         end
       end
@@ -696,73 +696,6 @@ module Switchman
         @shard1.activate do
           Shard.default(reload: true)
           expect(Shard.current).to eq @shard1
-        end
-      end
-    end
-
-    describe '.determine_max_procs' do
-      context 'with no info on cpu_count' do
-        before do
-          allow(::Switchman::Environment).to receive(:cpu_count).and_return(nil)
-        end
-
-        it 'returns the option if valid' do
-          expect(Shard.determine_max_procs(5)).to eq(5)
-        end
-
-        it 'makes the option an integer' do
-          expect(Shard.determine_max_procs('8')).to eq(8)
-        end
-
-        it 'returns nil if the option is nil' do
-          expect(Shard.determine_max_procs(nil)).to be_nil
-        end
-
-        it 'is nil if the option is 0' do
-          expect(Shard.determine_max_procs('0')).to be_nil
-        end
-
-        it 'is nil if the option is nonsense' do
-          expect(Shard.determine_max_procs('asdf')).to be_nil
-        end
-
-        it 'ignores parallel input if max procs specified' do
-          expect(Shard.determine_max_procs('4', 3)).to eq(4)
-        end
-      end
-
-      context 'with a cpu_count' do
-        before do
-          allow(::Switchman::Environment).to receive(:cpu_count).and_return(8)
-        end
-
-        it 'returns the option if valid' do
-          expect(Shard.determine_max_procs('4')).to eq(4)
-        end
-
-        it 'returns 2x cores if the option is nil and no parallel input' do
-          expect(Shard.determine_max_procs(nil)).to eq(16)
-        end
-
-        it 'uses the parallel input as a multiplier if provided' do
-          expect(Shard.determine_max_procs(nil, 3)).to eq(24)
-        end
-
-        it 'maxes at 1 if parallel is 0' do
-          expect(Shard.determine_max_procs(nil, 0)).to eq(1)
-        end
-
-        it 'maxes at 1 if parallel is nil' do
-          expect(Shard.determine_max_procs(nil, nil)).to eq(1)
-        end
-
-        it 'is nil if the option is 0' do
-          expect(Shard.determine_max_procs('0')).to eq(nil)
-        end
-
-        it 'is nil if the cpu count is 0' do
-          allow(::Switchman::Environment).to receive(:cpu_count).and_return(0)
-          expect(Shard.determine_max_procs(nil)).to eq(nil)
         end
       end
     end

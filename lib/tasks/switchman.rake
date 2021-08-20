@@ -46,7 +46,7 @@ module Switchman
     end
 
     def self.options
-      { parallel: ENV['PARALLEL'].to_i, max_procs: ENV['MAX_PARALLEL_PROCS'] }
+      { parallel: ENV['PARALLEL'].to_i }
     end
 
     # classes - an array or proc, to activate as the current shard during the

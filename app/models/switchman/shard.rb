@@ -122,14 +122,13 @@ module Switchman
       #
       # * +shards+ - an array or relation of Shards to iterate over
       # * +classes+ - an array of classes to activate
-      #    parallel: - true/false to execute in parallel, or a integer of how many
-      #                sub-processes per database server. Note that parallel
-      #                invocation currently uses forking, so should be used sparingly
-      #                because errors are not raised, and you cannot get results back
-      #    max_procs: - only run this many parallel processes at a time
+      #    parallel: - true/false to execute in parallel, or an integer of how many
+      #                sub-processes. Note that parallel invocation currently uses
+      #                forking, so should be used sparingly because you cannot get
+      #                results back
       #    exception: - :ignore, :raise, :defer (wait until the end and raise the first
       #                error), or a proc
-      def with_each_shard(*args, parallel: false, max_procs: nil, exception: :raise, &block)
+      def with_each_shard(*args, parallel: false, exception: :raise, &block)
         raise ArgumentError, "wrong number of arguments (#{args.length} for 0...2)" if args.length > 2
 
         return Array.wrap(yield) unless default.is_a?(Shard)
@@ -144,14 +143,13 @@ module Switchman
           scope, classes = args
         end
 
-        parallel = 1 if parallel == true
+        parallel = [Environment.cpu_count || 2, 2].min if parallel == true
         parallel = 0 if parallel == false || parallel.nil?
 
         scope ||= Shard.all
         scope = scope.order(::Arel.sql('database_server_id IS NOT NULL, database_server_id, id')) if ::ActiveRecord::Relation === scope && scope.order_values.empty?
 
-        if parallel.positive?
-          max_procs = determine_max_procs(max_procs, parallel)
+        if parallel > 1
           if ::ActiveRecord::Relation === scope
             # still need a post-uniq, cause the default database server could be NULL or Rails.env in the db
             database_servers = scope.reorder('database_server_id').select(:database_server_id).distinct.
@@ -159,39 +157,11 @@ module Switchman
             # nothing to do
             return if database_servers.count.zero?
 
-            parallel = [(max_procs.to_f / database_servers.count).ceil, parallel].min if max_procs
-
             scopes = database_servers.map do |server|
-              server_scope = server.shards.merge(scope)
-              if parallel == 1
-                subscopes = [server_scope]
-              else
-                subscopes = []
-                total = server_scope.count
-                ranges = []
-                server_scope.find_ids_in_ranges(batch_size: (total.to_f / parallel).ceil) do |min, max|
-                  ranges << [min, max]
-                end
-                # create a half-open range on the last one
-                ranges.last[1] = nil
-                ranges.each do |min, max|
-                  subscope = server_scope.where('id>=?', min)
-                  subscope = subscope.where('id<=?', max) if max
-                  subscopes << subscope
-                end
-              end
-              [server, subscopes]
+              [server, server.shards.merge(scope)]
             end.to_h
           else
             scopes = scope.group_by(&:database_server)
-            if parallel > 1
-              parallel = [(max_procs.to_f / scopes.count).ceil, parallel].min if max_procs
-              scopes = scopes.map do |(server, shards)|
-                [server, shards.in_groups(parallel, false).compact]
-              end.to_h
-            else
-              scopes = scopes.map { |(server, shards)| [server, [shards]] }.to_h
-            end
           end
 
           exception_pipes = []
@@ -217,88 +187,83 @@ module Switchman
           end
 
           # only one process; don't bother forking
-          if scopes.length == 1 && parallel == 1
-            return with_each_shard(scopes.first.last.first, classes, exception: exception,
-                                   &block)
-          end
+          return with_each_shard(scopes.first.last, classes, exception: exception, &block) if scopes.length == 1
 
           # clear connections prior to forking (no more queries will be executed in the parent,
           # and we want them gone so that we don't accidentally use them post-fork doing something
           # silly like dealloc'ing prepared statements)
           ::ActiveRecord::Base.clear_all_connections!
 
-          scopes.each do |server, subscopes|
-            subscopes.each_with_index do |subscope, idx|
-              name = if subscopes.length > 1
-                       "#{server.id} #{idx + 1}"
-                     else
-                       server.id
-                     end
+          scopes.each do |server, subscope|
+            name = server.id
 
-              exception_pipe = IO.pipe
-              exception_pipes << exception_pipe
-              pid, io_in, io_out, io_err = Open4.pfork4(lambda do
-                Switchman.config[:on_fork_proc]&.call
+            exception_pipe = IO.pipe
+            exception_pipes << exception_pipe
+            pid, io_in, io_out, io_err = Open4.pfork4(lambda do
+              Switchman.config[:on_fork_proc]&.call
 
-                # set a pretty name for the process title, up to 128 characters
-                # (we don't actually know the limit, depending on how the process
-                # was started)
-                # first, simplify the binary name by stripping directories,
-                # then truncate arguments as necessary
-                bin = File.basename($0) # Process.argv0 doesn't work on Ruby 2.5 (https://bugs.ruby-lang.org/issues/15887)
-                max_length = 128 - bin.length - name.length - 3
-                args = ARGV.join(' ')
-                args = args[0..max_length] if max_length >= 0
-                new_title = [bin, args, name].join(' ')
-                Process.setproctitle(new_title)
+              # set a pretty name for the process title, up to 128 characters
+              # (we don't actually know the limit, depending on how the process
+              # was started)
+              # first, simplify the binary name by stripping directories,
+              # then truncate arguments as necessary
+              bin = File.basename($0) # Process.argv0 doesn't work on Ruby 2.5 (https://bugs.ruby-lang.org/issues/15887)
+              max_length = 128 - bin.length - name.length - 3
+              args = ARGV.join(' ')
+              args = args[0..max_length] if max_length >= 0
+              new_title = [bin, args, name].join(' ')
+              Process.setproctitle(new_title)
 
-                with_each_shard(subscope, classes, exception: exception, &block)
-                exception_pipe.last.close
-              rescue Exception => e # rubocop:disable Lint/RescueException
-                begin
-                  dumped = Marshal.dump(e)
-                  dumped = nil if dumped.length > 64 * 1024
-                rescue
-                  dumped = nil
-                end
-
-                if dumped.nil?
-                  # couldn't dump the exception; create a copy with just
-                  # the message and the backtrace
-                  e2 = e.class.new(e.message)
-                  backtrace = e.backtrace
-                  # truncate excessively long backtraces
-                  backtrace = backtrace[0...25] + ['...'] + backtrace[-25..] if backtrace.length > 50
-                  e2.set_backtrace(backtrace)
-                  e2.instance_variable_set(:@active_shards, e.instance_variable_get(:@active_shards))
-                  dumped = Marshal.dump(e2)
-                end
-                exception_pipe.last.set_encoding(dumped.encoding)
-                exception_pipe.last.write(dumped)
-                exception_pipe.last.flush
-                exception_pipe.last.close
-                exit! 1
-              end)
+              with_each_shard(subscope, classes, exception: exception, &block)
               exception_pipe.last.close
-              pids << pid
-              io_in.close # don't care about writing to stdin
-              out_fds << io_out
-              err_fds << io_err
-              pid_to_name_map[pid] = name
-              fd_to_name_map[io_out] = name
-              fd_to_name_map[io_err] = name
-
-              while max_procs && pids.count >= max_procs
-                while max_procs && out_fds.count >= max_procs
-                  # wait for output if we've hit the max_procs limit
-                  wait_for_output.call
-                end
-                # we've gotten all the output from one fd so wait for its child process to exit
-                found_pid, status = Process.wait2
-                pids.delete(found_pid)
-                errors << pid_to_name_map[found_pid] if status.exitstatus != 0
+            rescue Exception => e # rubocop:disable Lint/RescueException
+              begin
+                dumped = Marshal.dump(e)
+                dumped = nil if dumped.length > 64 * 1024
+              rescue
+                dumped = nil
               end
+
+              if dumped.nil?
+                # couldn't dump the exception; create a copy with just
+                # the message and the backtrace
+                e2 = e.class.new(e.message)
+                backtrace = e.backtrace
+                # truncate excessively long backtraces
+                backtrace = backtrace[0...25] + ['...'] + backtrace[-25..] if backtrace.length > 50
+                e2.set_backtrace(backtrace)
+                e2.instance_variable_set(:@active_shards, e.instance_variable_get(:@active_shards))
+                dumped = Marshal.dump(e2)
+              end
+              exception_pipe.last.set_encoding(dumped.encoding)
+              exception_pipe.last.write(dumped)
+              exception_pipe.last.flush
+              exception_pipe.last.close
+              exit! 1
+            end)
+            exception_pipe.last.close
+            pids << pid
+            io_in.close # don't care about writing to stdin
+            out_fds << io_out
+            err_fds << io_err
+            pid_to_name_map[pid] = name
+            fd_to_name_map[io_out] = name
+            fd_to_name_map[io_err] = name
+
+            while pids.count >= parallel
+              while out_fds.count >= parallel
+                # wait for output if we've hit the parallel limit
+                wait_for_output.call
+              end
+              # we've gotten all the output from one fd so wait for its child process to exit
+              found_pid, status = Process.wait2
+              pids.delete(found_pid)
+              errors << pid_to_name_map[found_pid] if status.exitstatus != 0
             end
+            # we've gotten all the output from one fd so wait for its child process to exit
+            found_pid, status = Process.wait2
+            pids.delete(found_pid)
+            errors << pid_to_name_map[found_pid] if status.exitstatus != 0
           end
 
           wait_for_output.call while out_fds.any? || err_fds.any?
@@ -497,23 +462,6 @@ module Switchman
 
         _, shard = local_id_for(any_id)
         shard || source_shard || Shard.current
-      end
-
-      # given the provided option, determines whether we need to (and whether
-      # it's possible) to determine a reasonable default.
-      def determine_max_procs(max_procs_input, parallel_input = 2)
-        max_procs = nil
-        if max_procs_input
-          max_procs = max_procs_input.to_i
-          max_procs = nil if max_procs.zero?
-        else
-          return 1 if parallel_input.nil? || parallel_input < 1
-
-          cpus = Environment.cpu_count
-          max_procs = cpus * parallel_input if cpus&.positive?
-        end
-
-        max_procs
       end
 
       private

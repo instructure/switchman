@@ -386,7 +386,7 @@ module Switchman
           signed_id_operation(local_id) do |id|
             return nil if id > IDS_PER_SHARD
 
-            $1.to_i * IDS_PER_SHARD + id
+            ($1.to_i * IDS_PER_SHARD) + id
           end
         when Integer, /^-?\d+$/
           any_id.to_i
@@ -635,7 +635,7 @@ module Switchman
       return nil unless local_id
 
       self.class.signed_id_operation(local_id) do |abs_id|
-        abs_id + id * IDS_PER_SHARD
+        abs_id + (id * IDS_PER_SHARD)
       end
     end
 

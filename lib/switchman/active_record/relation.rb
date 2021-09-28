@@ -94,7 +94,7 @@ module Switchman
 
         while ids.first.present?
           ids.map!(&:to_i) if is_integer
-          ids << ids.first + batch_size if loose_mode
+          ids << (ids.first + batch_size) if loose_mode
 
           yield(*ids)
           last_value = ids.last

@@ -336,7 +336,7 @@ module Switchman
 
     describe '.partition_by_shard' do
       it 'works' do
-        ids = [2, 48, Shard::IDS_PER_SHARD * @shard1.id + 6, Shard::IDS_PER_SHARD * @shard1.id + 8, 10, 12]
+        ids = [2, 48, (Shard::IDS_PER_SHARD * @shard1.id) + 6, (Shard::IDS_PER_SHARD * @shard1.id) + 8, 10, 12]
         results = Shard.partition_by_shard(ids) do |partitioned_ids|
           expect(partitioned_ids.length == 4 || partitioned_ids.length == 2).to eq true
           partitioned_ids.map { |id| id + 1 }
@@ -389,7 +389,7 @@ module Switchman
       it 'partitions recognized ids with an invalid shard unchanged into current shard' do
         expected_shard = Shard.current
         bad_shard_id = @shard2.id + 10_000
-        items = ["#{bad_shard_id}~1", Shard::IDS_PER_SHARD * bad_shard_id + 1]
+        items = ["#{bad_shard_id}~1", (Shard::IDS_PER_SHARD * bad_shard_id) + 1]
         result = Shard.partition_by_shard(items) do |shard_items|
           [Shard.current, shard_items]
         end
@@ -471,7 +471,7 @@ module Switchman
       it 'recognizes global ids' do
         expected_id = 1
         expected_shard = @shard2
-        id, shard = Shard.local_id_for(Shard::IDS_PER_SHARD * expected_shard.id + expected_id)
+        id, shard = Shard.local_id_for((Shard::IDS_PER_SHARD * expected_shard.id) + expected_id)
         expect(id).to eq expected_id
         expect(shard).to eq expected_shard
       end
@@ -500,7 +500,7 @@ module Switchman
     context 'with id translation' do
       before do
         @local_id = 1
-        @global_id = Shard::IDS_PER_SHARD * @shard1.id + @local_id
+        @global_id = (Shard::IDS_PER_SHARD * @shard1.id) + @local_id
       end
 
       describe '.integral_id' do

@@ -10,7 +10,11 @@ module Switchman
         return
       end
 
-      @active_shards = Shard.active_shards if defined?(Shard)
+      begin
+        @active_shards = Shard.active_shards if defined?(Shard)
+      rescue ::ActiveRecord::ConnectionNotEstablished
+        # If we hit an error really early in boot, activerecord may not be initialized yet
+      end
 
       super
     end

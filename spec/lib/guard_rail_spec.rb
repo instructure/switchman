@@ -46,13 +46,15 @@ module Switchman
 
     it 'does not get confused about a single guarded server' do
       Shard.default.database_server.guard!
-      # have to unstub long enough to create this
-      allow(::Rails.env).to receive(:test?).and_call_original
-      ds = DatabaseServer.create(adapter: 'postgresql', host: 'notguarded', secondary: { host: 'guarded' })
-      allow(::Rails.env).to receive(:test?).and_return(false)
+      ds = DatabaseServer.create(
+        Shard.default.database_server.config.merge(
+          database: 'notguarded',
+          secondary: [{ database: 'guarded' }, nil]
+        )
+      )
       s = ds.shards.create!
       s.activate do
-        expect(User.connection_pool.db_config.configuration_hash[:host]).to eq 'notguarded'
+        expect(User.connection_pool.db_config.configuration_hash[:database]).to eq 'notguarded'
       end
     ensure
       Shard.default.database_server.unguard!

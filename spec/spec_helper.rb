@@ -15,6 +15,7 @@ SimpleCov.minimum_coverage(80)
 
 require_relative 'dummy/config/environment'
 require 'byebug'
+require 'pry'
 require 'rspec/rails'
 
 require 'switchman/r_spec_helper'

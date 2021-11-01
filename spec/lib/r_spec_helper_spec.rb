@@ -46,34 +46,5 @@ module Switchman
         expect(Shard.default).to be_a(Shard)
       end
     end
-
-    context 'with transactions' do
-      include RSpecHelper
-
-      before :all do
-        @shard2.activate do
-          ::ActiveRecord::Base.connection.begin_transaction(joinable: false)
-          User.create!
-        end
-      end
-
-      prepend_after :all do
-        @shard2.activate do
-          expect(User.count).to eq 1
-          conn = ::ActiveRecord::Base.connection
-          expect(conn.open_transactions).to be 1 # RSpecHelper shouldn't have rolled back the before :all one above
-          ::ActiveRecord::Base.connection.rollback_transaction
-        end
-      end
-
-      it 'supports nested transactions' do
-        @shard2.activate do |_shard|
-          expect(User.count).to eq 1 # we get the user from the before :all
-          User.create! # should only last for the duration of this spec
-          conn = ::ActiveRecord::Base.connection
-          expect(conn.open_transactions).to be 3
-        end
-      end
-    end
   end
 end

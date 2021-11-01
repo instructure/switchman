@@ -90,6 +90,7 @@ module Switchman
         require 'switchman/active_record/statement_cache'
         require 'switchman/active_record/tasks/database_tasks'
         require 'switchman/active_record/type_caster'
+        require 'switchman/active_record/test_fixtures'
         require 'switchman/arel'
         require 'switchman/call_super'
         require 'switchman/rails'
@@ -153,6 +154,8 @@ module Switchman
         ::ActiveRecord::PredicateBuilder::PolymorphicArrayValue.prepend(ActiveRecord::PredicateBuilder::AssociationQueryValue)
 
         ::ActiveRecord::Tasks::DatabaseTasks.singleton_class.prepend(ActiveRecord::Tasks::DatabaseTasks)
+
+        ::ActiveRecord::TestFixtures.prepend(ActiveRecord::TestFixtures)
 
         ::ActiveRecord::TypeCaster::Map.include(ActiveRecord::TypeCaster::Map)
         ::ActiveRecord::TypeCaster::Connection.include(ActiveRecord::TypeCaster::Connection)

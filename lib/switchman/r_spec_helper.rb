@@ -107,32 +107,11 @@ module Switchman
         raise 'Sharding did not set up correctly' if @@sharding_failed
 
         Shard.clear_cache
-        if use_transactional_tests
-          Shard.default(reload: true)
-          @shard1 = Shard.find(@shard1.id)
-          @shard2 = Shard.find(@shard2.id)
-          shards = [@shard2]
-          shards << @shard1 unless @shard1.database_server == Shard.default.database_server
-          shards.each do |shard|
-            shard.activate do
-              ::ActiveRecord::Base.connection.begin_transaction joinable: false
-            end
-          end
-        end
       end
 
       klass.after do
         next if @@sharding_failed
 
-        if use_transactional_tests
-          shards = [@shard2]
-          shards << @shard1 unless @shard1.database_server == Shard.default.database_server
-          shards.each do |shard|
-            shard.activate do
-              ::ActiveRecord::Base.connection.rollback_transaction if ::ActiveRecord::Base.connection.transaction_open?
-            end
-          end
-        end
         # clean up after specs
         DatabaseServer.all.each do |ds|
           if ds.fake? && ds != @shard2.database_server

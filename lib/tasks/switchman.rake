@@ -201,14 +201,18 @@ module Switchman
     module PostgreSQLDatabaseTasks
       def structure_dump(filename, extra_flags = nil)
         set_psql_env
-        args = ['-s', '-x', '-O', '-f', filename]
+        args = ['--schema-only', '--no-privileges', '--no-owner', '--file', filename]
         args.concat(Array(extra_flags)) if extra_flags
         shard = Shard.current.name
         serialized_search_path = shard
         args << "--schema=#{Shellwords.escape(shard)}"
 
-        args << configuration['database']
+        ignore_tables = ::ActiveRecord::SchemaDumper.ignore_tables
+        args += ignore_tables.flat_map { |table| ['-T', table] } if ignore_tables.any?
+
+        args << db_config.database
         run_cmd('pg_dump', args, 'dumping')
+        remove_sql_header_comments(filename)
         File.open(filename, 'a') { |f| f << "SET search_path TO #{serialized_search_path};\n\n" }
       end
     end

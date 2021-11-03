@@ -43,19 +43,6 @@ module Switchman
           @pool.release_connection
         end
       end
-
-      describe '#shard' do
-        include RSpecHelper
-
-        it 'is thread safe' do
-          expect(User.connection_pool.shard).to eq Shard.default
-          Thread.new do
-            @shard1.activate!
-            expect(User.connection_pool.shard).to eq @shard1
-          end.join
-          expect(User.connection_pool.shard).to eq Shard.default
-        end
-      end
     end
   end
 end

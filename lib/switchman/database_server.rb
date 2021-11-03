@@ -59,7 +59,7 @@ module Switchman
       end
 
       def database_servers
-        unless @database_servers
+        if !@database_servers || @database_servers.empty?
           @database_servers = {}.with_indifferent_access
           ::ActiveRecord::Base.configurations.configurations.each do |config|
             if config.name.include?('/')
@@ -186,58 +186,56 @@ module Switchman
 
       name ||= "#{config[:database]}_shard_#{id}"
 
+      schema_already_existed = false
+      shard = nil
       Shard.connection.transaction do
-        shard = Shard.create!(id: id,
-                              name: name,
-                              database_server_id: self.id)
-        schema_already_existed = false
-
-        begin
-          self.class.creating_new_shard = true
-          DatabaseServer.send(:reference_role, :deploy)
-          ::ActiveRecord::Base.connected_to(shard: self.id.to_sym, role: :deploy) do
-            if create_statement
-              if ::ActiveRecord::Base.connection.select_value("SELECT 1 FROM pg_namespace WHERE nspname=#{::ActiveRecord::Base.connection.quote(name)}")
-                schema_already_existed = true
-                raise 'This schema already exists; cannot overwrite'
-              end
-              Array(create_statement.call).each do |stmt|
-                ::ActiveRecord::Base.connection.execute(stmt)
-              end
+        self.class.creating_new_shard = true
+        DatabaseServer.send(:reference_role, :deploy)
+        ::ActiveRecord::Base.connected_to(shard: self.id.to_sym, role: :deploy) do
+          shard = Shard.create!(id: id,
+                                name: name,
+                                database_server_id: self.id)
+          if create_statement
+            if ::ActiveRecord::Base.connection.select_value("SELECT 1 FROM pg_namespace WHERE nspname=#{::ActiveRecord::Base.connection.quote(name)}")
+              schema_already_existed = true
+              raise 'This schema already exists; cannot overwrite'
             end
-            if config[:adapter] == 'postgresql'
-              old_proc = ::ActiveRecord::Base.connection.raw_connection.set_notice_processor do
-              end
+            Array(create_statement.call).each do |stmt|
+              ::ActiveRecord::Base.connection.execute(stmt)
             end
-            old_verbose = ::ActiveRecord::Migration.verbose
-            ::ActiveRecord::Migration.verbose = false
-
-            unless schema == false
-              shard.activate(*Shard.sharded_models) do
-                reset_column_information
-
-                ::ActiveRecord::Base.connection.transaction(requires_new: true) do
-                  ::ActiveRecord::Base.connection.migration_context.migrate
-                end
-                reset_column_information
-                ::ActiveRecord::Base.descendants.reject do |m|
-                  m <= UnshardedRecord || !m.table_exists?
-                end.each(&:define_attribute_methods)
-              end
-            end
-          ensure
-            ::ActiveRecord::Migration.verbose = old_verbose
-            ::ActiveRecord::Base.connection.raw_connection.set_notice_processor(&old_proc) if old_proc
           end
-          shard
-        rescue
-          shard.destroy
-          shard.drop_database rescue nil unless schema_already_existed
-          reset_column_information unless schema == false rescue nil
-          raise
+          if config[:adapter] == 'postgresql'
+            old_proc = ::ActiveRecord::Base.connection.raw_connection.set_notice_processor do
+            end
+          end
+          old_verbose = ::ActiveRecord::Migration.verbose
+          ::ActiveRecord::Migration.verbose = false
+
+          unless schema == false
+            shard.activate do
+              reset_column_information
+
+              ::ActiveRecord::Base.connection.transaction(requires_new: true) do
+                ::ActiveRecord::Base.connection.migration_context.migrate
+              end
+              reset_column_information
+              ::ActiveRecord::Base.descendants.reject do |m|
+                m <= UnshardedRecord || !m.table_exists?
+              end.each(&:define_attribute_methods)
+            end
+          end
         ensure
-          self.class.creating_new_shard = false
+          ::ActiveRecord::Migration.verbose = old_verbose
+          ::ActiveRecord::Base.connection.raw_connection.set_notice_processor(&old_proc) if old_proc
         end
+        shard
+      rescue
+        shard&.destroy
+        shard&.drop_database rescue nil unless schema_already_existed
+        reset_column_information unless schema == false rescue nil
+        raise
+      ensure
+        self.class.creating_new_shard = false
       end
     end
 

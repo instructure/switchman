@@ -77,6 +77,14 @@ module Switchman
 
           default_shard
         end
+
+        def current_switchman_shard
+          connected_to_stack.reverse_each do |hash|
+            return hash[:switchman_shard] if hash[:switchman_shard] && hash[:klasses].include?(connection_classes)
+          end
+
+          Shard.default
+        end
       end
 
       def self.prepended(klass)

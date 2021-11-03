@@ -39,12 +39,17 @@ module Switchman
           # the first time we need a dummy dummy for re-entrancy to avoid looping on ourselves
           @default ||= default
 
-          # Now find the actual record, if it exists; rescue the fake default if the table doesn't exist
+          # Now find the actual record, if it exists
           @default = begin
             find_cached('default_shard') { Shard.where(default: true).take } || default
+          # If we are *super* early in boot, the connection pool won't exist; we don't want to fill in the default shard yet
+          rescue ::ActiveRecord::ConnectionNotEstablished
+            nil
+          # rescue the fake default if the table doesn't exist
           rescue
             default
           end
+          return default unless @default
 
           # make sure this is not erroneously cached
           @default.database_server.remove_instance_variable(:@primary_shard) if @default.database_server.instance_variable_defined?(:@primary_shard)
@@ -59,7 +64,7 @@ module Switchman
 
       def current(klass = ::ActiveRecord::Base)
         klass ||= ::ActiveRecord::Base
-        klass.connection_pool.shard
+        klass.current_switchman_shard
       end
 
       def activate(shards)
@@ -67,7 +72,6 @@ module Switchman
         yield
       ensure
         activated_classes&.each do |klass|
-          klass.connection_pool.shard_stack.pop
           klass.connected_to_stack.pop
         end
       end
@@ -78,11 +82,10 @@ module Switchman
           next if klass == UnshardedRecord
 
           next unless klass.current_shard != shard.database_server.id.to_sym ||
-                      klass.connection_pool.shard != shard
+                      klass.current_switchman_shard != shard
 
           (activated_classes ||= []) << klass
-          klass.connected_to_stack << { shard: shard.database_server.id.to_sym, klasses: [klass] }
-          klass.connection_pool.shard_stack << shard
+          klass.connected_to_stack << { shard: shard.database_server.id.to_sym, klasses: [klass], switchman_shard: shard }
         end
         activated_classes
       end

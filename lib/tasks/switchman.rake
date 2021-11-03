@@ -87,7 +87,7 @@ module Switchman
     end
 
     %w[db:migrate db:migrate:up db:migrate:down db:rollback].each do |task_name|
-      shardify_task(task_name, classes: -> { Shard.sharded_models })
+      shardify_task(task_name)
     end
 
     def self.shard_scope(scope, raw_shard_ids)

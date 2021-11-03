@@ -48,7 +48,7 @@ module Switchman
       end
 
       it 'does not use a temp name' do
-        db = DatabaseServer.new(nil, adapter: 'postgresql')
+        db = DatabaseServer.create(adapter: 'postgresql')
         expect(Shard).to receive(:create!) do |hash|
           expect(hash[:name]).to eq 'new_shard'
           expect(hash[:database_server_id]).to eq db.id
@@ -125,44 +125,23 @@ module Switchman
     end
 
     describe '.server_for_new_shard' do
-      # just to avoid ActiveRecord trying to begin a transaction on dbs that don't exist
-      self.use_transactional_tests = false
-
-      before do
-        db_servers = {}
-        allow(DatabaseServer).to receive(:database_servers).and_return(db_servers)
-        DatabaseServer.create({ id: ::Rails.env, adapter: 'postgresql' })
-      end
-
-      let(:db1) { DatabaseServer.find(nil) }
-
-      after(:all) do
-        # clean up connection pools to match reality
-        Shard.sharded_models.each do |klass|
-          pool_manager = klass.connection_handler.send(:get_pool_manager, klass.name)
-          pool_manager.shard_names.each do |shard|
-            next if DatabaseServer.find(shard.to_s)
-
-            pool_manager.role_names.each do |role|
-              klass.connection_handler.remove_connection_pool(klass.connection_specification_name, role: role,
-                                                                                                   shard: shard)
-            end
-          end
-        end
-        Shard.send(:initialize_sharding)
-      end
+      let(:db1) { DatabaseServer.new('1', adapter: 'postgresql') }
+      let(:db2) { DatabaseServer.new('2', open: true, adapter: 'postgresql') }
 
       it "returns the default server if that's the only one around" do
+        allow(DatabaseServer).to receive(:database_servers).and_return({ '1': db1 })
+        allow(DatabaseServer).to receive(:find).with(nil).and_return(db1)
         expect(DatabaseServer.server_for_new_shard).to eq db1
       end
 
       it 'returns on open server' do
+        allow(DatabaseServer).to receive(:database_servers).and_return({ '1': db1 })
         db1.config[:open] = true
         expect(DatabaseServer.server_for_new_shard).to eq db1
       end
 
       it "returns another server if it's the only one open" do
-        db2 = DatabaseServer.create({ open: true, adapter: 'postgresql' })
+        allow(DatabaseServer).to receive(:database_servers).and_return({ '1': db1, '2': db2 })
         4.times { expect(DatabaseServer.server_for_new_shard).to eq db2 }
         db2.config.delete(:open)
         db1.config[:open] = true
@@ -170,7 +149,7 @@ module Switchman
       end
 
       it 'returns multiple open servers' do
-        db2 = DatabaseServer.create({ open: true, adapter: 'postgresql' })
+        allow(DatabaseServer).to receive(:database_servers).and_return({ '1': db1, '2': db2 })
         db1.config[:open] = true
         dbs = []
         20.times do

@@ -159,18 +159,19 @@ module Switchman
         copy
       end
 
-      def quoted_id
-        return super unless self.class.sharded_primary_key?
-
-        # do this the Rails 4.2 way, so that if Shard.current != self.shard, the id gets transposed
-        self.class.connection.quote(id)
-      end
-
       def update_columns(*)
         db = shard.database_server
         return db.unguard { super } if ::GuardRail.environment != db.guard_rail_environment
 
         super
+      end
+
+      def id_for_database
+        if self.class.sharded_primary_key?
+          @attributes[@primary_key].type.serialize(id)
+        else
+          super
+        end
       end
 
       protected

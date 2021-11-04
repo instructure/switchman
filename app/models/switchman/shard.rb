@@ -566,6 +566,10 @@ module Switchman
       Shard.default
     end
 
+    def original_id
+      id
+    end
+
     def activate(*classes, &block)
       shards = hashify_classes(classes)
       Shard.activate(shards, &block)

@@ -122,7 +122,8 @@ module Switchman
       end
 
       klass.after(:all) do
-        Shard.connection.update("TRUNCATE #{Shard.quoted_table_name} CASCADE")
+        # Don't truncate because that can create some fun cross-connection lock contention
+        Shard.delete_all
         Switchman.cache.delete('default_shard')
         Shard.default(reload: true)
       end

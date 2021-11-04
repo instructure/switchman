@@ -144,6 +144,12 @@ module Switchman
         end
       end
 
+      def with_transaction_returning_status
+        shard.activate(self.class.connection_classes) do
+          super
+        end
+      end
+
       def hash
         self.class.sharded_primary_key? ? self.class.hash ^ global_id.hash : super
       end

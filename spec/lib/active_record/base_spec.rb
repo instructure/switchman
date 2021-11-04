@@ -141,6 +141,17 @@ module Switchman
         end
       end
 
+      describe 'save!' do
+        it 'saves cross shard objects to the right shard' do
+          user = User.new
+          user.name = 'a great name'
+          user.shard = @shard2
+          user.save!
+          id = user.id
+          expect(@shard2.activate { User.find(id).name }).to eq('a great name')
+        end
+      end
+
       describe '.unscoped' do
         it "doesn't capture the shard permanently (block form)" do
           @shard1.activate do

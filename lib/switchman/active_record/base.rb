@@ -117,12 +117,12 @@ module Switchman
 
       def save(*, **)
         @shard_set_in_stone = true
-        (self.class.current_scope || self.class.default_scoped).shard(shard, :implicit).scoping { super }
+        super
       end
 
       def save!(*, **)
         @shard_set_in_stone = true
-        (self.class.current_scope || self.class.default_scoped).shard(shard, :implicit).scoping { super }
+        super
       end
 
       def destroy
@@ -174,7 +174,9 @@ module Switchman
 
       def id_for_database
         if self.class.sharded_primary_key?
-          @attributes[@primary_key].type.serialize(id)
+          # It's an int, so so it's safe to just return it without passing it through anything else
+          # In theory we should do `@attributes[@primary_key].type.serialize(id)`, but that seems to have surprising side-effects
+          id
         else
           super
         end

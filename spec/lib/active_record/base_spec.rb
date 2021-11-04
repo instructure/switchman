@@ -193,6 +193,16 @@ module Switchman
         a2.save!
         expect(a2.all_appendages).to include(a1)
       end
+
+      it 'allows activating other shards for the model in callbacks' do
+        u = nil
+        @shard2.activate do
+          u = User.create!(name: 'name1')
+        end
+        expect(User.where('id=?', u.global_id).first.name).to eq 'name1'
+        u.update!(name: 'name2')
+        expect(User.where('id=?', u.global_id).first.name).to eq 'name2'
+      end
     end
   end
 end

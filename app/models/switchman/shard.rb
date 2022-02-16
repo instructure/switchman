@@ -160,9 +160,9 @@ module Switchman
             # nothing to do
             return if database_servers.count.zero?
 
-            scopes = database_servers.map do |server|
+            scopes = database_servers.to_h do |server|
               [server, server.shards.merge(scope)]
-            end.to_h
+            end
           else
             scopes = scope.group_by(&:database_server)
           end
@@ -475,7 +475,7 @@ module Switchman
       end
 
       def initialize_sharding
-        full_connects_to_hash = DatabaseServer.all.map { |db| [db.id.to_sym, db.connects_to_hash] }.to_h
+        full_connects_to_hash = DatabaseServer.all.to_h { |db| [db.id.to_sym, db.connects_to_hash] }
         sharded_models.each do |klass|
           connects_to_hash = full_connects_to_hash.deep_dup
           if klass == UnshardedRecord

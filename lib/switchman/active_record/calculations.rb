@@ -83,7 +83,7 @@ module Switchman
           if opts[:association]
             key_ids     = calculated_data.collect { |row| row[opts[:group_aliases].first] }
             key_records = opts[:association].klass.base_class.where(id: key_ids)
-            key_records = key_records.map { |r| [Shard.relative_id_for(r, shard, target_shard), r] }.to_h
+            key_records = key_records.to_h { |r| [Shard.relative_id_for(r, shard, target_shard), r] }
           end
 
           calculated_data.map do |row|

@@ -189,7 +189,7 @@ module Switchman
         if reflection
           if reflection.options[:polymorphic]
             begin
-              read_attribute(reflection.foreign_type)&.constantize&.connection_classes
+              read_attribute(reflection.foreign_type)&.constantize&.connection_classes || ::ActiveRecord::Base
             rescue NameError
               # in case someone is abusing foreign_type to not point to an actual class
               ::ActiveRecord::Base

@@ -89,13 +89,13 @@ module Switchman
     end
 
     def connects_to_hash
-      self.class.all_roles.map do |role|
+      self.class.all_roles.to_h do |role|
         config_role = role
         config_role = :primary unless roles.include?(role)
         config_name = :"#{id}/#{config_role}"
         config_name = :primary if id == ::Rails.env && config_role == :primary
         [role.to_sym, config_name]
-      end.to_h
+      end
     end
 
     def destroy

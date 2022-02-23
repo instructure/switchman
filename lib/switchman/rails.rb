@@ -13,7 +13,7 @@ module Switchman
       end
 
       def cache
-        Switchman::Shard.current.database_server.cache_store
+        Switchman::Shard.current ? Switchman::Shard.current.database_server.cache_store : super
       end
     end
   end

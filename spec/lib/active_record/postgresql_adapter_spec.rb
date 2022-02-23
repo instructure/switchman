@@ -42,6 +42,13 @@ module Switchman
 
           expect(User.joins(:parent).where(id: 1).to_sql).to be_include %(* FROM "public"."users" INNER JOIN "public"."users" "parents_users" ON "parents_users"."id" = "users"."parent_id" WHERE "users"."id" = 1)
         end
+
+        it 'qualifies tables, but not aliases with IN' do
+          # preload schema metadata
+          User.primary_key
+
+          expect(User.joins(:parent).where(id: [1, 2]).to_sql).to be_include %(* FROM "public"."users" INNER JOIN "public"."users" "parents_users" ON "parents_users"."id" = "users"."parent_id" WHERE "users"."id" IN \(1, 2\))
+        end
       end
 
       describe '#indexes' do

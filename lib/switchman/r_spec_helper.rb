@@ -107,6 +107,11 @@ module Switchman
         raise 'Sharding did not set up correctly' if @@sharding_failed
 
         Shard.clear_cache
+        if use_transactional_tests
+          Shard.default(reload: true)
+          @shard1 = Shard.find(@shard1.id)
+          @shard2 = Shard.find(@shard2.id)
+        end
       end
 
       klass.after do

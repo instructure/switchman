@@ -5,8 +5,6 @@
 /docker-compose.yml
 /docker-compose.override.example.yml
 /docker-compose.override.yml
-/Gemfile.lock
-/gemfiles/*.gemfile.lock
 /gemfiles/.bundle/
 /log/
 /pkg/

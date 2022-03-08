@@ -8,7 +8,7 @@ USER docker
 
 RUN /bin/bash -lc "rvm 2.6,2.7,3.0 do gem install bundler -v 2.2.23"
 
-COPY --chown=docker:docker switchman.gemspec Gemfile /app/
+COPY --chown=docker:docker switchman.gemspec Gemfile Gemfile.lock /app/
 COPY --chown=docker:docker lib/switchman/version.rb /app/lib/switchman/version.rb
 
 RUN echo "gem: --no-document" >> ~/.gemrc

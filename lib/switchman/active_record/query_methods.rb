@@ -270,11 +270,11 @@ module Switchman
           right_node = or_expr.right
           new_left_predicates = transpose_single_predicate(left_node, source_shard,
                                                            target_shard, remove_nonlocal_primary_keys: remove_nonlocal_primary_keys)
-          or_expr.instance_variable_set(:@left, new_left_predicates) if new_left_predicates != left_node
           new_right_predicates = transpose_single_predicate(right_node, source_shard,
                                                             target_shard, remove_nonlocal_primary_keys: remove_nonlocal_primary_keys)
-          or_expr.instance_variable_set(:@right, new_right_predicates) if new_right_predicates != right_node
-          return predicate
+          return predicate if new_left_predicates == left_node && new_right_predicates == right_node
+
+          return ::Arel::Nodes::Grouping.new ::Arel::Nodes::Or.new(new_left_predicates, new_right_predicates)
         end
         return predicate unless predicate.is_a?(::Arel::Nodes::Binary) || predicate.is_a?(::Arel::Nodes::HomogeneousIn)
         return predicate unless predicate.left.is_a?(::Arel::Attributes::Attribute)

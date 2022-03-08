@@ -43,11 +43,9 @@ module Switchman
           @default = begin
             find_cached('default_shard') { Shard.where(default: true).take } || default
           # If we are *super* early in boot, the connection pool won't exist; we don't want to fill in the default shard yet
-          rescue ::ActiveRecord::ConnectionNotEstablished
-            nil
-          # rescue the fake default if the table doesn't exist
+          # Otherwise, rescue the fake default if the table doesn't exist
           rescue
-            default
+            sharding_initialized ? default : nil
           end
           return default unless @default
 
@@ -469,6 +467,10 @@ module Switchman
 
       private
 
+      def sharding_initialized
+        @sharding_initialized ||= false
+      end
+
       def add_sharded_model(klass)
         @sharded_models = (sharded_models + [klass]).freeze
         initialize_sharding
@@ -496,6 +498,8 @@ module Switchman
 
           klass.connects_to shards: connects_to_hash
         end
+
+        @sharding_initialized = true
       end
 
       # in-process caching

@@ -9,13 +9,13 @@ module Switchman
 
       def initialize(*, **)
         super
-        self.shard_value = Shard.current(klass ? klass.connection_classes : :primary) unless shard_value
+        self.shard_value = Shard.current(klass ? klass.connection_class_for_self : :primary) unless shard_value
         self.shard_source_value = :implicit unless shard_source_value
       end
 
       def clone
         result = super
-        result.shard_value = Shard.current(klass ? klass.connection_classes : :primary) unless shard_value
+        result.shard_value = Shard.current(klass ? klass.connection_class_for_self : :primary) unless shard_value
         result
       end
 
@@ -29,35 +29,32 @@ module Switchman
       end
 
       def new(*, &block)
-        primary_shard.activate(klass.connection_classes) { super }
+        primary_shard.activate(klass.connection_class_for_self) { super }
       end
 
       def create(*, &block)
-        primary_shard.activate(klass.connection_classes) { super }
+        primary_shard.activate(klass.connection_class_for_self) { super }
       end
 
       def create!(*, &block)
-        primary_shard.activate(klass.connection_classes) { super }
+        primary_shard.activate(klass.connection_class_for_self) { super }
       end
 
       def to_sql
-        primary_shard.activate(klass.connection_classes) { super }
+        primary_shard.activate(klass.connection_class_for_self) { super }
       end
 
       def explain
         activate { |relation| relation.call_super(:explain, Relation) }
       end
 
-      def records
-        return @records if loaded?
-
-        results = activate { |relation| relation.call_super(:records, Relation) }
-        case shard_value
-        when Array, ::ActiveRecord::Relation, ::ActiveRecord::Base
-          @records = results
+      def load(&block)
+        if !loaded? || (::Rails.version >= '7.0' && scheduled?)
+          @records = activate { |relation| relation.send(:exec_queries, &block) }
           @loaded = true
         end
-        results
+
+        self
       end
 
       %I[update_all delete_all].each do |method|
@@ -106,19 +103,19 @@ module Switchman
       def activate(unordered: false, &block)
         shards = all_shards
         if Array === shards && shards.length == 1
-          if shards.first == DefaultShard || shards.first == Shard.current(klass.connection_classes)
+          if shards.first == DefaultShard || shards.first == Shard.current(klass.connection_class_for_self)
             yield(self, shards.first)
           else
-            shards.first.activate(klass.connection_classes) { yield(self, shards.first) }
+            shards.first.activate(klass.connection_class_for_self) { yield(self, shards.first) }
           end
         else
           result_count = 0
           can_order = false
-          result = Shard.with_each_shard(shards, [klass.connection_classes]) do
+          result = Shard.with_each_shard(shards, [klass.connection_class_for_self]) do
             # don't even query other shards if we're already past the limit
             next if limit_value && result_count >= limit_value && order_values.empty?
 
-            relation = shard(Shard.current(klass.connection_classes), :to_a)
+            relation = shard(Shard.current(klass.connection_class_for_self), :to_a)
             # do a minimal query if possible
             relation = relation.limit(limit_value - result_count) if limit_value && !result_count.zero? && order_values.empty?
 

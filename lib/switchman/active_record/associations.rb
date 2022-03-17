@@ -27,7 +27,7 @@ module Switchman
           shards = reflection.options[:multishard] && owner.respond_to?(:associated_shards) ? owner.associated_shards : [shard]
           # activate both the owner and the target's shard category, so that Reflection#join_id_for,
           # when called for the owner, will be returned relative to shard the query will execute on
-          Shard.with_each_shard(shards, [klass.connection_classes, owner.class.connection_classes].uniq) do
+          Shard.with_each_shard(shards, [klass.connection_class_for_self, owner.class.connection_class_for_self].uniq) do
             super
           end
         end
@@ -83,10 +83,23 @@ module Switchman
 
       module Preloader
         module Association
+          module LoaderQuery
+            def load_records_in_batch(loaders)
+              # While in theory loading multiple associations that end up being effectively the same would be nice
+              # it's not very switchman compatible, so just don't bother trying to use that logic
+              # raw_records = records_for(loaders)
+
+              loaders.each do |loader|
+                loader.load_records(nil)
+                loader.run
+              end
+            end
+          end
+
           # Copypasta from Activerecord but with added global_id_for goodness.
           def records_for(ids)
             scope.where(association_key_name => ids).load do |record|
-              global_key = if model.connection_classes == UnshardedRecord
+              global_key = if model.connection_class_for_self == UnshardedRecord
                              convert_key(record[association_key_name])
                            else
                              Shard.global_id_for(record[association_key_name], record.shard)
@@ -100,13 +113,15 @@ module Switchman
           # significant changes:
           #  * partition_by_shard the records_for call
           #  * re-globalize the fetched owner id before looking up in the map
-          def load_records
+          # TODO: the ignored param currently loads records; we should probably not waste effort double-loading them
+          # Change introduced here: https://github.com/rails/rails/commit/c6c0b2e8af64509b699b782aadfecaa430700ece
+          def load_records(raw_records = nil)
             # owners can be duplicated when a relation has a collection association join
             # #compare_by_identity makes such owners different hash keys
             @records_by_owner = {}.compare_by_identity
 
-            if owner_keys.empty?
-              raw_records = []
+            if ::Rails.version < '7.0' && owner_keys.empty?
+              raw_records ||= []
             else
               # determine the shard to search for each owner
               if reflection.macro == :belongs_to
@@ -123,12 +138,12 @@ module Switchman
                 partition_proc = ->(owner) { owner.shard }
               end
 
-              raw_records = Shard.partition_by_shard(owners, partition_proc) do |partitioned_owners|
+              raw_records ||= Shard.partition_by_shard(owners, partition_proc) do |partitioned_owners|
                 relative_owner_keys = partitioned_owners.map do |owner|
                   key = owner[owner_key_name]
                   if key && owner.class.sharded_column?(owner_key_name)
                     key = Shard.relative_id_for(key, owner.shard,
-                                                Shard.current(klass.connection_classes))
+                                                Shard.current(klass.connection_class_for_self))
                   end
                   convert_key(key)
                 end
@@ -200,7 +215,7 @@ module Switchman
           # this seems counter-intuitive, but the autosave code will assign to attribute bypassing switchman,
           # after reading the id attribute _without_ bypassing switchman. So we need Shard.current for the
           # category of the associated record to match Shard.current for the category of self
-          shard.activate(connection_classes_for_reflection(reflection)) { super }
+          shard.activate(connection_class_for_self_for_reflection(reflection)) { super }
         end
       end
     end

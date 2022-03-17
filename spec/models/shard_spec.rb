@@ -229,23 +229,23 @@ module Switchman
 
         it 'does not disconnect' do
           User.connection
-          expect(User.connected?).to eq true
+          expect(User.connected?).to be true
           Shard.with_each_shard([Shard.default, @shard2]) {}
-          expect(User.connected?).to eq true
+          expect(User.connected?).to be true
         end
 
         it "does not disconnect when it's the current shard" do
           User.connection
-          expect(User.connected?).to eq true
+          expect(User.connected?).to be true
           Shard.with_each_shard([Shard.default]) {}
-          expect(User.connected?).to eq true
+          expect(User.connected?).to be true
         end
 
         it 'does not disconnect for zero shards' do
           User.connection
-          expect(User.connected?).to eq true
+          expect(User.connected?).to be true
           Shard.with_each_shard([]) {}
-          expect(User.connected?).to eq true
+          expect(User.connected?).to be true
         end
 
         it 'handles undumpable results' do
@@ -269,7 +269,7 @@ module Switchman
             expect(e.message).to include(@shard2.database_server.id)
             raised = true
           end
-          expect(raised).to eq true
+          expect(raised).to be true
         end
 
         it "properly re-raises a PG exception that's not dumpable" do
@@ -284,7 +284,7 @@ module Switchman
             expect(e.current_shard).to eq @shard2
             raised = true
           end
-          expect(raised).to eq true
+          expect(raised).to be true
         end
 
         it 'properly re-raises a SystemStackError' do
@@ -299,14 +299,14 @@ module Switchman
           rescue SystemStackError
             raised = true
           end
-          expect(raised).to eq true
+          expect(raised).to be true
         end
       end
 
       it 'properly re-raises an autoloaded exception' do
         skip 'Rails 6 (zeitwerk) does not support dynamically changing the autoload path'
 
-        expect(defined?(TestException)).to eq nil
+        expect(defined?(TestException)).to be_nil
         ::ActiveSupport::Dependencies.autoload_paths << File.expand_path(File.join(__FILE__, '../..'))
         begin
           Shard.with_each_shard([Shard.default, @shard2], parallel: true) do
@@ -316,7 +316,7 @@ module Switchman
           expect(e.class).to eq TestException
           raised = true
         end
-        expect(raised).to eq true
+        expect(raised).to be true
       end
 
       it "doesn't fork for parallel of 2, with one server" do
@@ -361,7 +361,7 @@ module Switchman
       it 'works' do
         ids = [2, 48, (Shard::IDS_PER_SHARD * @shard1.id) + 6, (Shard::IDS_PER_SHARD * @shard1.id) + 8, 10, 12]
         results = Shard.partition_by_shard(ids) do |partitioned_ids|
-          expect(partitioned_ids.length == 4 || partitioned_ids.length == 2).to eq true
+          expect(partitioned_ids.length == 4 || partitioned_ids.length == 2).to be true
           partitioned_ids.map { |id| id + 1 }
         end
 
@@ -383,7 +383,7 @@ module Switchman
         ids = [@shard1.global_id_for(1), "#{@shard2.id}~2"]
         result = Shard.partition_by_shard(ids) do |partitioned_ids|
           expect(partitioned_ids.length).to eq 1
-          expect([@shard1, @shard2].include?(Shard.current)).to eq true
+          expect([@shard1, @shard2].include?(Shard.current)).to be true
           expect(partitioned_ids.first).to eq 1 if Shard.current == @shard1
           expect(partitioned_ids.first).to eq 2 if Shard.current == @shard2
           partitioned_ids.first
@@ -548,7 +548,7 @@ module Switchman
         end
 
         it 'returns nil for unrecognized ids' do
-          expect(Shard.integral_id_for('not an id')).to eq nil
+          expect(Shard.integral_id_for('not an id')).to be_nil
         end
       end
 
@@ -597,7 +597,7 @@ module Switchman
         end
 
         it 'returns the nil for unrecognized ids' do
-          expect(Shard.relative_id_for('not an id', @shard1, @shard2)).to eq nil
+          expect(Shard.relative_id_for('not an id', @shard1, @shard2)).to be_nil
         end
 
         it 'returns an integral form of an id when it refers to a non-existent shard' do

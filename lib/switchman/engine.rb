@@ -12,10 +12,14 @@ module Switchman
 
     # after :initialize_dependency_mechanism to ensure autoloading is configured for any downstream initializers that care
     # In rails 7.0 we should be able to just use an explicit after on configuring the once autoloaders and not need to go monkey around with initializer order
-    initialize_dependency_mechanism = ::Rails::Application::Bootstrap.initializers.find { |i| i.name == :initialize_dependency_mechanism }
-    initialize_dependency_mechanism.instance_variable_get(:@options)[:after] = :set_autoload_paths
+    if ::Rails.version < '7.0'
+      initialize_dependency_mechanism = ::Rails::Application::Bootstrap.initializers.find { |i| i.name == :initialize_dependency_mechanism }
+      initialize_dependency_mechanism.instance_variable_get(:@options)[:after] = :set_autoload_paths
+    end
 
-    initializer 'switchman.active_record_patch', before: 'active_record.initialize_database', after: :initialize_dependency_mechanism do
+    initializer 'switchman.active_record_patch',
+                before: 'active_record.initialize_database',
+                after: (::Rails.version < '7.0' ? :initialize_dependency_mechanism : :setup_once_autoloader) do
       ::ActiveSupport.on_load(:active_record) do
         # Switchman requires postgres, so just always load the pg adapter
         require 'active_record/connection_adapters/postgresql_adapter'
@@ -24,7 +28,7 @@ module Switchman
         self.default_role = :primary
 
         prepend ActiveRecord::Base
-        include ActiveRecord::AttributeMethods
+        prepend ActiveRecord::AttributeMethods
         include ActiveRecord::Persistence
         singleton_class.prepend ActiveRecord::ModelSchema::ClassMethods
 
@@ -46,6 +50,7 @@ module Switchman
         ::ActiveRecord::Associations::CollectionProxy.include(ActiveRecord::Associations::CollectionProxy)
 
         ::ActiveRecord::Associations::Preloader::Association.prepend(ActiveRecord::Associations::Preloader::Association)
+        ::ActiveRecord::Associations::Preloader::Association::LoaderQuery.prepend(ActiveRecord::Associations::Preloader::Association::LoaderQuery) unless ::Rails.version < '7.0'
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::AbstractAdapter)
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.prepend(ActiveRecord::ConnectionPool)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::QueryCache)

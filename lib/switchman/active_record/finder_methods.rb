@@ -7,7 +7,7 @@ module Switchman
         return super(id) unless klass.integral_id?
 
         if shard_source_value != :implicit
-          current_shard = Shard.current(klass.connection_classes)
+          current_shard = Shard.current(klass.connection_class_for_self)
           result = activate do |relation, shard|
             current_id = Shard.relative_id_for(id, current_shard, shard)
             # current_id will be nil for non-integral id
@@ -33,7 +33,7 @@ module Switchman
       end
 
       def find_some_ordered(ids)
-        current_shard = Shard.current(klass.connection_classes)
+        current_shard = Shard.current(klass.connection_class_for_self)
         ids = ids.map { |id| Shard.relative_id_for(id, current_shard, current_shard) }
         super(ids)
       end

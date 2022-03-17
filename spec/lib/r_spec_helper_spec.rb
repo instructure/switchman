@@ -17,7 +17,7 @@ module Switchman
         run_groups = RSpec.world.filtered_examples.select { |_k, v| v.present? }.map(&:first)
         pending 'run without other sharding specs' if run_groups.any? { |group| RSpecHelper.included_in?(group) }
 
-        expect(RSpecHelper.class_variable_defined?(:@@default_shard)).to eq false
+        expect(RSpecHelper.class_variable_defined?(:@@default_shard)).to be false
         expect(RSpecHelper.class_variable_get(:@@shard1)).to be_nil
       end
 

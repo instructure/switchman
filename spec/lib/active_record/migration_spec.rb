@@ -11,7 +11,7 @@ module Switchman
         it "hits the same db as the shard we're using" do
           @shard2.activate do
             ::ActiveRecord::Migrator.new(:up, [], ::ActiveRecord::SchemaMigration).with_advisory_lock_connection do |conn|
-              expect(conn.pool.db_config.configuration_hash[:server2]).to eq true
+              expect(conn.pool.db_config.configuration_hash[:server2]).to be true
             end
           end
         end

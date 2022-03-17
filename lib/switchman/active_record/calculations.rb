@@ -4,7 +4,7 @@ module Switchman
   module ActiveRecord
     module Calculations
       def pluck(*column_names)
-        target_shard = Shard.current(klass.connection_classes)
+        target_shard = Shard.current(klass.connection_class_for_self)
         shard_count = 0
         result = activate do |relation, shard|
           shard_count += 1
@@ -109,11 +109,18 @@ module Switchman
       private
 
       def type_cast_calculated_value_switchman(value, column_name, operation)
-        type_cast_calculated_value(value, operation) do |val|
+        if ::Rails.version < '7.0'
+          type_cast_calculated_value(value, operation) do |val|
+            column = aggregate_column(column_name)
+            type ||= column.try(:type_caster) ||
+                     lookup_cast_type_from_join_dependencies(column_name.to_s) || ::ActiveRecord::Type.default_value
+            type.deserialize(val)
+          end
+        else
           column = aggregate_column(column_name)
           type ||= column.try(:type_caster) ||
-                   lookup_cast_type_from_join_dependencies(column_name.to_s) || Type.default_value
-          type.deserialize(val)
+                   lookup_cast_type_from_join_dependencies(column_name.to_s) || ::ActiveRecord::Type.default_value
+          type_cast_calculated_value(value, operation, type)
         end
       end
 

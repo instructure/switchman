@@ -25,11 +25,11 @@ module Switchman
         def transaction(**)
           if self != ::ActiveRecord::Base && current_scope
             current_scope.activate do
-              db = Shard.current(connection_classes).database_server
+              db = Shard.current(connection_class_for_self).database_server
               db.unguard { super }
             end
           else
-            db = Shard.current(connection_classes).database_server
+            db = Shard.current(connection_class_for_self).database_server
             db.unguard { super }
           end
         end
@@ -78,7 +78,7 @@ module Switchman
         end
 
         def connected_to_stack
-          return super if Thread.current.thread_variable?(:ar_connected_to_stack)
+          return super if ::Rails.version < '7.0' ? Thread.current.thread_variable?(:ar_connected_to_stack) : ::ActiveSupport::IsolatedExecutionState.key?(:active_record_connected_to_stack)
 
           ret = super
           DatabaseServer.guard_servers
@@ -92,7 +92,7 @@ module Switchman
           sharded_role = nil
           connected_to_stack.reverse_each do |hash|
             shard_role = hash.dig(:shard_roles, target_shard)
-            if shard_role && (hash[:klasses].include?(::ActiveRecord::Base) || hash[:klasses].include?(connection_classes))
+            if shard_role && (hash[:klasses].include?(::ActiveRecord::Base) || hash[:klasses].include?(connection_class_for_self))
               sharded_role = shard_role
               break
             end
@@ -107,7 +107,7 @@ module Switchman
         # i.e. other sharded models don't inherit the current shard of Base
         def current_shard
           connected_to_stack.reverse_each do |hash|
-            return hash[:shard] if hash[:shard] && hash[:klasses].include?(connection_classes)
+            return hash[:shard] if hash[:shard] && hash[:klasses].include?(connection_class_for_self)
           end
 
           default_shard
@@ -115,10 +115,16 @@ module Switchman
 
         def current_switchman_shard
           connected_to_stack.reverse_each do |hash|
-            return hash[:switchman_shard] if hash[:switchman_shard] && hash[:klasses].include?(connection_classes)
+            return hash[:switchman_shard] if hash[:switchman_shard] && hash[:klasses].include?(connection_class_for_self)
           end
 
           Shard.default
+        end
+
+        if ::Rails.version < '7.0'
+          def connection_class_for_self
+            connection_classes
+          end
         end
       end
 
@@ -128,15 +134,15 @@ module Switchman
 
       def _run_initialize_callbacks
         @shard ||= if self.class.sharded_primary_key?
-                     Shard.shard_for(self[self.class.primary_key], Shard.current(self.class.connection_classes))
+                     Shard.shard_for(self[self.class.primary_key], Shard.current(self.class.connection_class_for_self))
                    else
-                     Shard.current(self.class.connection_classes)
+                     Shard.current(self.class.connection_class_for_self)
                    end
         super
       end
 
       def shard
-        @shard || Shard.current(self.class.connection_classes) || Shard.default
+        @shard || Shard.current(self.class.connection_class_for_self) || Shard.default
       end
 
       def shard=(new_shard)
@@ -161,7 +167,7 @@ module Switchman
       end
 
       def destroy
-        shard.activate(self.class.connection_classes) { super }
+        shard.activate(self.class.connection_class_for_self) { super }
       end
 
       def clone
@@ -174,14 +180,14 @@ module Switchman
       end
 
       def transaction(**kwargs, &block)
-        shard.activate(self.class.connection_classes) do
+        shard.activate(self.class.connection_class_for_self) do
           self.class.transaction(**kwargs, &block)
         end
       end
 
       def with_transaction_returning_status
-        shard.activate(self.class.connection_classes) do
-          db = Shard.current(self.class.connection_classes).database_server
+        shard.activate(self.class.connection_class_for_self) do
+          db = Shard.current(self.class.connection_class_for_self).database_server
           db.unguard { super }
         end
       end
@@ -218,22 +224,22 @@ module Switchman
 
       protected
 
-      # see also AttributeMethods#connection_classes_code_for_reflection
-      def connection_classes_for_reflection(reflection)
+      # see also AttributeMethods#connection_class_for_self_code_for_reflection
+      def connection_class_for_self_for_reflection(reflection)
         if reflection
           if reflection.options[:polymorphic]
             begin
-              read_attribute(reflection.foreign_type)&.constantize&.connection_classes || ::ActiveRecord::Base
+              read_attribute(reflection.foreign_type)&.constantize&.connection_class_for_self || ::ActiveRecord::Base
             rescue NameError
               # in case someone is abusing foreign_type to not point to an actual class
               ::ActiveRecord::Base
             end
           else
             # otherwise we can just return a symbol for the statically known type of the association
-            reflection.klass.connection_classes
+            reflection.klass.connection_class_for_self
           end
         else
-          self.class.connection_classes
+          self.class.connection_class_for_self
         end
       end
     end

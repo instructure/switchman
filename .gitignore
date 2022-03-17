@@ -3,9 +3,9 @@
 /coverage/
 /docker-compose.override.yml
 /gemfiles/.bundle/
+/gemfiles/*.lock
 /log/
 /pkg/
-/spec/dummy/config/database.yml
 /spec/dummy/db/schema.rb
 /spec/dummy/log/
 /spec/dummy/tmp/

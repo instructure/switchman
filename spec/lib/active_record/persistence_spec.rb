@@ -27,7 +27,7 @@ module Switchman
           user = @shard1.activate { User.create! }
 
           new_time = 1.day.from_now
-          expect(user.update_columns(updated_at: new_time)).to eq true
+          expect(user.update_columns(updated_at: new_time)).to be true
           expect(user.reload.updated_at.to_i).to eq new_time.to_i
         end
       end

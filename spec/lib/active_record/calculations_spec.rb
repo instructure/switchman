@@ -171,7 +171,7 @@ module Switchman
           @shard1.activate do
             result = Appendage.group("(created_at::TIMESTAMPTZ AT TIME ZONE 'UTC')::DATE").count
             expect(result.keys.length).to eq 1
-            expect(result.keys.first).not_to eq nil
+            expect(result.keys.first).not_to be_nil
           end
         end
 

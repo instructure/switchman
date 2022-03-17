@@ -35,4 +35,4 @@ RuboCop::RakeTask.new do |task|
   task.options = ['-S']
 end
 
-task default: %i[spec rubocop]
+task default: %i[spec]

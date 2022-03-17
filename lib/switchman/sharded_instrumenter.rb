@@ -16,7 +16,7 @@ module Switchman
         payload[:shard] = {
           database_server_id: shard.database_server.id,
           id: shard.id,
-          env: @shard_host.pool.connection_klass&.current_role
+          env: ::Rails.version < '7.0' ? @shard_host.pool.connection_klass&.current_role : @shard_host.pool.connection_class&.current_role
         }
       end
       super name, payload

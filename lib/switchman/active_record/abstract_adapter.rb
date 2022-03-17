@@ -33,7 +33,7 @@ module Switchman
 
       protected
 
-      def log(*args, &block)
+      def log(...)
         super
       ensure
         @last_query_at = Time.now

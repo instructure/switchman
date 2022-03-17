@@ -29,16 +29,16 @@ module Switchman
       end
 
       it 'isolates queries to multiple shards on the same server' do
-        expect(::ActiveRecord::Base.connection_pool.query_cache_enabled).to eq false
+        expect(::ActiveRecord::Base.connection_pool.query_cache_enabled).to be false
         ::ActiveRecord::Base.connection_pool.enable_query_cache!
 
         @shard1.activate do
-          expect(User.connection.query_cache_enabled).to eq true
+          expect(User.connection.query_cache_enabled).to be true
           User.create!
           User.create!
         end
         Shard.default.activate do
-          expect(User.connection.query_cache_enabled).to eq true
+          expect(User.connection.query_cache_enabled).to be true
           User.create!
         end
         expect(@shard1.activate { User.all.to_a }).not_to eq(Shard.default.activate { User.all.to_a })

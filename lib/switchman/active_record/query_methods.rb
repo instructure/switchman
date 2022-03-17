@@ -65,7 +65,7 @@ module Switchman
         when ::ActiveRecord::Relation
           Shard.default
         when nil
-          Shard.current(klass.connection_classes)
+          Shard.current(klass.connection_class_for_self)
         else
           raise ArgumentError, "invalid shard value #{shard_value}"
         end
@@ -79,7 +79,7 @@ module Switchman
         when ::ActiveRecord::Base
           shard_value.respond_to?(:associated_shards) ? shard_value.associated_shards : [shard_value.shard]
         when nil
-          [Shard.current(klass.connection_classes)]
+          [Shard.current(klass.connection_class_for_self)]
         else
           shard_value
         end
@@ -131,7 +131,7 @@ module Switchman
           id_shards = Set.new
           right.each do |value|
             local_id, id_shard = Shard.local_id_for(value)
-            id_shard ||= Shard.current(klass.connection_classes) if local_id
+            id_shard ||= Shard.current(klass.connection_class_for_self) if local_id
             id_shards << id_shard if id_shard
           end
           return if id_shards.empty?
@@ -151,10 +151,13 @@ module Switchman
           end
         when ::Arel::Nodes::BindParam
           local_id, id_shard = Shard.local_id_for(right.value.value_before_type_cast)
-          id_shard ||= Shard.current(klass.connection_classes) if local_id
+          id_shard ||= Shard.current(klass.connection_class_for_self) if local_id
+        when ::ActiveModel::Attribute
+          local_id, id_shard = Shard.local_id_for(right.value_before_type_cast)
+          id_shard ||= Shard.current(klass.connection_class_for_self) if local_id
         else
           local_id, id_shard = Shard.local_id_for(right)
-          id_shard ||= Shard.current(klass.connection_classes) if local_id
+          id_shard ||= Shard.current(klass.connection_class_for_self) if local_id
         end
 
         return if !id_shard || id_shard == primary_shard
@@ -193,9 +196,9 @@ module Switchman
           reflection = model.send(:reflection_for_integer_attribute, column)
           break if reflection
         end
-        return Shard.current(klass.connection_classes) if reflection.options[:polymorphic]
+        return Shard.current(klass.connection_class_for_self) if reflection.options[:polymorphic]
 
-        Shard.current(reflection.klass.connection_classes)
+        Shard.current(reflection.klass.connection_class_for_self)
       end
 
       def relation_and_column(attribute)
@@ -291,7 +294,7 @@ module Switchman
           if source_shard
             source_shard
           elsif type == :primary
-            Shard.current(klass.connection_classes)
+            Shard.current(klass.connection_class_for_self)
           elsif type == :foreign
             source_shard_for_foreign_key(relation, column)
           end
@@ -332,8 +335,9 @@ module Switchman
       end
 
       def transpose_predicate_value(value, current_shard, target_shard, attribute_type, remove_non_local_ids)
-        if value.is_a?(::Arel::Nodes::BindParam)
-          query_att = value.value
+        case value
+        when ::Arel::Nodes::BindParam, ::ActiveModel::Attribute
+          query_att = value.is_a?(::ActiveModel::Attribute) ? value : value.value
           current_id = query_att.value_before_type_cast
           if current_id.is_a?(::ActiveRecord::StatementCache::Substitute)
             current_id.sharded = true # mark for transposition later
@@ -346,7 +350,12 @@ module Switchman
               # make a new bind param
               value
             else
-              ::Arel::Nodes::BindParam.new(query_att.class.new(query_att.name, local_id, query_att.type))
+              new_att = query_att.class.new(query_att.name, local_id, query_att.type)
+              if value.is_a?(::ActiveModel::Attribute)
+                new_att
+              else
+                ::Arel::Nodes::BindParam.new(new_att)
+              end
             end
           end
         else

@@ -149,7 +149,7 @@ module Switchman
       it 'sets the inverse association when preloading' do
         @user1.children.create!
         preloaded_child = User.where(id: @user1).preload(:children).first.children.first
-        expect(preloaded_child.association(:parent).loaded?).to eq true
+        expect(preloaded_child.association(:parent).loaded?).to be true
         expect(preloaded_child.parent).to eq @user1
       end
 
@@ -158,14 +158,14 @@ module Switchman
           child = @user1.children.create!
           @grandchild = child.children.create!
           @user1.reload
-          expect(@user1.grandchildren.loaded?).to eq false
-          expect(@user1.grandchildren.include?(@grandchild)).to eq true
+          expect(@user1.grandchildren.loaded?).to be false
+          expect(@user1.grandchildren.include?(@grandchild)).to be true
         end
         @shard2.activate do
           fake = User.create!(id: @grandchild.local_id)
           @user1.reload
-          expect(@user1.grandchildren.loaded?).to eq false
-          expect(@user1.grandchildren.include?(fake)).to eq false
+          expect(@user1.grandchildren.loaded?).to be false
+          expect(@user1.grandchildren.include?(fake)).to be false
         end
       end
 
@@ -202,7 +202,7 @@ module Switchman
           mirror_user = MirrorUser.create!
           relation = mirror_user.association(:user).scope
           expect(relation.shard_value).to eq Shard.default
-          expect(predicates(relation).first.right).to be_a(::Arel::Nodes::BindParam)
+          expect(predicates(relation).first.right).to be_a(::Rails.version < '7.0' ? ::Arel::Nodes::BindParam : ::ActiveModel::Attribute)
           expect(bind_values(relation)).to eq [mirror_user.global_id]
         end
       end
@@ -385,16 +385,17 @@ module Switchman
             appendages = Appendage.where(id: [a1, a2, a3, a4])
             # load this relation outside of the SQL subscription so as not to
             # increment the query count.
-            appendages.to_a
-            # we use `to_a` rather than `load` because the latter currently has
-            # a bug that causes it to lose all records not belonging to the
-            # current shard.
+            appendages.load
 
             expected_query_count = 2 # one per shard
 
             ::ActiveSupport::Notifications.subscribed(increment_query_count, 'sql.active_record') do
               expect do
-                ::ActiveRecord::Associations::Preloader.new.preload(appendages, :user)
+                if ::Rails.version < '7.0'
+                  ::ActiveRecord::Associations::Preloader.new.preload(appendages, :user)
+                else
+                  ::ActiveRecord::Associations::Preloader.new(records: appendages, associations: :user).call
+                end
 
                 # pull the users off the appendages in this subscribed block to
                 # show not only that they are correct, but that they are
@@ -467,7 +468,7 @@ module Switchman
 
             begin
               users = User.where(id: [@user1, @user2]).includes(:appendages).to_a
-              users.each { |u| expect(u.appendages.loaded?).to eq true }
+              users.each { |u| expect(u.appendages.loaded?).to be true }
 
               u1 = users.detect { |u| u.id == @user1.id }
               u2 = users.detect { |u| u.id == @user2.id }
@@ -520,7 +521,7 @@ module Switchman
 
             begin
               users = User.where(id: [@user1, @user2]).includes(:digits).to_a
-              users.each { |u| expect(u.digits.loaded?).to eq true }
+              users.each { |u| expect(u.digits.loaded?).to be true }
 
               u1 = users.detect { |u| u.id == @user1.id }
               u2 = users.detect { |u| u.id == @user2.id }

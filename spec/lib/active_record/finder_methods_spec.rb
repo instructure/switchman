@@ -88,30 +88,30 @@ module Switchman
         it 'works for an out-of-shard scope' do
           scope = @shard1.activate { User.where(id: @user) }
           expect(scope.shard_value).to eq @shard1
-          expect(scope.exists?).to eq true
+          expect(scope.exists?).to be true
         end
 
         it 'works for a multi-shard scope' do
           @shard2.activate { User.create!(name: 'multi-shard exists') }
-          expect(User.where(name: 'multi-shard exists').shard(Shard.all).exists?).to eq true
+          expect(User.where(name: 'multi-shard exists').shard(Shard.all).exists?).to be true
         end
 
         it 'works for a multi-shard association scope' do
           @user = User.create!
           @shard1.activate { Appendage.create!(user_id: @user.id) }
-          expect(@user.appendages.shard([Shard.default, @shard1]).exists?).to eq true
+          expect(@user.appendages.shard([Shard.default, @shard1]).exists?).to be true
         end
 
         it 'works if a condition is passed' do
-          expect(User.exists?(@user.global_id)).to eq true
+          expect(User.exists?(@user.global_id)).to be true
         end
 
         it 'works with binds in joined associations' do
           @user = User.create!
           a1 = @user.appendages.create!(type: 'Arm')
           a2 = @user.appendages.create!
-          expect(User.joins(:arms).where('appendages.id' => a1.id).exists?).to eq true
-          expect(User.joins(:arms).where('appendages.id' => a2.id).exists?).to eq false
+          expect(User.joins(:arms).where('appendages.id' => a1.id).exists?).to be true
+          expect(User.joins(:arms).where('appendages.id' => a2.id).exists?).to be false
         end
       end
     end

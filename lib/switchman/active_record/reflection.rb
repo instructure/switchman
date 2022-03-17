@@ -5,7 +5,7 @@ module Switchman
     module Reflection
       module AbstractReflection
         def shard(owner)
-          if polymorphic? || klass.connection_classes == owner.class.connection_classes
+          if polymorphic? || klass.connection_class_for_self == owner.class.connection_class_for_self
             # polymorphic associations assume the same shard as the owning item
             owner.shard
           else

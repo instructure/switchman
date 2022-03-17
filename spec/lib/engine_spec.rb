@@ -16,7 +16,7 @@ module Switchman
       indexes.push(order.index(:set_eager_load))
       indexes.push(order.index(:initialize_logger))
       indexes.push(order.index(:initialize_cache))
-      indexes.push(order.index(:initialize_dependency_mechanism))
+      indexes.push(order.index(::Rails.version < '7.0' ? :initialize_dependency_mechanism : :setup_once_autoloader))
       indexes.push(order.index(:bootstrap_hook))
       indexes.push(order.index(:set_secrets_root))
 

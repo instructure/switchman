@@ -226,7 +226,7 @@ module Switchman
 
         it "doesn't interpret a local id as relative to a relation's explicit shard" do
           u = @shard1.activate { User.create! }
-          expect(User.shard(@shard1).where(id: u.local_id).take).to eq nil
+          expect(User.shard(@shard1).where(id: u.local_id).take).to be_nil
           expect(User.shard(@shard1).where(id: u.global_id).take).to eq u
         end
       end
@@ -312,7 +312,7 @@ module Switchman
       end
 
       it 'is able to construct eager_load queries' do
-        expect(User.eager_load(:appendages).first.association(:appendages).loaded?).to eq true
+        expect(User.eager_load(:appendages).first.association(:appendages).loaded?).to be true
       end
 
       it 'includes table name in select clause even with an explicit from' do

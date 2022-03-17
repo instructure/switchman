@@ -7,7 +7,7 @@ module Switchman
       def create_database(name, options = {})
         options = { encoding: 'utf8' }.merge!(options.symbolize_keys)
 
-        option_string = options.sum do |key, value|
+        option_string = options.sum('') do |key, value|
           case key
           when :owner
             " OWNER = \"#{value}\""

@@ -13,11 +13,11 @@ services:
       options:
         max-file: '5'
         max-size: 1m
-    volumes:
-      - gems:/home/docker/.rvm/gems
 
   postgres:
-    image: postgres:9.3
+    image: postgres:9.6
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
     logging: *LOG
     volumes:
       - data:/var/lib/postgresql/data
@@ -30,4 +30,3 @@ services:
 
 volumes:
   data: {}
-  gems: {}

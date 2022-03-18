@@ -1,9 +1,9 @@
 PATH
   remote: .
   specs:
-    switchman (3.0.9)
-      activerecord (>= 6.1.4, < 6.2)
-      guardrail (~> 3.0.0)
+    switchman (3.0.10)
+      activerecord (>= 6.1.4, < 7.1)
+      guardrail (~> 3.0.1)
       open4 (~> 1.3.0)
       railties (>= 6.1, < 6.2)
 
@@ -152,4 +152,4 @@ DEPENDENCIES
   switchman!
 
 BUNDLED WITH
-   2.2.23
+   2.2.32

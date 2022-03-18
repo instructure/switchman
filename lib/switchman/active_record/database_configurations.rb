@@ -21,7 +21,7 @@ module Switchman
           base_db = build_db_config_from_raw_config(env_name, name, base_config)
           [base_db] + roles.map do |role|
             build_db_config_from_raw_config(env_name, "#{env_name}/#{role}",
-                                            base_config.merge(config[role]).merge(replica: true))
+                                            base_config.merge(config[role]))
           end
         end
 

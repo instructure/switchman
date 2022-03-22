@@ -68,6 +68,9 @@ module Switchman
 
     initializer 'switchman.extend_ar', before: 'active_record.initialize_database' do
       ::ActiveSupport.on_load(:active_record) do
+        # Switchman requires postgres, so just always load the pg adapter
+        require 'active_record/connection_adapters/postgresql_adapter'
+
         require 'switchman/active_record/abstract_adapter'
         require 'switchman/active_record/association'
         require 'switchman/active_record/attribute_methods'
@@ -81,6 +84,7 @@ module Switchman
         require 'switchman/active_record/migration'
         require 'switchman/active_record/model_schema'
         require 'switchman/active_record/persistence'
+        require 'switchman/active_record/postgresql_adapter'
         require 'switchman/active_record/predicate_builder'
         require 'switchman/active_record/query_cache'
         require 'switchman/active_record/query_methods'
@@ -128,6 +132,7 @@ module Switchman
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::AbstractAdapter)
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.prepend(ActiveRecord::ConnectionPool)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::QueryCache)
+        ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(ActiveRecord::PostgreSQLAdapter)
 
         ::ActiveRecord::DatabaseConfigurations.prepend(ActiveRecord::DatabaseConfigurations)
         ::ActiveRecord::DatabaseConfigurations::DatabaseConfig.prepend(ActiveRecord::DatabaseConfigurations::DatabaseConfig)
@@ -179,11 +184,6 @@ module Switchman
 
         require 'switchman/active_record/table_definition'
         ::ActiveRecord::ConnectionAdapters::TableDefinition.prepend(ActiveRecord::TableDefinition)
-
-        if defined?(::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter)
-          require 'switchman/active_record/postgresql_adapter'
-          ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(ActiveRecord::PostgreSQLAdapter)
-        end
 
         Shard.send(:initialize_sharding)
       end

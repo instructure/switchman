@@ -3,20 +3,22 @@
 module Switchman
   module StandardError
     def initialize(*args)
-      # Shard.current can throw this when switchman isn't working right; if we try to
-      # do our stuff here, it'll cause a SystemStackError, which is a pain to deal with
-      if is_a?(::ActiveRecord::ConnectionNotEstablished)
-        super
-        return
-      end
+      super
+      # These seem to get themselves into a bad state if we try to lookup shards while processing
+      return if is_a?(IO::EAGAINWaitReadable)
+      return if Thread.current[:switchman_error_handler]
 
       begin
-        @active_shards = Shard.active_shards if defined?(Shard)
-      rescue ::ActiveRecord::ConnectionNotEstablished
-        # If we hit an error really early in boot, activerecord may not be initialized yet
-      end
+        Thread.current[:switchman_error_handler] = true
 
-      super
+        begin
+          @active_shards = Shard.active_shards if defined?(Shard)
+        rescue
+          # If we hit an error really early in boot, activerecord may not be initialized yet
+        end
+      ensure
+        Thread.current[:switchman_error_handler] = nil
+      end
     end
 
     def current_shard(klass = ::ActiveRecord::Base)

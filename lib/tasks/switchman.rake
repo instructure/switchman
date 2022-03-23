@@ -1,5 +1,16 @@
 # frozen_string_literal: true
 
+# In rails 7.0+ if you have only 1 db in the env it doesn't try to do explicit activation
+# (and for rails purposes we only have one db per env because each database server is a separate env)
+if Rails.version < '7.0'
+  task_prefix = ::Rake::Task.task_defined?('app:db:migrate') ? 'app:db' : 'db'
+  ::Rake::Task["#{task_prefix}:migrate"].clear_actions.enhance do
+    ::ActiveRecord::Tasks::DatabaseTasks.migrate
+    # Ensure this doesn't blow up when running inside the dummy app
+    Rake::Task["#{task_prefix}:_dump"].invoke
+  end
+end
+
 module Switchman
   module Rake
     def self.filter_database_servers(&block)
@@ -50,9 +61,7 @@ module Switchman
     end
 
     # classes - an array or proc, to activate as the current shard during the
-    # task. tasks which modify the schema may want to pass all categories in
-    # so that schema updates for non-default tables happen against all shards.
-    # this is handled automatically for the default migration tasks, below.
+    # task.
     def self.shardify_task(task_name, classes: [::ActiveRecord::Base])
       old_task = ::Rake::Task[task_name]
       old_actions = old_task.actions.dup

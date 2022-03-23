@@ -35,9 +35,9 @@ module Switchman
 
       scope = base_scope.order(::Arel.sql('database_server_id IS NOT NULL, database_server_id, id'))
       if servers != DatabaseServer.all
-        conditions = ['database_server_id IN (?)', servers.map(&:id)]
-        conditions.first << ' OR database_server_id IS NULL' if servers.include?(Shard.default.database_server)
-        scope = scope.where(conditions)
+        database_server_ids = servers.map(&:id)
+        database_server_ids << nil if servers.include?(Shard.default.database_server)
+        scope = scope.where(database_server_id: database_server_ids)
       end
 
       scope = shard_scope(scope, shard) if shard

@@ -20,7 +20,7 @@ Gem::Specification.new do |s|
 
   s.add_dependency 'activerecord', '>= 6.1.4', '< 6.2'
   s.add_dependency 'guardrail', '~> 3.0.0'
-  s.add_dependency 'open4', '~> 1.3.0'
+  s.add_dependency 'parallel', '~> 1.22'
   s.add_dependency 'railties', '>= 6.1', '< 6.2'
 
   s.add_development_dependency 'appraisal', '~> 2.3.0'

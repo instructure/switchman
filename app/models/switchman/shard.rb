@@ -125,8 +125,7 @@ module Switchman
       # * +classes+ - an array of classes to activate
       #    parallel: - true/false to execute in parallel, or an integer of how many
       #                sub-processes. Note that parallel invocation currently uses
-      #                forking, so should be used sparingly because you cannot get
-      #                results back
+      #                forking.
       #    exception: - :ignore, :raise, :defer (wait until the end and raise the first
       #                error), or a proc
       def with_each_shard(*args, parallel: false, exception: :raise, &block)
@@ -159,137 +158,47 @@ module Switchman
             return if database_servers.count.zero?
 
             scopes = database_servers.to_h do |server|
-              [server, server.shards.merge(scope)]
+              [server, scope.merge(server.shards)]
             end
           else
             scopes = scope.group_by(&:database_server)
           end
-
-          exception_pipes = []
-          pids = []
-          out_fds = []
-          err_fds = []
-          pid_to_name_map = {}
-          fd_to_name_map = {}
-          errors = []
-
-          wait_for_output = lambda do
-            ready, = IO.select(out_fds + err_fds)
-            ready.each do |fd|
-              if fd.eof?
-                fd.close
-                out_fds.delete(fd)
-                err_fds.delete(fd)
-                next
-              end
-              line = fd.readline
-              puts "#{fd_to_name_map[fd]}: #{line}"
-            end
-          end
-
-          # only one process; don't bother forking
-          return with_each_shard(scopes.first.last, classes, exception: exception, &block) if scopes.length == 1
 
           # clear connections prior to forking (no more queries will be executed in the parent,
           # and we want them gone so that we don't accidentally use them post-fork doing something
           # silly like dealloc'ing prepared statements)
           ::ActiveRecord::Base.clear_all_connections!
 
-          scopes.each do |server, subscope|
+          parent_process_name = `ps -ocommand= -p#{Process.pid}`.slice(/#{$0}.*/)
+          ret = ::Parallel.map(scopes, in_processes: scopes.length > 1 ? parallel : 0) do |server, subscope|
             name = server.id
-
-            exception_pipe = IO.pipe
-            exception_pipes << exception_pipe
-            pid, io_in, io_out, io_err = Open4.pfork4(lambda do
-              Switchman.config[:on_fork_proc]&.call
-
-              # set a pretty name for the process title, up to 128 characters
-              # (we don't actually know the limit, depending on how the process
-              # was started)
-              # first, simplify the binary name by stripping directories,
-              # then truncate arguments as necessary
-              bin = File.basename($0) # Process.argv0 doesn't work on Ruby 2.5 (https://bugs.ruby-lang.org/issues/15887)
-              max_length = 128 - bin.length - name.length - 3
-              args = ARGV.join(' ')
-              args = args[0..max_length] if max_length >= 0
-              new_title = [bin, args, name].join(' ')
+            # rubocop:disable Style/GlobalStdStream
+            $stdout = Parallel::PrefixingIO.new(name, STDOUT)
+            $stderr = Parallel::PrefixingIO.new(name, STDERR)
+            # rubocop:enable Style/GlobalStdStream
+            begin
+              max_length = 128 - name.length - 3
+              short_parent_name = parent_process_name[0..max_length] if max_length >= 0
+              new_title = [short_parent_name, name].join(' ')
               Process.setproctitle(new_title)
-
+              Switchman.config[:on_fork_proc]&.call
               with_each_shard(subscope, classes, exception: exception, &block)
-              exception_pipe.last.close
-            rescue Exception => e # rubocop:disable Lint/RescueException
-              begin
-                dumped = Marshal.dump(e)
-                dumped = nil if dumped.length > 64 * 1024
-              rescue
-                dumped = nil
-              end
-
-              if dumped.nil?
-                # couldn't dump the exception; create a copy with just
-                # the message and the backtrace
-                e2 = e.class.new(e.message)
-                backtrace = e.backtrace
-                # truncate excessively long backtraces
-                backtrace = backtrace[0...25] + ['...'] + backtrace[-25..] if backtrace.length > 50
-                e2.set_backtrace(backtrace)
-                e2.instance_variable_set(:@active_shards, e.instance_variable_get(:@active_shards))
-                dumped = Marshal.dump(e2)
-              end
-              exception_pipe.last.set_encoding(dumped.encoding)
-              exception_pipe.last.write(dumped)
-              exception_pipe.last.flush
-              exception_pipe.last.close
-              exit! 1
-            end)
-            exception_pipe.last.close
-            pids << pid
-            io_in.close # don't care about writing to stdin
-            out_fds << io_out
-            err_fds << io_err
-            pid_to_name_map[pid] = name
-            fd_to_name_map[io_out] = name
-            fd_to_name_map[io_err] = name
-
-            while pids.count >= parallel
-              while out_fds.count >= parallel
-                # wait for output if we've hit the parallel limit
-                wait_for_output.call
-              end
-              # we've gotten all the output from one fd so wait for its child process to exit
-              found_pid, status = Process.wait2
-              pids.delete(found_pid)
-              errors << pid_to_name_map[found_pid] if status.exitstatus != 0
+            rescue => e
+              logger.error e.full_message
+              Parallel::QuietExceptionWrapper.new(name, ::Parallel::ExceptionWrapper.new(e))
             end
-            # we've gotten all the output from one fd so wait for its child process to exit
-            found_pid, status = Process.wait2
-            pids.delete(found_pid)
-            errors << pid_to_name_map[found_pid] if status.exitstatus != 0
-          end
+          end.flatten
 
-          wait_for_output.call while out_fds.any? || err_fds.any?
-          pids.each do |pid|
-            _, status = Process.waitpid2(pid)
-            errors << pid_to_name_map[pid] if status.exitstatus != 0
-          end
-
-          # check for an exception; we only re-raise the first one
-          exception_pipes.each do |exception_pipe|
-            serialized_exception = exception_pipe.first.read
-            next if serialized_exception.empty?
-
-            ex = Marshal.load(serialized_exception) # rubocop:disable Security/MarshalLoad
-            raise ex
-          ensure
-            exception_pipe.first.close
-          end
-
+          errors = ret.select { |val| val.is_a?(Parallel::QuietExceptionWrapper) }
           unless errors.empty?
+            raise errors.first.exception if errors.length == 1
+
             raise ParallelShardExecError,
-                  "The following subprocesses did not exit cleanly: #{errors.sort.join(', ')}"
+                  "The following database server(s) did not finish processing cleanly: #{errors.map(&:name).sort.join(', ')}",
+                  cause: errors.first.exception
           end
 
-          return
+          return ret
         end
 
         classes ||= []

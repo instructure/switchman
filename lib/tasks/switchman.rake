@@ -86,10 +86,8 @@ module Switchman
               nil
             end
           rescue => e
-            puts "Exception from #{e.current_shard.id}: #{e.current_shard.description}" if options[:parallel] != 0
+            warn "Exception from #{e.current_shard.id}: #{e.current_shard.description}:\n#{e.full_message}" if options[:parallel] != 0
             raise
-
-            # ::ActiveRecord::Base.configurations = old_configurations
           end
         end
       end

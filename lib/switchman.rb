@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'guard_rail'
-require 'switchman/open4'
+require 'switchman/parallel'
 require 'switchman/engine'
 
 module Switchman

@@ -70,7 +70,10 @@ module Switchman
         Shard.default(reload: true)
         puts 'Done!'
 
+        main_pid = Process.pid
         at_exit do
+          next unless main_pid == Process.pid
+
           # preserve rspec's exit status
           status = $!.is_a?(::SystemExit) ? $!.status : nil
           puts 'Tearing down sharding for all specs'

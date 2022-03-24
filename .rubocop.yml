@@ -7,7 +7,6 @@ AllCops:
   NewCops: enable
   Exclude:
     - 'bin/*'
-    - 'lib/switchman/open4.rb'
 
 Layout/DotPosition:
   EnforcedStyle: trailing

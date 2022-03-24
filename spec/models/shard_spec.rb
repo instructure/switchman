@@ -248,6 +248,19 @@ module Switchman
           expect(User.connected?).to eq true
         end
 
+        it 'tracks errors on multiple database servers' do
+          begin
+            Shard.with_each_shard([Shard.default, @shard2], parallel: true) do
+              raise 'exception'
+            end
+          rescue Switchman::ParallelShardExecError => e
+            expect(e.message).to include(Shard.default.database_server.id)
+            expect(e.message).to include(@shard2.database_server.id)
+            raised = true
+          end
+          expect(raised).to eq true
+        end
+
         it "properly re-raises a PG exception that's not dumpable" do
           begin
             Shard.with_each_shard([Shard.default, @shard2], parallel: true) do
@@ -272,8 +285,7 @@ module Switchman
               x = -> { x.call }
               x.call
             end
-          rescue SystemStackError => e
-            expect(e.backtrace.length).to eq 51
+          rescue SystemStackError
             raised = true
           end
           expect(raised).to eq true

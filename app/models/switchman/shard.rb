@@ -182,7 +182,7 @@ module Switchman
               new_title = [short_parent_name, name].join(' ')
               Process.setproctitle(new_title)
               Switchman.config[:on_fork_proc]&.call
-              with_each_shard(subscope, classes, exception: exception, &block)
+              with_each_shard(subscope, classes, exception: exception, &block).map { |result| Parallel::ResultWrapper.new(result) }
             rescue => e
               logger.error e.full_message
               Parallel::QuietExceptionWrapper.new(name, ::Parallel::ExceptionWrapper.new(e))
@@ -198,7 +198,7 @@ module Switchman
                   cause: errors.first.exception
           end
 
-          return ret
+          return ret.map(&:result)
         end
 
         classes ||= []

@@ -248,6 +248,17 @@ module Switchman
           expect(User.connected?).to eq true
         end
 
+        it 'handles undumpable results' do
+          res = Shard.with_each_shard([Shard.default, @shard2], parallel: true) do
+            -> { 'result' }
+          end
+          expect(res.length).to eq(2)
+          res.each do |entry|
+            expect(entry).to be_a(Parallel::UndumpableResult)
+            expect(entry.inspect).to include('Proc')
+          end
+        end
+
         it 'tracks errors on multiple database servers' do
           begin
             Shard.with_each_shard([Shard.default, @shard2], parallel: true) do

@@ -25,6 +25,31 @@ module Switchman
       end
     end
 
+    class UndumpableResult
+      attr_reader :name
+
+      def initialize(result)
+        @name = result.inspect
+      end
+
+      def inspect
+        "#<UndumpableResult:#{name}>"
+      end
+    end
+
+    class ResultWrapper
+      attr_reader :result
+
+      def initialize(result)
+        @result =
+          begin
+            Marshal.dump(result) && result
+          rescue
+            UndumpableResult.new(result)
+          end
+      end
+    end
+
     class PrefixingIO
       delegate_missing_to :@original_io
 

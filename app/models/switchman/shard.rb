@@ -407,6 +407,7 @@ module Switchman
 
           klass.connects_to shards: connects_to_hash
         end
+        DatabaseServer.all.each { |db| db.guard! if db.config[:prefer_secondary] } unless @sharding_initialized
 
         @sharding_initialized = true
       end

@@ -14,9 +14,7 @@ module Switchman
 
       def delete
         db = shard.database_server
-        return db.unguard { super } unless ::GuardRail.environment == db.guard_rail_environment
-
-        super
+        db.unguard { super }
       end
     end
   end

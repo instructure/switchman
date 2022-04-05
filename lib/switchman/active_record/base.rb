@@ -28,19 +28,11 @@ module Switchman
           if self != ::ActiveRecord::Base && current_scope
             current_scope.activate do
               db = Shard.current(connection_classes).database_server
-              if ::GuardRail.environment == db.guard_rail_environment
-                super
-              else
-                db.unguard { super }
-              end
+              db.unguard { super }
             end
           else
             db = Shard.current(connection_classes).database_server
-            if ::GuardRail.environment == db.guard_rail_environment
-              super
-            else
-              db.unguard { super }
-            end
+            db.unguard { super }
           end
         end
 
@@ -66,6 +58,28 @@ module Switchman
           ::ActiveRecord::Base.connection_handler.connection_pool_list.each do |pool|
             pool.connection(switch_shard: false).clear_query_cache if pool.active_connection?
           end
+        end
+
+        def current_role_overriden?
+          current_role != current_role(without_overrides: true)
+        end
+
+        # significant change: Allow per-shard roles
+        def current_role(without_overrides: false)
+          return super() if without_overrides
+
+          sharded_role = nil
+          connected_to_stack.reverse_each do |hash|
+            shard_role = hash.dig(:shard_roles, current_shard)
+            if shard_role && (hash[:klasses].include?(Base) || hash[:klasses].include?(connection_classes))
+              sharded_role = shard_role
+              break
+            end
+          end
+          # Allow a shard-specific role to be reverted to regular inheritance
+          return sharded_role if sharded_role && sharded_role != :_switchman_inherit
+
+          super()
         end
 
         # significant change: _don't_ check if klasses.include?(Base)
@@ -146,7 +160,8 @@ module Switchman
 
       def with_transaction_returning_status
         shard.activate(self.class.connection_classes) do
-          super
+          db = Shard.current(self.class.connection_classes).database_server
+          db.unguard { super }
         end
       end
 
@@ -167,9 +182,7 @@ module Switchman
 
       def update_columns(*)
         db = shard.database_server
-        return db.unguard { super } if ::GuardRail.environment != db.guard_rail_environment
-
-        super
+        db.unguard { super }
       end
 
       def id_for_database

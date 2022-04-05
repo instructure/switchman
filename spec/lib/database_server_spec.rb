@@ -73,31 +73,25 @@ module Switchman
       end
     end
 
-    describe '#guard_rail_environment' do
-      it 'inherits from GuardRail.environment' do
-        ds = DatabaseServer.new
-        expect(ds.guard_rail_environment).to eq :primary
-        ::GuardRail.activate(:secondary) do
-          expect(ds.guard_rail_environment).to eq :secondary
-        end
-      end
-
+    describe 'guarding' do
       it 'overrides GuardRail.environment when explicitly set' do
-        ds = DatabaseServer.new
+        ds = Shard.default.database_server
         ds.guard!
-        expect(ds.guard_rail_environment).to eq :secondary
+        expect(::ActiveRecord::Base.current_role).to eq :secondary
         ds.unguard do
-          expect(ds.guard_rail_environment).to eq :primary
+          expect(::ActiveRecord::Base.current_role).to eq :primary
         end
-        expect(ds.guard_rail_environment).to eq :secondary
+        expect(::ActiveRecord::Base.current_role).to eq :secondary
         ::GuardRail.activate(:secondary) do
-          expect(ds.guard_rail_environment).to eq :secondary
+          expect(::ActiveRecord::Base.current_role).to eq :secondary
           ds.unguard do
-            expect(ds.guard_rail_environment).to eq :secondary
+            expect(::ActiveRecord::Base.current_role).to eq :secondary
           end
-          expect(ds.guard_rail_environment).to eq :secondary
+          expect(::ActiveRecord::Base.current_role).to eq :secondary
         end
-        expect(ds.guard_rail_environment).to eq :secondary
+        expect(::ActiveRecord::Base.current_role).to eq :secondary
+      ensure
+        ds.unguard!
       end
     end
 

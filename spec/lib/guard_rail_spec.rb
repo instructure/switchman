@@ -7,6 +7,8 @@ module Switchman
     include RSpecHelper
 
     it 'connects to the first working secondary' do
+      skip 'This is not currently supported, though it would probably be nice to bring back'
+
       ds = DatabaseServer.create(Shard.default.database_server.config.merge(
                                    secondary: [{ host: 'some.postgres.server' }, nil]
                                  ))
@@ -20,8 +22,9 @@ module Switchman
 
     it 'unguards the appropriate connection when the scope changes connections' do
       Shard.default.database_server.guard!
+      expect(::ActiveRecord::Base.current_role).to eq :secondary
       @shard2.activate do
-        expect(Shard.default.database_server.guard_rail_environment).to eq :secondary
+        expect(::ActiveRecord::Base.current_role).to eq :primary
         expect(::GuardRail.environment).to eq :primary
 
         expect(Shard.default.database_server).to receive(:unguard).once
@@ -33,13 +36,13 @@ module Switchman
 
     it 'unguards for FOR UPDATE queries' do
       Shard.default.database_server.guard!
-      expect(Shard.default.database_server.guard_rail_environment).to eq :secondary
+      expect(::ActiveRecord::Base.current_role).to eq :secondary
 
       u = User.create!
-      expect(Shard.default.database_server).to receive(:unguard).once.and_return([])
+      expect(Shard.default.database_server).to receive(:unguard).once.and_call_original
       User.lock.first
-      expect(Shard.default.database_server).to receive(:unguard).once.and_return([])
-      expect { u.lock! }.to raise_error(::ActiveRecord::RecordNotFound)
+      expect(Shard.default.database_server).to receive(:unguard).once.and_call_original
+      u.lock!
     ensure
       Shard.default.database_server.unguard!
     end
@@ -62,8 +65,10 @@ module Switchman
 
     it 'unguards update_record queries when a different shard is active' do
       Shard.default.database_server.guard!
-      expect(Shard.default.database_server.guard_rail_environment).to eq :secondary
-      expect(@shard2.database_server.guard_rail_environment).to eq :primary
+      expect(::ActiveRecord::Base.current_role).to eq :secondary
+      @shard2.activate do
+        expect(::ActiveRecord::Base.current_role).to eq :primary
+      end
 
       u = User.create!
       @shard2.activate do
@@ -76,7 +81,7 @@ module Switchman
 
     it 'unguards delete queries' do
       Shard.default.database_server.guard!
-      expect(Shard.default.database_server.guard_rail_environment).to eq :secondary
+      expect(::ActiveRecord::Base.current_role).to eq :secondary
 
       u = User.create!
       expect(Shard.default.database_server).to receive(:unguard).once.and_return([])

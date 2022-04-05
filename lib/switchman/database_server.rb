@@ -129,27 +129,26 @@ module Switchman
         end
     end
 
-    def guard_rail_environment
-      @guard_rail_environment || ::GuardRail.environment
-    end
-
     # locks this db to a specific environment, except for
     # when doing writes (then it falls back to the current
     # value of GuardRail.environment)
     def guard!(environment = :secondary)
-      @guard_rail_environment = environment
+      ::ActiveRecord::Base.connected_to_stack << { shard_roles: { id.to_sym => environment }, klasses: [::ActiveRecord::Base] }
     end
 
     def unguard!
-      @guard_rail_environment = nil
+      ::ActiveRecord::Base.connected_to_stack << { shard_roles: { id.to_sym => :_switchman_inherit }, klasses: [::ActiveRecord::Base] }
     end
 
     def unguard
-      old_env = @guard_rail_environment
-      unguard!
-      yield
-    ensure
-      guard!(old_env)
+      return yield unless ::ActiveRecord::Base.current_role_overriden?
+
+      begin
+        unguard!
+        yield
+      ensure
+        ::ActiveRecord::Base.connected_to_stack.pop
+      end
     end
 
     def shards

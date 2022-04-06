@@ -27,7 +27,9 @@ module Switchman
         return configs if configs.is_a?(Array)
 
         db_configs = configs.flat_map do |env_name, config|
-          roles = config.keys.select { |k| config[k].is_a?(Hash) }
+          # It would be nice to do the auto-fallback that we want here, but we haven't
+          # actually done that for years (or maybe ever) and it will be a big lift to get working
+          roles = config.keys.select { |k| config[k].is_a?(Hash) || (config[k].is_a?(Array) && config[k].all? { |ck| ck.is_a?(Hash) }) }
           base_config = config.except(*roles)
 
           name = "#{env_name}/primary"
@@ -35,7 +37,7 @@ module Switchman
           base_db = build_db_config_from_raw_config(env_name, name, base_config)
           [base_db] + roles.map do |role|
             build_db_config_from_raw_config(env_name, "#{env_name}/#{role}",
-                                            base_config.merge(config[role]))
+                                            base_config.merge(config[role].is_a?(Array) ? config[role].first : config[role]))
           end
         end
 

@@ -71,7 +71,7 @@ module Switchman
             if role == 'primary'
               @database_servers[name] = DatabaseServer.new(config.env_name, config.configuration_hash)
             else
-              @database_servers[name].roles << role
+              @database_servers[name].roles << role.to_sym
             end
           end
         end

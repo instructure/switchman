@@ -2,6 +2,6 @@
 
 module Switchman
   class UnshardedRecord < ::ActiveRecord::Base
-    sharded_model
+    self.abstract_class = true
   end
 end

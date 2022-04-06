@@ -264,7 +264,7 @@ module Switchman
             Shard.with_each_shard([Shard.default, @shard2], parallel: true) do
               raise 'exception'
             end
-          rescue Switchman::ParallelShardExecError => e
+          rescue Switchman::Errors::ParallelShardExecError => e
             expect(e.message).to include(Shard.default.database_server.id)
             expect(e.message).to include(@shard2.database_server.id)
             raised = true

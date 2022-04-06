@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'switchman/sharded_instrumenter'
-
 module Switchman
   module ActiveRecord
     module AbstractAdapter

@@ -1,10 +1,5 @@
 # frozen_string_literal: true
 
-require 'switchman/database_server'
-require 'switchman/default_shard'
-require 'switchman/environment'
-require 'switchman/errors'
-
 module Switchman
   class Shard < UnshardedRecord
     # ten trillion possible ids per shard. yup.
@@ -42,12 +37,9 @@ module Switchman
           # Now find the actual record, if it exists
           @default = begin
             find_cached('default_shard') { Shard.where(default: true).take } || default
-          # If we are *super* early in boot, the connection pool won't exist; we don't want to fill in the default shard yet
-          # Otherwise, rescue the fake default if the table doesn't exist
           rescue
-            sharding_initialized ? default : nil
+            default
           end
-          return default unless @default
 
           # make sure this is not erroneously cached
           @default.database_server.remove_instance_variable(:@primary_shard) if @default.database_server.instance_variable_defined?(:@primary_shard)
@@ -193,7 +185,7 @@ module Switchman
           unless errors.empty?
             raise errors.first.exception if errors.length == 1
 
-            raise ParallelShardExecError,
+            raise Errors::ParallelShardExecError,
                   "The following database server(s) did not finish processing cleanly: #{errors.map(&:name).sort.join(', ')}",
                   cause: errors.first.exception
           end
@@ -374,10 +366,6 @@ module Switchman
         shard || source_shard || Shard.current
       end
 
-      def sharding_initialized
-        @sharding_initialized ||= false
-      end
-
       private
 
       def add_sharded_model(klass)
@@ -407,13 +395,6 @@ module Switchman
 
           klass.connects_to shards: connects_to_hash
         end
-
-        return if @sharding_initialized
-
-        # If we hadn't initialized sharding yet, the servers won't be guarded
-        # The order matters here or guard_servers will be a noop
-        @sharding_initialized = true
-        DatabaseServer.guard_servers
       end
 
       # in-process caching

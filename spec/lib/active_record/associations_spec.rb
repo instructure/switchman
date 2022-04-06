@@ -4,7 +4,7 @@ require 'spec_helper'
 
 module Switchman
   module ActiveRecord
-    describe Association do
+    describe Associations do
       include RSpecHelper
 
       before do

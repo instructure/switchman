@@ -8,13 +8,10 @@ module Switchman
 
     class << self
       attr_accessor :creating_new_shard
+      attr_reader :all_roles
 
       def all
         database_servers.values
-      end
-
-      def all_roles
-        @all_roles ||= all.map(&:roles).flatten.uniq
       end
 
       def find(id_or_all)
@@ -65,19 +62,26 @@ module Switchman
       def database_servers
         if !@database_servers || @database_servers.empty?
           @database_servers = {}.with_indifferent_access
+          roles = []
           ::ActiveRecord::Base.configurations.configurations.each do |config|
             if config.name.include?('/')
               name, role = config.name.split('/')
             else
               name, role = config.env_name, config.name
             end
+            role = role.to_sym
 
-            if role == 'primary'
+            roles << role
+            if role == :primary
               @database_servers[name] = DatabaseServer.new(config.env_name, config.configuration_hash)
             else
-              @database_servers[name].roles << role.to_sym
+              @database_servers[name].roles << role
             end
           end
+          # Do this after so that all database servers for all roles are established and we won't prematurely
+          # configure a connection for the wrong role
+          @all_roles = roles.uniq
+          Shard.send(:initialize_sharding)
         end
         @database_servers
       end

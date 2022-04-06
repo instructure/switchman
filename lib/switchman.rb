@@ -1,8 +1,21 @@
 # frozen_string_literal: true
 
 require 'guard_rail'
-require 'switchman/parallel'
-require 'switchman/engine'
+require 'zeitwerk'
+
+class SwitchmanInflector < Zeitwerk::GemInflector
+  def camelize(basename, abspath)
+    if basename =~ /\Apostgresql_(.*)/
+      'PostgreSQL' + super($1, abspath)
+    else
+      super
+    end
+  end
+end
+
+loader = Zeitwerk::Loader.for_gem
+loader.inflector = SwitchmanInflector.new(__FILE__)
+loader.setup
 
 module Switchman
   def self.config
@@ -20,3 +33,6 @@ module Switchman
 
   class OrderOnMultiShardQuery < RuntimeError; end
 end
+
+# Load the engine and everything associated at gem load time
+Switchman::Engine

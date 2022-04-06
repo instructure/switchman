@@ -12,11 +12,7 @@ module Switchman
       begin
         Thread.current[:switchman_error_handler] = true
 
-        begin
-          @active_shards ||= Shard.active_shards if defined?(Shard)
-        rescue
-          # If we hit an error really early in boot, activerecord may not be initialized yet
-        end
+        @active_shards ||= Shard.active_shards
       ensure
         Thread.current[:switchman_error_handler] = nil
       end

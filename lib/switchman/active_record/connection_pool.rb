@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'switchman/errors'
-
 module Switchman
   module ActiveRecord
     module ConnectionPool
@@ -20,7 +18,7 @@ module Switchman
 
       def connection(switch_shard: true)
         conn = super()
-        raise NonExistentShardError if current_shard.new_record?
+        raise Errors::NonExistentShardError if current_shard.new_record?
 
         switch_database(conn) if conn.shard != current_shard && switch_shard
         conn

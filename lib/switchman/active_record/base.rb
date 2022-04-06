@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'switchman/database_server'
-
 module Switchman
   module ActiveRecord
     module Base
@@ -15,8 +13,6 @@ module Switchman
 
         def sharded_model
           self.abstract_class = true
-
-          return if self == UnshardedRecord
 
           Shard.send(:add_sharded_model, self)
         end
@@ -64,6 +60,21 @@ module Switchman
 
         def current_role_overriden?
           current_role != current_role(without_overrides: true)
+        end
+
+        def establish_connection(config_or_env = nil)
+          raise ArgumentError, 'establish connection cannot be used on the non-current shard/role' if config_or_env.is_a?(Symbol) && config_or_env != ::Rails.env.to_sym
+
+          # Ensure we don't randomly surprise change the connection parms associated with a shard/role
+          config_or_env = nil if config_or_env == ::Rails.env.to_sym
+
+          config_or_env ||= if current_shard == ::Rails.env.to_sym && current_role == :primary
+                              :primary
+                            else
+                              "#{current_shard}/#{current_role}".to_sym
+                            end
+
+          super(config_or_env)
         end
 
         def connected_to_stack

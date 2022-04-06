@@ -27,7 +27,7 @@ module Switchman
 
       it 'raises an error when a non-existent shard is activated' do
         Shard.new.activate do
-          expect { User.count }.to raise_error(NonExistentShardError)
+          expect { User.count }.to raise_error(Errors::NonExistentShardError)
         end
       end
 

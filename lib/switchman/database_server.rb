@@ -49,6 +49,10 @@ module Switchman
         servers[rand(servers.length)]
       end
 
+      def guard_servers
+        all.each { |db| db.guard! if db.config[:prefer_secondary] } if Shard.sharding_initialized
+      end
+
       private
 
       def reference_role(role)
@@ -133,6 +137,7 @@ module Switchman
     # when doing writes (then it falls back to the current
     # value of GuardRail.environment)
     def guard!(environment = :secondary)
+      DatabaseServer.send(:reference_role, environment)
       ::ActiveRecord::Base.connected_to_stack << { shard_roles: { id.to_sym => environment }, klasses: [::ActiveRecord::Base] }
     end
 

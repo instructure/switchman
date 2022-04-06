@@ -64,6 +64,17 @@ module Switchman
           current_role != current_role(without_overrides: true)
         end
 
+        def connected_to_stack
+          ret = super
+          # Really early in boot, DatabaseServer may not be loaded yet,
+          # which is fine since we will guard when we initialize sharding in that case
+          return ret unless const_defined?(:DatabaseServer)
+          return ret if Thread.current.thread_variable?(:ar_connected_to_stack)
+
+          DatabaseServer.guard_servers
+          ret
+        end
+
         # significant change: Allow per-shard roles
         def current_role(without_overrides: false)
           return super() if without_overrides

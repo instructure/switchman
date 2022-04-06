@@ -374,11 +374,11 @@ module Switchman
         shard || source_shard || Shard.current
       end
 
-      private
-
       def sharding_initialized
         @sharding_initialized ||= false
       end
+
+      private
 
       def add_sharded_model(klass)
         @sharded_models = (sharded_models + [klass]).freeze
@@ -407,9 +407,13 @@ module Switchman
 
           klass.connects_to shards: connects_to_hash
         end
-        DatabaseServer.all.each { |db| db.guard! if db.config[:prefer_secondary] } unless @sharding_initialized
 
+        return if @sharding_initialized
+
+        # If we hadn't initialized sharding yet, the servers won't be guarded
+        # The order matters here or guard_servers will be a noop
         @sharding_initialized = true
+        DatabaseServer.guard_servers
       end
 
       # in-process caching

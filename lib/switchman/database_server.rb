@@ -50,7 +50,7 @@ module Switchman
       end
 
       def guard_servers
-        all.each { |db| db.guard! if db.config[:prefer_secondary] } if Shard.sharding_initialized
+        all.each { |db| db.guard! if db.config[:prefer_secondary] }
       end
 
       private

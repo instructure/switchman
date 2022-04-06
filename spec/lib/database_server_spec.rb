@@ -96,6 +96,18 @@ module Switchman
       ensure
         ds.unguard!
       end
+
+      it 'overrides GuardRail.environment cross-thread' do
+        ds = Shard.default.database_server
+        config = ds.config.dup
+        config[:prefer_secondary] = true
+        allow(ds).to receive(:config).and_return(config)
+
+        thr = Thread.new do
+          expect(::ActiveRecord::Base.current_role).to eq :secondary
+        end
+        thr.join
+      end
     end
 
     describe '#cache_store' do

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'switchman/database_server'
+
 module Switchman
   module ActiveRecord
     module Base
@@ -65,12 +67,9 @@ module Switchman
         end
 
         def connected_to_stack
-          ret = super
-          # Really early in boot, DatabaseServer may not be loaded yet,
-          # which is fine since we will guard when we initialize sharding in that case
-          return ret unless const_defined?(:DatabaseServer)
-          return ret if Thread.current.thread_variable?(:ar_connected_to_stack)
+          return super if Thread.current.thread_variable?(:ar_connected_to_stack)
 
+          ret = super
           DatabaseServer.guard_servers
           ret
         end

@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    switchman (3.0.17)
+    switchman (3.0.18)
       activerecord (>= 6.1.4, < 6.2)
       guardrail (~> 3.0.0)
       parallel (~> 1.22)

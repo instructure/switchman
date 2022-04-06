@@ -71,7 +71,7 @@ module Switchman
           sharded_role = nil
           connected_to_stack.reverse_each do |hash|
             shard_role = hash.dig(:shard_roles, current_shard)
-            if shard_role && (hash[:klasses].include?(Base) || hash[:klasses].include?(connection_classes))
+            if shard_role && (hash[:klasses].include?(::ActiveRecord::Base) || hash[:klasses].include?(connection_classes))
               sharded_role = shard_role
               break
             end

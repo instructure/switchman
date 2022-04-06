@@ -78,8 +78,11 @@ module Switchman
         ds = Shard.default.database_server
         ds.guard!
         expect(::ActiveRecord::Base.current_role).to eq :secondary
+        expect(Shard.current_role).to eq :secondary
         ds.unguard do
           expect(::ActiveRecord::Base.current_role).to eq :primary
+          # Ensure it also applies to different connection classes
+          expect(Shard.current_role).to eq :primary
         end
         expect(::ActiveRecord::Base.current_role).to eq :secondary
         ::GuardRail.activate(:secondary) do

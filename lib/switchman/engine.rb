@@ -10,7 +10,12 @@ module Switchman
 
     ::GuardRail.singleton_class.prepend(GuardRail::ClassMethods)
 
-    initializer 'switchman.active_record_patch', before: 'active_record.initialize_database' do
+    # after :initialize_dependency_mechanism to ensure autoloading is configured for any downstream initializers that care
+    # In rails 7.0 we should be able to just use an explicit after on configuring the once autoloaders and not need to go monkey around with initializer order
+    initialize_dependency_mechanism = ::Rails::Application::Bootstrap.initializers.find { |i| i.name == :initialize_dependency_mechanism }
+    initialize_dependency_mechanism.instance_variable_get(:@options)[:after] = :set_autoload_paths
+
+    initializer 'switchman.active_record_patch', before: 'active_record.initialize_database', after: :initialize_dependency_mechanism do
       ::ActiveSupport.on_load(:active_record) do
         # Switchman requires postgres, so just always load the pg adapter
         require 'active_record/connection_adapters/postgresql_adapter'
@@ -96,7 +101,7 @@ module Switchman
       end
     end
 
-    initializer 'switchman.initialize_cache', before: 'initialize_cache', after: 'switchman.active_record_patch' do
+    initializer 'switchman.initialize_cache', before: :initialize_cache, after: 'active_record.initialize_database' do
       ::ActiveSupport::Cache.singleton_class.prepend(ActiveSupport::Cache::ClassMethods)
 
       # if we haven't already setup our cache map out-of-band, set it up from

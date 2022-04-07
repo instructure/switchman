@@ -4,6 +4,22 @@ module Switchman
   module ActiveSupport
     module Cache
       module ClassMethods
+        def lookup_stores(cache_store_config)
+          result = {}
+          cache_store_config.each do |key, value|
+            next if value.is_a?(String)
+
+            result[key] = ::ActiveSupport::Cache.lookup_store(value)
+          end
+
+          cache_store_config.each do |key, value| # rubocop:disable Style/CombinableLoops
+            next unless value.is_a?(String)
+
+            result[key] = result[value]
+          end
+          result
+        end
+
         def lookup_store(*store_options)
           store = super
           # can't use defined?, because it's a _ruby_ autoloaded constant,

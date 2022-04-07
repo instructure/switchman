@@ -35,7 +35,7 @@ module Switchman
         database_servers[server.id] = server
         ::ActiveRecord::Base.configurations.configurations <<
           ::ActiveRecord::DatabaseConfigurations::HashConfig.new(::Rails.env, "#{server.id}/primary", settings)
-        Shard.send(:initialize_sharding)
+        Shard.send(:configure_connects_to)
         server
       end
 
@@ -56,7 +56,7 @@ module Switchman
         return if all_roles.include?(role)
 
         @all_roles << role
-        Shard.send(:initialize_sharding)
+        Shard.send(:configure_connects_to)
       end
 
       def database_servers
@@ -81,7 +81,7 @@ module Switchman
           # Do this after so that all database servers for all roles are established and we won't prematurely
           # configure a connection for the wrong role
           @all_roles = roles.uniq
-          Shard.send(:initialize_sharding)
+          Shard.send(:configure_connects_to)
         end
         @database_servers
       end

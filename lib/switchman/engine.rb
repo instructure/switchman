@@ -8,22 +8,6 @@ module Switchman
     config.active_record.legacy_connection_handling = false
     config.active_record.writing_role = :primary
 
-    def self.lookup_stores(cache_store_config)
-      result = {}
-      cache_store_config.each do |key, value|
-        next if value.is_a?(String)
-
-        result[key] = ::ActiveSupport::Cache.lookup_store(value)
-      end
-
-      cache_store_config.each do |key, value| # rubocop:disable Style/CombinableLoops
-        next unless value.is_a?(String)
-
-        result[key] = result[value]
-      end
-      result
-    end
-
     ::GuardRail.singleton_class.prepend(GuardRail::ClassMethods)
 
     initializer 'switchman.active_record_patch', before: 'active_record.initialize_database' do
@@ -124,7 +108,7 @@ module Switchman
         cache_store_config = ::Rails.configuration.cache_store
         cache_store_config = { ::Rails.env => cache_store_config } unless cache_store_config.is_a?(Hash)
 
-        Switchman.config[:cache_map] = Engine.lookup_stores(cache_store_config)
+        Switchman.config[:cache_map] = ::ActiveSupport::Cache.lookup_stores(cache_store_config)
       end
 
       # if the configured cache map (either from before, or as populated from
@@ -154,10 +138,6 @@ module Switchman
       ::ActiveSupport.on_load(:action_controller) do
         ::ActionController::Base.include(ActionController::Caching)
       end
-    end
-
-    def self.foreign_key_check(name, type, limit: nil)
-      puts "WARNING: All foreign keys need to be 8-byte integers. #{name} looks like a foreign key. If so, please add the option: `:limit => 8`" if name.to_s =~ /_id\z/ && type.to_s == 'integer' && limit.to_i < 8
     end
   end
 end

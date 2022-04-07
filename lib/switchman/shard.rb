@@ -370,10 +370,10 @@ module Switchman
 
       def add_sharded_model(klass)
         @sharded_models = (sharded_models + [klass]).freeze
-        initialize_sharding
+        configure_connects_to
       end
 
-      def initialize_sharding
+      def configure_connects_to
         full_connects_to_hash = DatabaseServer.all.to_h { |db| [db.id.to_sym, db.connects_to_hash] }
         sharded_models.each do |klass|
           connects_to_hash = full_connects_to_hash.deep_dup

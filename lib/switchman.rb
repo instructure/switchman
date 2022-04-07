@@ -31,6 +31,10 @@ module Switchman
     @cache = cache
   end
 
+  def self.foreign_key_check(name, type, limit: nil)
+    puts "WARNING: All foreign keys need to be 8-byte integers. #{name} looks like a foreign key. If so, please add the option: `:limit => 8`" if name.to_s =~ /_id\z/ && type.to_s == 'integer' && limit.to_i < 8
+  end
+
   class OrderOnMultiShardQuery < RuntimeError; end
 end
 

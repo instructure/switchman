@@ -150,7 +150,7 @@ module Switchman
     end
 
     def unguard
-      return yield unless ::ActiveRecord::Base.current_role_overriden?
+      return yield unless ::ActiveRecord::Base.role_overriden?(id.to_sym)
 
       begin
         unguard!

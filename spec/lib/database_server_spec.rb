@@ -74,6 +74,8 @@ module Switchman
     end
 
     describe 'guarding' do
+      include RSpecHelper
+
       it 'overrides GuardRail.environment when explicitly set' do
         ds = Shard.default.database_server
         ds.guard!
@@ -95,6 +97,22 @@ module Switchman
         expect(::ActiveRecord::Base.current_role).to eq :secondary
       ensure
         ds.unguard!
+      end
+
+      it 'works regardless of the current active shard' do
+        ds = Shard.default.database_server
+        ds.guard!
+        expect(::ActiveRecord::Base.current_role).to eq :secondary
+        expect(Shard.current_role).to eq :secondary
+        @shard2.activate do
+          ds.unguard do
+            Shard.default.activate do
+              expect(::ActiveRecord::Base.current_role).to eq :primary
+              # Ensure it also applies to different connection classes
+              expect(Shard.current_role).to eq :primary
+            end
+          end
+        end
       end
 
       it 'overrides GuardRail.environment cross-thread' do

@@ -58,8 +58,8 @@ module Switchman
           end
         end
 
-        def current_role_overriden?
-          current_role != current_role(without_overrides: true)
+        def role_overriden?(shard_id)
+          current_role(target_shard: shard_id) != current_role(without_overrides: true)
         end
 
         def establish_connection(config_or_env = nil)
@@ -86,12 +86,12 @@ module Switchman
         end
 
         # significant change: Allow per-shard roles
-        def current_role(without_overrides: false)
+        def current_role(without_overrides: false, target_shard: current_shard)
           return super() if without_overrides
 
           sharded_role = nil
           connected_to_stack.reverse_each do |hash|
-            shard_role = hash.dig(:shard_roles, current_shard)
+            shard_role = hash.dig(:shard_roles, target_shard)
             if shard_role && (hash[:klasses].include?(::ActiveRecord::Base) || hash[:klasses].include?(connection_classes))
               sharded_role = shard_role
               break

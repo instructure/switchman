@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    switchman (3.1.0)
+    switchman (3.1.1)
       activerecord (>= 6.1.4, < 7.1)
       guardrail (~> 3.0.1)
       parallel (~> 1.22)
@@ -46,7 +46,7 @@ GEM
     diff-lcs (1.5.0)
     docile (1.4.0)
     erubi (1.10.0)
-    guardrail (3.0.1)
+    guardrail (3.0.2)
       activerecord (>= 6.1, < 7.1)
       railties (>= 6.1, < 7.1)
     i18n (1.10.0)
@@ -150,4 +150,4 @@ DEPENDENCIES
   switchman!
 
 BUNDLED WITH
-   2.2.32
+   2.3.14

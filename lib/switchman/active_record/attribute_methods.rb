@@ -256,20 +256,6 @@ module Switchman
           attribute(attr_name)
         end
       end
-
-      private
-
-      def connection_class_for_self_for_reflection(reflection)
-        if reflection
-          if reflection.options[:polymorphic]
-            read_attribute(reflection.foreign_type)&.constantize&.connection_class_for_self
-          else
-            reflection.klass.connection_class_for_self
-          end
-        else
-          self.class.connection_class_for_self
-        end
-      end
     end
   end
 end

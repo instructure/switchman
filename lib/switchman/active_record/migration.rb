@@ -20,13 +20,15 @@ module Switchman
     end
 
     module Migrator
-      # significant change: just return MIGRATOR_SALT directly
-      # especially if you're going through pgbouncer, the database
-      # name you're accessing may not be consistent. it is NOT allowed
-      # to run migrations against multiple shards in the same database
-      # concurrently
+      # significant change: use the shard name instead of the database name
+      # in the lock id. Especially if you're going through pgbouncer, the
+      # database name you're accessing may not be consistent
       def generate_migrator_advisory_lock_id
-        ::ActiveRecord::Migrator::MIGRATOR_SALT
+        db_name_hash = Zlib.crc32(Shard.current.name)
+        shard_name_hash = ::ActiveRecord::Migrator::MIGRATOR_SALT * db_name_hash
+        # Store in internalmetadata to allow other tools to be able to lock out migrations
+        ::ActiveRecord::InternalMetadata[:migrator_advisory_lock_id] = shard_name_hash
+        shard_name_hash
       end
 
       # significant change: strip out prefer_secondary from config

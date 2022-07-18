@@ -138,7 +138,31 @@ module Switchman
                    else
                      Shard.current(self.class.connection_class_for_self)
                    end
+        readonly! if shadow_record?
         super
+      end
+
+      def shadow_record?
+        pkey = self[self.class.primary_key]
+        return false unless self.class.sharded_column?(self.class.primary_key) && pkey
+
+        pkey > Shard::IDS_PER_SHARD
+      end
+
+      def save_shadow_record(new_attrs: attributes, target_shard: Shard.current)
+        return if target_shard == shard
+
+        shadow_attrs = {}
+        new_attrs.each do |attr, value|
+          shadow_attrs[attr] = if self.class.sharded_column?(attr)
+                                 Shard.relative_id_for(value, shard, target_shard)
+                               else
+                                 value
+                               end
+        end
+        target_shard.activate do
+          self.class.upsert(shadow_attrs, unique_by: self.class.primary_key)
+        end
       end
 
       def shard

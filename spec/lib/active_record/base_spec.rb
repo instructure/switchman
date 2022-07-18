@@ -152,6 +152,37 @@ module Switchman
         end
       end
 
+      # Note this also tests `save_shadow_record` through the after hook on user.rb
+      describe '.shadow_record?' do
+        it 'correctly identifies shadow records' do
+          user = User.new
+          user.name = 'a great name'
+          user.shard = @shard2
+          user.save!
+
+          shadow_user = User.where('id=?', user.id).first
+          expect(shadow_user.name).to eq(user.name)
+          expect(user.shadow_record?).to be(false)
+          expect(shadow_user.shadow_record?).to be(true)
+
+          @shard2.activate do
+            expect(user.shadow_record?).to be(false)
+            expect(shadow_user.shadow_record?).to be(true)
+          end
+        end
+
+        it 'loads shadow records as readonly' do
+          user = User.new
+          user.name = 'a great name'
+          user.shard = @shard2
+          user.save!
+
+          shadow_user = User.where('id=?', user.id).first
+          expect(shadow_user.name).to eq(user.name)
+          expect(shadow_user.readonly?).to be(true)
+        end
+      end
+
       describe '.unscoped' do
         it "doesn't capture the shard permanently (block form)" do
           @shard1.activate do

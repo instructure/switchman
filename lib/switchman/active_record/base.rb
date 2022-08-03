@@ -22,16 +22,20 @@ module Switchman
           @integral_id
         end
 
-        def transaction(**)
-          if self != ::ActiveRecord::Base && current_scope
-            current_scope.activate do
-              db = Shard.current(connection_class_for_self).database_server
-              db.unguard { super }
+        %w[transaction insert_all upsert_all].each do |method|
+          class_eval <<-RUBY, __FILE__, __LINE__ + 1
+            def #{method}(*, **)
+              if self != ::ActiveRecord::Base && current_scope
+                current_scope.activate do
+                  db = Shard.current(connection_class_for_self).database_server
+                  db.unguard { super }
+                end
+              else
+                db = Shard.current(connection_class_for_self).database_server
+                db.unguard { super }
+              end
             end
-          else
-            db = Shard.current(connection_class_for_self).database_server
-            db.unguard { super }
-          end
+          RUBY
         end
 
         def reset_column_information
@@ -138,7 +142,7 @@ module Switchman
                    else
                      Shard.current(self.class.connection_class_for_self)
                    end
-        readonly! if shadow_record?
+        readonly! if shadow_record? && !Switchman.config[:writable_shadow_records]
         super
       end
 

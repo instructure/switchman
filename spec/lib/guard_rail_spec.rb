@@ -90,6 +90,19 @@ module Switchman
       Shard.default.database_server.unguard!
     end
 
+    it 'unguards shadow_record creation queries' do
+      Shard.default.database_server.guard!
+      expect(::ActiveRecord::Base.current_role).to eq :secondary
+
+      u = User.new
+      u.name = 'a great name'
+      u.shard = @shard2
+      expect(Shard.default.database_server).to receive(:unguard).once.and_return([])
+      u.save!
+    ensure
+      Shard.default.database_server.unguard!
+    end
+
     it 'tracks all activated environments' do
       ::GuardRail.activate(:secondary) {}
       ::GuardRail.activate(:custom) {}

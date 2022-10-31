@@ -99,7 +99,7 @@ module Switchman
             if reflection.options[:polymorphic]
               # a polymorphic association has to be discovered at runtime. This code ends up being something like
               # context_type.&.constantize&.connection_class_for_self
-              "read_attribute(:#{reflection.foreign_type})&.constantize&.connection_class_for_self"
+              "begin;read_attribute(:#{reflection.foreign_type})&.constantize&.connection_class_for_self;rescue NameError;::ActiveRecord::Base;end"
             else
               # otherwise we can just return a symbol for the statically known type of the association
               "::#{reflection.klass.connection_class_for_self.name}"

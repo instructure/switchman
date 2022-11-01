@@ -83,16 +83,62 @@ module Switchman
 
       module Preloader
         module Association
-          module LoaderQuery
-            def load_records_in_batch(loaders)
-              # While in theory loading multiple associations that end up being effectively the same would be nice
-              # it's not very switchman compatible, so just don't bother trying to use that logic
-              # raw_records = records_for(loaders)
+          # significant changes:
+          #  * associate shards with records
+          #  * look on all appropriate shards when loading records
+          module LoaderRecords
+            def populate_keys_to_load_and_already_loaded_records
+              @sharded_keys_to_load = {}
 
               loaders.each do |loader|
-                loader.load_records(nil)
-                loader.run
+                multishard = loader.send(:reflection).options[:multishard]
+                belongs_to = loader.send(:reflection).macro == :belongs_to
+                loader.owners_by_key.each do |key, owners|
+                  if (loaded_owner = owners.find { |owner| loader.loaded?(owner) })
+                    already_loaded_records_by_key[key] = loader.target_for(loaded_owner)
+                  else
+                    shard_set = @sharded_keys_to_load[key] ||= Set.new
+                    owner_key_name = loader.send(:owner_key_name)
+                    owners.each do |owner|
+                      if multishard && owner.respond_to?(:associated_shards)
+                        shard_set.merge(owner.associated_shards.map(&:id))
+                      elsif belongs_to && owner.class.sharded_column?(owner_key_name)
+                        shard_set.add(Shard.shard_for(owner[owner_key_name], owner.shard).id)
+                      elsif belongs_to
+                        shard_set.add(Shard.current.id)
+                      else
+                        shard_set.add(owner.shard.id)
+                      end
+                    end
+                  end
+                end
               end
+
+              @sharded_keys_to_load.delete_if { |key, _shards| already_loaded_records_by_key.include?(key) }
+            end
+
+            def load_records
+              ret = []
+
+              shards_with_keys = @sharded_keys_to_load.each_with_object({}) do |(key, shards), h|
+                shards.each { |shard| (h[shard] ||= []) << key }
+              end
+
+              shards_with_keys.each do |shard, keys|
+                Shard.lookup(shard).activate do
+                  scope_was = loader_query.scope
+                  begin
+                    loader_query.instance_variable_set(:@scope, loader_query.scope.shard(Shard.current(loader_query.scope.model.connection_class_for_self)))
+                    ret += loader_query.load_records_for_keys(keys) do |record|
+                      loaders.each { |l| l.set_inverse(record) }
+                    end
+                  ensure
+                    loader_query.instance_variable_set(:@scope, scope_was)
+                  end
+                end
+              end
+
+              ret
             end
           end
 
@@ -110,6 +156,26 @@ module Switchman
             end
           end
 
+          # Disabling to keep closer to rails original
+          # rubocop:disable Naming/AccessorMethodName, Style/GuardClause
+          # significant changes:
+          #  * globalize the key to lookup
+          def set_inverse(record)
+            global_key = if model.connection_class_for_self == UnshardedRecord
+                           convert_key(record[association_key_name])
+                         else
+                           Shard.global_id_for(record[association_key_name], record.shard)
+                         end
+
+            if (owners = owners_by_key[convert_key(global_key)])
+              # Processing only the first owner
+              # because the record is modified but not an owner
+              association = owners.first.association(reflection.name)
+              association.set_inverse_instance(record)
+            end
+          end
+          # rubocop:enable Naming/AccessorMethodName, Style/GuardClause
+
           # significant changes:
           #  * partition_by_shard the records_for call
           #  * re-globalize the fetched owner id before looking up in the map
@@ -120,7 +186,9 @@ module Switchman
             # #compare_by_identity makes such owners different hash keys
             @records_by_owner = {}.compare_by_identity
 
-            if ::Rails.version < '7.0' && owner_keys.empty?
+            if ::Rails.version >= '7.0'
+              raw_records ||= loader_query.records_for([self])
+            elsif owner_keys.empty?
               raw_records ||= []
             else
               # determine the shard to search for each owner
@@ -162,7 +230,7 @@ module Switchman
                                                 record.shard)
               end
 
-              owners_by_key[convert_key(owner_key)].each do |owner|
+              owners_by_key[convert_key(owner_key)]&.each do |owner|
                 entries = (@records_by_owner[owner] ||= [])
 
                 if reflection.collection? || entries.empty?

@@ -50,7 +50,7 @@ module Switchman
         ::ActiveRecord::Associations::CollectionProxy.include(ActiveRecord::Associations::CollectionProxy)
 
         ::ActiveRecord::Associations::Preloader::Association.prepend(ActiveRecord::Associations::Preloader::Association)
-        ::ActiveRecord::Associations::Preloader::Association::LoaderQuery.prepend(ActiveRecord::Associations::Preloader::Association::LoaderQuery) unless ::Rails.version < '7.0'
+        ::ActiveRecord::Associations::Preloader::Association::LoaderRecords.prepend(ActiveRecord::Associations::Preloader::Association::LoaderRecords) unless ::Rails.version < '7.0'
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::AbstractAdapter)
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.prepend(ActiveRecord::ConnectionPool)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::QueryCache)

@@ -13,8 +13,9 @@ module Switchman
       end
 
       %w[update_all delete_all].each do |method|
+        arg_params = RUBY_VERSION <= '2.8' ? '*args' : '*args, **kwargs'
         class_eval <<-RUBY, __FILE__, __LINE__ + 1
-          def #{method}(*args)
+          def #{method}(#{arg_params})
             db = Shard.current(connection_class_for_self).database_server
             db.unguard { super }
           end

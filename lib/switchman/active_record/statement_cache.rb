@@ -25,7 +25,7 @@ module Switchman
       # we can make some assumptions about the shard source
       # (e.g. infer from the primary key or use the current shard)
 
-      def execute(*args)
+      def execute(*args, &block)
         params, connection = args
         klass = @klass
         target_shard = nil
@@ -40,7 +40,7 @@ module Switchman
 
         target_shard.activate(klass.connection_class_for_self) do
           sql = qualified_query_builder(target_shard, klass).sql_for(bind_values, connection)
-          klass.find_by_sql(sql, bind_values)
+          klass.find_by_sql(sql, bind_values, &block)
         end
       end
 
@@ -66,7 +66,11 @@ module Switchman
 
         def primary_value_index
           primary_ba_index = @bound_attributes.index do |ba|
-            ba.is_a?(::ActiveRecord::Relation::QueryAttribute) && ba.value.primary
+            if ba.value.is_a?(::ActiveRecord::StatementCache::Substitute)
+              ba.is_a?(::ActiveRecord::Relation::QueryAttribute) && ba.value.primary
+            else
+              false
+            end
           end
           @indexes.index(primary_ba_index) if primary_ba_index
         end

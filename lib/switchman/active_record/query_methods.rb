@@ -271,37 +271,15 @@ module Switchman
         end
       end
 
-      def transpose_predicates(predicates,
-                               source_shard,
-                               target_shard,
-                               remove_nonlocal_primary_keys: false)
+      def each_transposable_predicate_value(predicates)
         each_transposable_predicate(predicates) do |predicate, relation, column, type|
-          transpose_single_predicate(predicate, source_shard, target_shard, relation, column, type,
-                                     remove_nonlocal_primary_keys: remove_nonlocal_primary_keys)
+          each_transposable_predicate_value_cb(predicate) do |value|
+            yield(value, predicate, relation, column, type)
+          end
         end
       end
 
-      def transpose_single_predicate(predicate,
-                                     source_shard,
-                                     target_shard,
-                                     relation,
-                                     column,
-                                     type,
-                                     remove_nonlocal_primary_keys: false)
-        remove = true if type == :primary &&
-                         remove_nonlocal_primary_keys &&
-                         predicate.left.relation.klass == klass &&
-                         (predicate.is_a?(::Arel::Nodes::Equality) || predicate.is_a?(::Arel::Nodes::HomogeneousIn))
-
-        current_source_shard =
-          if source_shard
-            source_shard
-          elsif type == :primary
-            Shard.current(klass.connection_class_for_self)
-          elsif type == :foreign
-            source_shard_for_foreign_key(relation, column)
-          end
-
+      def each_transposable_predicate_value_cb(predicate)
         right = if predicate.is_a?(::Arel::Nodes::HomogeneousIn)
                   predicate.values
                 else
@@ -311,9 +289,9 @@ module Switchman
         new_right_value =
           case right
           when Array
-            right.map { |val| transpose_predicate_value(val, current_source_shard, target_shard, type, remove).presence }.compact
+            right.map { |val| yield(val).presence }.compact
           else
-            transpose_predicate_value(right, current_source_shard, target_shard, type, remove)
+            yield(right)
           end
 
         if new_right_value == right
@@ -334,6 +312,29 @@ module Switchman
           end
         else
           predicate.class.new(predicate.left, new_right_value)
+        end
+      end
+
+      def transpose_predicates(predicates,
+                               source_shard,
+                               target_shard,
+                               remove_nonlocal_primary_keys: false)
+        each_transposable_predicate_value(predicates) do |value, predicate, relation, column, type|
+          remove = true if type == :primary &&
+                           remove_nonlocal_primary_keys &&
+                           predicate.left.relation.klass == klass &&
+                           (predicate.is_a?(::Arel::Nodes::Equality) || predicate.is_a?(::Arel::Nodes::HomogeneousIn))
+
+          current_source_shard =
+            if source_shard
+              source_shard
+            elsif type == :primary
+              Shard.current(klass.connection_class_for_self)
+            elsif type == :foreign
+              source_shard_for_foreign_key(relation, column)
+            end
+
+          transpose_predicate_value(value, current_source_shard, target_shard, type, remove)
         end
       end
 

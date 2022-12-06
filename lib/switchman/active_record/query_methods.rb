@@ -246,12 +246,37 @@ module Switchman
         connection.with_global_table_name { super }
       end
 
+      def each_transposable_predicate(predicates, &block)
+        predicates.map do |predicate|
+          if predicate.is_a?(::Arel::Nodes::Grouping)
+            next predicate unless predicate.expr.is_a?(::Arel::Nodes::Or)
+
+            or_expr = predicate.expr
+            old_left = or_expr.left
+            old_right = or_expr.right
+            new_left, new_right = each_transposable_predicate([old_left, old_right], &block)
+
+            next predicate if new_left == old_left && new_right == old_right
+
+            next predicate.class.new predicate.expr.class.new(new_left, new_right)
+          end
+
+          next predicate unless predicate.is_a?(::Arel::Nodes::Binary) || predicate.is_a?(::Arel::Nodes::HomogeneousIn)
+          next predicate unless predicate.left.is_a?(::Arel::Attributes::Attribute)
+
+          relation, column = relation_and_column(predicate.left)
+          next predicate unless (type = transposable_attribute_type(relation, column))
+
+          yield(predicate, relation, column, type)
+        end
+      end
+
       def transpose_predicates(predicates,
                                source_shard,
                                target_shard,
                                remove_nonlocal_primary_keys: false)
-        predicates.map do |predicate|
-          transpose_single_predicate(predicate, source_shard, target_shard,
+        each_transposable_predicate(predicates) do |predicate, relation, column, type|
+          transpose_single_predicate(predicate, source_shard, target_shard, relation, column, type,
                                      remove_nonlocal_primary_keys: remove_nonlocal_primary_keys)
         end
       end
@@ -259,32 +284,10 @@ module Switchman
       def transpose_single_predicate(predicate,
                                      source_shard,
                                      target_shard,
+                                     relation,
+                                     column,
+                                     type,
                                      remove_nonlocal_primary_keys: false)
-        if predicate.is_a?(::Arel::Nodes::Grouping)
-          return predicate unless predicate.expr.is_a?(::Arel::Nodes::Or)
-
-          # Dang, we have an OR.  OK, that means we have other epxressions below this
-          # level, perhaps many, that may need transposition.
-          # the left side and right side must each be treated as predicate lists and
-          # transformed in kind, if neither of them changes we can just return the grouping as is.
-          # hold on, it's about to get recursive...
-          or_expr = predicate.expr
-          left_node = or_expr.left
-          right_node = or_expr.right
-          new_left_predicates = transpose_single_predicate(left_node, source_shard,
-                                                           target_shard, remove_nonlocal_primary_keys: remove_nonlocal_primary_keys)
-          new_right_predicates = transpose_single_predicate(right_node, source_shard,
-                                                            target_shard, remove_nonlocal_primary_keys: remove_nonlocal_primary_keys)
-          return predicate if new_left_predicates == left_node && new_right_predicates == right_node
-
-          return ::Arel::Nodes::Grouping.new ::Arel::Nodes::Or.new(new_left_predicates, new_right_predicates)
-        end
-        return predicate unless predicate.is_a?(::Arel::Nodes::Binary) || predicate.is_a?(::Arel::Nodes::HomogeneousIn)
-        return predicate unless predicate.left.is_a?(::Arel::Attributes::Attribute)
-
-        relation, column = relation_and_column(predicate.left)
-        return predicate unless (type = transposable_attribute_type(relation, column))
-
         remove = true if type == :primary &&
                          remove_nonlocal_primary_keys &&
                          predicate.left.relation.klass == klass &&

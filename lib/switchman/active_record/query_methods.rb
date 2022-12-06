@@ -286,6 +286,25 @@ module Switchman
           case right
           when Array
             right.map { |val| yield(val).presence }.compact
+          when ::ActiveModel::Attribute
+            old_value = right.value_before_type_cast
+            new_value = yield(old_value)
+
+            if new_value == old_value
+              right
+            else
+              right.class.new(right.name, new_value, right.type)
+            end
+          when ::Arel::Nodes::BindParam
+            old_parent_value = right.value
+            old_value = old_parent_value.value_before_type_cast
+            new_value = yield(old_value)
+
+            if new_value == old_value
+              right
+            else
+              right.class.new(right.value.class.new(old_parent_value.name, new_value, old_parent_value.type))
+            end
           else
             yield(right)
           end
@@ -335,29 +354,10 @@ module Switchman
       end
 
       def transpose_predicate_value(value, current_shard, target_shard, attribute_type, remove_non_local_ids)
-        case value
-        when ::Arel::Nodes::BindParam, ::ActiveModel::Attribute
-          query_att = value.is_a?(::ActiveModel::Attribute) ? value : value.value
-          current_id = query_att.value_before_type_cast
-          if current_id.is_a?(::ActiveRecord::StatementCache::Substitute)
-            current_id.sharded = true # mark for transposition later
-            current_id.primary = true if attribute_type == :primary
-            value
-          else
-            local_id = Shard.relative_id_for(current_id, current_shard, target_shard) || current_id
-            local_id = [] if remove_non_local_ids && local_id.is_a?(Integer) && local_id > Shard::IDS_PER_SHARD
-            if current_id == local_id
-              # make a new bind param
-              value
-            else
-              new_att = query_att.class.new(query_att.name, local_id, query_att.type)
-              if value.is_a?(::ActiveModel::Attribute)
-                new_att
-              else
-                ::Arel::Nodes::BindParam.new(new_att)
-              end
-            end
-          end
+        if value.is_a?(::ActiveRecord::StatementCache::Substitute)
+          value.sharded = true # mark for transposition later
+          value.primary = true if attribute_type == :primary
+          value
         else
           local_id = Shard.relative_id_for(value, current_shard, target_shard) || value
           local_id = [] if remove_non_local_ids && local_id.is_a?(Integer) && local_id > Shard::IDS_PER_SHARD

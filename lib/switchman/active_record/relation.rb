@@ -116,6 +116,7 @@ module Switchman
             next if limit_value && result_count >= limit_value && order_values.empty?
 
             relation = shard(Shard.current(klass.connection_class_for_self), :to_a)
+            relation.remove_nonlocal_primary_keys!
             # do a minimal query if possible
             relation = relation.limit(limit_value - result_count) if limit_value && !result_count.zero? && order_values.empty?
 

@@ -12,8 +12,7 @@ module Switchman
       #   :explicit    - explicit set on the relation
       #   :association - a special value that scopes from associations use to use slightly different logic
       #                  for foreign key transposition
-      #   :to_a        - a special value that Relation#to_a uses when querying multiple shards to
-      #                  remove primary keys from conditions that aren't applicable to the current shard
+      #   :to_a        - a special value that is set when Relation#to_a is used
       def shard_value
         @values[:shard]
       end
@@ -44,7 +43,7 @@ module Switchman
         old_primary_shard = primary_shard
         self.shard_value = value
         self.shard_source_value = source
-        transpose_predicates(nil, old_primary_shard, primary_shard, remove_nonlocal_primary_keys: source == :to_a) if old_primary_shard != primary_shard || source == :to_a
+        transpose_predicates(nil, old_primary_shard, primary_shard) if old_primary_shard != primary_shard
         self
       end
 
@@ -84,6 +83,20 @@ module Switchman
 
       def or(other)
         super(other.shard(primary_shard))
+      end
+
+      protected
+
+      def remove_nonlocal_primary_keys!
+        each_transposable_predicate_value do |value, predicate, _relation, _column, type|
+          next value unless
+            type == :primary &&
+            predicate.left.relation.klass == klass &&
+            (predicate.is_a?(::Arel::Nodes::Equality) || predicate.is_a?(::Arel::Nodes::HomogeneousIn))
+
+          value.is_a?(Integer) && value > Shard::IDS_PER_SHARD ? [] : value
+        end
+        self
       end
 
       private
@@ -332,14 +345,8 @@ module Switchman
 
       def transpose_predicates(predicates,
                                source_shard,
-                               target_shard,
-                               remove_nonlocal_primary_keys: false)
-        each_transposable_predicate_value(predicates) do |value, predicate, relation, column, type|
-          remove = true if type == :primary &&
-                           remove_nonlocal_primary_keys &&
-                           predicate.left.relation.klass == klass &&
-                           (predicate.is_a?(::Arel::Nodes::Equality) || predicate.is_a?(::Arel::Nodes::HomogeneousIn))
-
+                               target_shard)
+        each_transposable_predicate_value(predicates) do |value, _predicate, relation, column, type|
           current_source_shard =
             if source_shard
               source_shard
@@ -349,19 +356,17 @@ module Switchman
               source_shard_for_foreign_key(relation, column)
             end
 
-          transpose_predicate_value(value, current_source_shard, target_shard, type, remove)
+          transpose_predicate_value(value, current_source_shard, target_shard, type)
         end
       end
 
-      def transpose_predicate_value(value, current_shard, target_shard, attribute_type, remove_non_local_ids)
+      def transpose_predicate_value(value, current_shard, target_shard, attribute_type)
         if value.is_a?(::ActiveRecord::StatementCache::Substitute)
           value.sharded = true # mark for transposition later
           value.primary = true if attribute_type == :primary
           value
         else
-          local_id = Shard.relative_id_for(value, current_shard, target_shard) || value
-          local_id = [] if remove_non_local_ids && local_id.is_a?(Integer) && local_id > Shard::IDS_PER_SHARD
-          local_id
+          Shard.relative_id_for(value, current_shard, target_shard) || value
         end
       end
     end

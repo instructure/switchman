@@ -44,10 +44,7 @@ module Switchman
         old_primary_shard = primary_shard
         self.shard_value = value
         self.shard_source_value = source
-        if old_primary_shard != primary_shard || source == :to_a
-          transpose_clauses(old_primary_shard, primary_shard,
-                            remove_nonlocal_primary_keys: source == :to_a)
-        end
+        transpose_predicates(nil, old_primary_shard, primary_shard, remove_nonlocal_primary_keys: source == :to_a) if old_primary_shard != primary_shard || source == :to_a
         self
       end
 
@@ -91,28 +88,6 @@ module Switchman
 
       private
 
-      %i[where having].each do |type|
-        class_eval <<-RUBY, __FILE__, __LINE__ + 1
-        def transpose_#{type}_clauses(source_shard, target_shard, remove_nonlocal_primary_keys:)
-          unless (predicates = #{type}_clause.send(:predicates)).empty?
-            new_predicates = transpose_predicates(predicates, source_shard,
-                                                              target_shard, remove_nonlocal_primary_keys: remove_nonlocal_primary_keys)
-            if new_predicates != predicates
-              self.#{type}_clause = #{type}_clause.dup
-              if new_predicates != predicates
-                #{type}_clause.instance_variable_set(:@predicates, new_predicates)
-              end
-            end
-          end
-        end
-        RUBY
-      end
-
-      def transpose_clauses(source_shard, target_shard, remove_nonlocal_primary_keys: false)
-        transpose_where_clauses(source_shard, target_shard, remove_nonlocal_primary_keys: remove_nonlocal_primary_keys)
-        transpose_having_clauses(source_shard, target_shard, remove_nonlocal_primary_keys: remove_nonlocal_primary_keys)
-      end
-
       def infer_shards_from_primary_key(predicates)
         return unless klass.integral_id?
 
@@ -145,7 +120,7 @@ module Switchman
             return
           else
             id_shards = id_shards.to_a
-            transpose_clauses(primary_shard, id_shards.first)
+            transpose_predicates(nil, primary_shard, id_shards.first)
             self.shard_value = id_shards
             return
           end
@@ -162,7 +137,7 @@ module Switchman
 
         return if !id_shard || id_shard == primary_shard
 
-        transpose_clauses(primary_shard, id_shard)
+        transpose_predicates(nil, primary_shard, id_shard)
         self.shard_value = id_shard
       end
 
@@ -246,8 +221,29 @@ module Switchman
         connection.with_global_table_name { super }
       end
 
-      def each_transposable_predicate(predicates, &block)
-        predicates.map do |predicate|
+      def each_predicate(predicates = nil, &block)
+        return predicates.map(&block) if predicates
+
+        each_predicate_cb(:having_clause, :having_clause=, &block)
+        each_predicate_cb(:where_clause, :where_clause=, &block)
+      end
+
+      def each_predicate_cb(clause_getter, clause_setter, &block)
+        old_clause = send(clause_getter)
+        old_predicates = old_clause.send(:predicates)
+        return if old_predicates.empty?
+
+        new_predicates = old_predicates.map(&block)
+        return if new_predicates == old_predicates
+
+        new_clause = old_clause.dup
+        new_clause.instance_variable_set(:@predicates, new_predicates)
+
+        send(clause_setter, new_clause)
+      end
+
+      def each_transposable_predicate(predicates = nil, &block)
+        each_predicate(predicates) do |predicate|
           if predicate.is_a?(::Arel::Nodes::Grouping)
             next predicate unless predicate.expr.is_a?(::Arel::Nodes::Or)
 
@@ -271,7 +267,7 @@ module Switchman
         end
       end
 
-      def each_transposable_predicate_value(predicates)
+      def each_transposable_predicate_value(predicates = nil)
         each_transposable_predicate(predicates) do |predicate, relation, column, type|
           each_transposable_predicate_value_cb(predicate) do |value|
             yield(value, predicate, relation, column, type)

@@ -287,58 +287,48 @@ module Switchman
         end
       end
 
-      def each_transposable_predicate_value_cb(predicate)
-        right = if predicate.is_a?(::Arel::Nodes::HomogeneousIn)
-                  predicate.values
-                else
-                  predicate.right
-                end
+      def each_transposable_predicate_value_cb(node, &block)
+        case node
+        when Array
+          node.map { |val| each_transposable_predicate_value_cb(val, &block).presence }.compact
+        when ::ActiveModel::Attribute
+          old_value = node.value_before_type_cast
+          new_value = each_transposable_predicate_value_cb(old_value, &block)
 
-        new_right_value =
-          case right
-          when Array
-            right.map { |val| yield(val).presence }.compact
-          when ::ActiveModel::Attribute
-            old_value = right.value_before_type_cast
-            new_value = yield(old_value)
+          old_value == new_value ? node : node.class.new(node.name, new_value, node.type)
+        when ::Arel::Nodes::And
+          old_value = node.children
+          new_value = each_transposable_predicate_value_cb(old_value, &block)
 
-            if new_value == old_value
-              right
-            else
-              right.class.new(right.name, new_value, right.type)
-            end
-          when ::Arel::Nodes::BindParam
-            old_parent_value = right.value
-            old_value = old_parent_value.value_before_type_cast
-            new_value = yield(old_value)
+          old_value == new_value ? node : node.class.new(new_value)
+        when ::Arel::Nodes::BindParam
+          old_value = node.value
+          new_value = each_transposable_predicate_value_cb(old_value, &block)
 
-            if new_value == old_value
-              right
-            else
-              right.class.new(right.value.class.new(old_parent_value.name, new_value, old_parent_value.type))
-            end
-          else
-            yield(right)
-          end
+          old_value == new_value ? node : node.class.new(new_value)
+        when ::Arel::Nodes::Casted
+          old_value = node.value
+          new_value = each_transposable_predicate_value_cb(old_value, &block)
 
-        if new_right_value == right
-          predicate
-        elsif predicate.right.is_a?(::Arel::Nodes::Casted)
-          if new_right_value == right.value
-            predicate
-          else
-            predicate.class.new(predicate.left, right.class.new(new_right_value, right.attribute))
-          end
-        elsif predicate.is_a?(::Arel::Nodes::HomogeneousIn)
+          old_value == new_value ? node : node.class.new(new_value, node.attribute)
+        when ::Arel::Nodes::HomogeneousIn
+          old_value = node.values
+          new_value = each_transposable_predicate_value_cb(old_value, &block)
+
           # switch to a regular In, so that Relation::WhereClause#contradiction? knows about it
-          if new_right_value.empty?
-            klass = predicate.type == :in ? ::Arel::Nodes::In : ::Arel::Nodes::NotIn
-            klass.new(predicate.attribute, new_right_value)
+          if new_value.empty?
+            klass = node.type == :in ? ::Arel::Nodes::In : ::Arel::Nodes::NotIn
+            klass.new(node.attribute, new_value)
           else
-            predicate.class.new(new_right_value, predicate.attribute, predicate.type)
+            old_value == new_value ? node : node.class.new(new_value, node.attribute, node.type)
           end
+        when ::Arel::Nodes::Binary
+          old_value = node.right
+          new_value = each_transposable_predicate_value_cb(old_value, &block)
+
+          old_value == new_value ? node : node.class.new(node.left, new_value)
         else
-          predicate.class.new(predicate.left, new_right_value)
+          yield(node)
         end
       end
 

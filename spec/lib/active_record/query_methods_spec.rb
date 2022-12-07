@@ -180,12 +180,18 @@ module Switchman
         end
 
         it "doesn't even query a shard if no primary keys are useful" do
+          method = ::Rails.version < '7.0' ? :find_by_sql : :_query_by_sql
+
+          # Sanity Check
+          relation = User.where(id: [@user1, @user2]).shard([Shard.default, @shard1])
+          expect(relation.klass).to receive(method).twice.and_call_original
+          relation.to_a
+
+          RSpec::Mocks.space.proxy_for(relation.klass).reset
+
+          # Actual Validation
           relation = User.where(id: [@user1, @user2]).shard([Shard.default, @shard2])
-          original_method = User.connection.method(:exec_query)
-          expect(User.connection).to receive(:exec_query).once do |sql, type, binds|
-            expect(binds.map(&:value_before_type_cast)).to eq [@user1.id]
-            original_method.call(sql, type, binds)
-          end
+          expect(relation.klass).to receive(method).once.and_call_original
           relation.to_a
         end
 
@@ -242,6 +248,26 @@ module Switchman
           expect(relation.shard_value).to eq @shard1
           expect(relation.shard_source_value).to eq :explicit
           expect(where_value(predicates(relation).first.right)).to eq @user1.global_id
+        end
+
+        it 'translates ids when given a range' do
+          @user1a = @shard1.activate { User.create! }
+          @user1b = @shard1.activate { User.create! }
+          @appendage1a = @user1a.appendages.create!
+          @appendage1b = @user1b.appendages.create!
+
+          @id1a = @user1a.id
+          @id1b = @user1b.id
+
+          expect(@id1a + 1).to eq @id1b
+
+          relation = Appendage.where(user_id: @id1a..@id1b)
+          expect(where_value(predicates(relation).first.right.children.map(&:value))).to eq [@user1a.global_id, @user1b.global_id]
+
+          @shard1.activate do
+            relation = Appendage.where(user_id: @id1a..@id1b)
+            expect(where_value(predicates(relation).first.right.children.map(&:value))).to eq [@user1a.local_id, @user1b.local_id]
+          end
         end
 
         it 'translates ids based on current shard' do

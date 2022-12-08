@@ -12,7 +12,6 @@ module Switchman
       #   :explicit    - explicit set on the relation
       #   :association - a special value that scopes from associations use to use slightly different logic
       #                  for foreign key transposition
-      #   :to_a        - a special value that is set when Relation#to_a is used
       def shard_value
         @values[:shard]
       end

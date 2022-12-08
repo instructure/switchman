@@ -103,7 +103,9 @@ module Switchman
       def activate(unordered: false, &block)
         shards = all_shards
         if Array === shards && shards.length == 1
-          if shards.first == DefaultShard || shards.first == Shard.current(klass.connection_class_for_self)
+          if !loaded? && shard_value != shards.first
+            shard(shards.first).activate(&block)
+          elsif shards.first == DefaultShard || shards.first == Shard.current(klass.connection_class_for_self)
             yield(self, shards.first)
           else
             shards.first.activate(klass.connection_class_for_self) { yield(self, shards.first) }
@@ -115,7 +117,7 @@ module Switchman
             # don't even query other shards if we're already past the limit
             next if limit_value && result_count >= limit_value && order_values.empty?
 
-            relation = shard(Shard.current(klass.connection_class_for_self), :to_a)
+            relation = shard(Shard.current(klass.connection_class_for_self))
             relation.remove_nonlocal_primary_keys!
             # do a minimal query if possible
             relation = relation.limit(limit_value - result_count) if limit_value && !result_count.zero? && order_values.empty?

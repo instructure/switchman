@@ -259,6 +259,31 @@ module Switchman
           expect(@user1.digits.to_a.map(&:value).sort).to eq [1, 2]
         end
 
+        it 'follows shards for has_many :through combined with where' do
+          @shard1.activate { @appendage1 = Appendage.create!(user_id: @user1).digits.create!(value: 1) }
+          @shard2.activate { @appendage2 = Appendage.create!(user_id: @user1).digits.create!(value: 2) }
+
+          expect(@user1.digits.where(id: @appendage1).to_a.map(&:value)).to eq [1]
+
+          @user1.reload
+          @user1.associated_shards = [@shard1, @shard2]
+          expect(@user1.digits.where(id: [@appendage1]).to_a.map(&:value).sort).to eq [1]
+          expect(@user1.digits.where(id: [@appendage2]).to_a.map(&:value).sort).to eq [2]
+          expect(@user1.digits.where(id: [@appendage1, @appendage2]).to_a.map(&:value).sort).to eq [1, 2]
+        end
+
+        it 'follows shards for has_many :through combined with where when there is only a single cross-shard' do
+          @shard1.activate { @appendage1 = Appendage.create!(user_id: @user1).digits.create!(value: 1) }
+          @shard2.activate { @appendage2 = Appendage.create!(user_id: @user1).digits.create!(value: 2) }
+
+          expect(@user1.digits.where(id: @appendage1).to_a.map(&:value)).to eq [1]
+
+          @user1.reload
+          @user1.associated_shards = [@shard2]
+          expect(@user1.digits.where(id: @appendage1).to_a.map(&:value).sort).to eq []
+          expect(@user1.digits.where(id: @appendage2).to_a.map(&:value).sort).to eq [2]
+        end
+
         it 'includes the shard in scopes created by associations' do
           @user1.associated_shards = [@shard1, @shard2]
 

@@ -248,6 +248,15 @@ module Switchman
           expect(User.connected?).to be true
         end
 
+        it 'prefix output with the appropriate shard' do
+          expect { puts 'hello' }.to output("hello\n").to_stdout
+          expect do
+            Shard.with_each_shard([Shard.default, @shard2], output: :decorated) do
+              puts 'OUTPUT'
+            end
+          end.to output(/public.+OUTPUT.+switchman_test_shard.+OUTPUT/m).to_stdout
+        end
+
         it 'handles undumpable results' do
           res = Shard.with_each_shard([Shard.default, @shard2], parallel: true) do
             -> { 'result' }
@@ -265,8 +274,8 @@ module Switchman
               raise 'exception'
             end
           rescue Switchman::Errors::ParallelShardExecError => e
-            expect(e.message).to include(Shard.default.database_server.id)
-            expect(e.message).to include(@shard2.database_server.id)
+            expect(e.message).to include("#{Shard.default.database_server.id}:#{Shard.default.name}")
+            expect(e.message).to include("#{@shard2.database_server.id}:#{@shard2.name}")
             raised = true
           end
           expect(raised).to be true

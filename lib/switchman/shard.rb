@@ -120,7 +120,8 @@ module Switchman
       #                forking.
       #    exception: - :ignore, :raise, :defer (wait until the end and raise the first
       #                error), or a proc
-      def with_each_shard(*args, parallel: false, exception: :raise, &block)
+      #    output: - :simple, :decorated (with database_server_id:shard_name)
+      def with_each_shard(*args, parallel: false, exception: :raise, output: :simple)
         raise ArgumentError, "wrong number of arguments (#{args.length} for 0...2)" if args.length > 2
 
         return Array.wrap(yield) unless default.is_a?(Shard)
@@ -164,20 +165,21 @@ module Switchman
           parent_process_name = `ps -ocommand= -p#{Process.pid}`.slice(/#{$0}.*/)
           ret = ::Parallel.map(scopes, in_processes: scopes.length > 1 ? parallel : 0) do |server, subscope|
             name = server.id
-            # rubocop:disable Style/GlobalStdStream
-            $stdout = Parallel::PrefixingIO.new(name, STDOUT)
-            $stderr = Parallel::PrefixingIO.new(name, STDERR)
-            # rubocop:enable Style/GlobalStdStream
+            last_description = name
+
             begin
               max_length = 128 - name.length - 3
               short_parent_name = parent_process_name[0..max_length] if max_length >= 0
               new_title = [short_parent_name, name].join(' ')
               Process.setproctitle(new_title)
               Switchman.config[:on_fork_proc]&.call
-              with_each_shard(subscope, classes, exception: exception, &block).map { |result| Parallel::ResultWrapper.new(result) }
+              with_each_shard(subscope, classes, exception: exception, output: :decorated) do
+                last_description = Shard.current.description
+                Parallel::ResultWrapper.new(yield)
+              end
             rescue => e
               logger.error e.full_message
-              Parallel::QuietExceptionWrapper.new(name, ::Parallel::ExceptionWrapper.new(e))
+              Parallel::QuietExceptionWrapper.new(last_description, ::Parallel::ExceptionWrapper.new(e))
             end
           end.flatten
 
@@ -195,14 +197,20 @@ module Switchman
 
         classes ||= []
 
-        previous_shard = nil
         result = []
         ex = nil
+        old_stdout = $stdout
+        old_stderr = $stderr
         scope.each do |shard|
           # shard references a database server that isn't configured in this environment
           next unless shard.database_server
 
           shard.activate(*classes) do
+            if output == :decorated
+              $stdout = Parallel::PrefixingIO.new(shard.description, $stdout)
+              $stderr = Parallel::PrefixingIO.new(shard.description, $stderr)
+            end
+
             result.concat Array.wrap(yield)
           rescue
             case exception
@@ -216,8 +224,10 @@ module Switchman
             else
               raise
             end
+          ensure
+            $stdout = old_stdout
+            $stderr = old_stderr
           end
-          previous_shard = shard
         end
         raise ex if ex
 

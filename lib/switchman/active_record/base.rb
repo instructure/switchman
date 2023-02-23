@@ -142,6 +142,8 @@ module Switchman
                    else
                      Shard.current(self.class.connection_class_for_self)
                    end
+
+        @loaded_from_shard ||= Shard.current(self.class.connection_class_for_self)
         readonly! if shadow_record? && !Switchman.config[:writable_shadow_records]
         super
       end
@@ -169,27 +171,42 @@ module Switchman
         end
       end
 
+      # Returns "the shard that this record was actually loaded from" , as
+      # opposed to "the shard this record belongs on", which might be
+      # different if this is a shadow record.
+      def loaded_from_shard
+        @loaded_from_shard || fallback_shard
+      end
+
       def shard
-        @shard || Shard.current(self.class.connection_class_for_self) || Shard.default
+        @shard || fallback_shard
       end
 
       def shard=(new_shard)
         raise ::ActiveRecord::ReadOnlyRecord if !new_record? || @shard_set_in_stone
 
-        return if shard == new_shard
+        if shard == new_shard
+          @loaded_from_shard = new_shard
+          return
+        end
 
         attributes.each do |attr, value|
           self[attr] = Shard.relative_id_for(value, shard, new_shard) if self.class.sharded_column?(attr)
         end
+        @loaded_from_shard = new_shard
         @shard = new_shard
       end
 
       def save(*, **)
+        raise Errors::ManuallyCreatedShadowRecordError if creating_shadow_record?
+
         @shard_set_in_stone = true
         super
       end
 
       def save!(*, **)
+        raise Errors::ManuallyCreatedShadowRecordError if creating_shadow_record?
+
         @shard_set_in_stone = true
         super
       end
@@ -269,6 +286,16 @@ module Switchman
         else
           self.class.connection_class_for_self
         end
+      end
+
+      private
+
+      def fallback_shard
+        Shard.current(self.class.connection_class_for_self) || Shard.default
+      end
+
+      def creating_shadow_record?
+        new_record? && shadow_record?
       end
     end
   end

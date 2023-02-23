@@ -128,20 +128,55 @@ module Switchman
         expect(@user1.digits.find(d1.id)).to eq d1
       end
 
-      it 'works with has_many through associations with shadow objects' do
-        @appendage = @user1.appendages.create!
+      it 'returns the real record when a shadow record is reloaded' do
+        real_digit = @shard2.activate { Digit.create! }
+        real_digit.save_shadow_record(target_shard: @shard1)
+        shadow_digit = @shard1.activate { Digit.find_by('id = ?', real_digit.global_id) }
+        expect(shadow_digit).to be_shadow_record
+        expect(shadow_digit.shard).to eq @shard2
+        expect(shadow_digit.loaded_from_shard).to eq @shard1
+        shadow_digit.reload
+        expect(shadow_digit).not_to be_shadow_record
+        expect(shadow_digit.shard).to eq @shard2
+        expect(shadow_digit.loaded_from_shard).to eq @shard2
+      end
 
-        @real_digit = @shard2.activate { Digit.create! }
-        shadow_digit = @shard1.activate do
-          digit = Digit.new
-          digit.id = @real_digit.global_id
-          digit.appendage_id = @appendage.id
-          digit.save!
-          digit
+      it 'works with belongs_to associations on shadow objects' do
+        appendage = @user1.appendages.create!
+        real_digit = @shard2.activate { Digit.create!(appendage: appendage) }
+        real_digit.save_shadow_record(target_shard: @shard1)
+
+        @shard1.activate do
+          @shadow_digit = Digit.find_by('id = ?', real_digit.global_id)
+          expect(@shadow_digit.shard).to eq @shard2
+          expect(@shadow_digit.loaded_from_shard).to eq @shard1
+          expect(@shadow_digit.id).to eq real_digit.global_id
+          expect(@shadow_digit.appendage_id).to eq appendage.local_id
+          expect(@shadow_digit.appendage).to eq appendage
         end
 
-        expect(shadow_digit.shard).to eq @shard1
+        @shard2.activate do
+          expect(@shadow_digit.shard).to eq @shard2
+          expect(@shadow_digit.loaded_from_shard).to eq @shard1
+          expect(@shadow_digit.id).to eq real_digit.local_id
+          expect(@shadow_digit.appendage_id).to eq appendage.global_id
+          expect(@shadow_digit.appendage).to eq appendage
+        end
 
+        expect(@shadow_digit.shard).to eq @shard2
+        expect(@shadow_digit.loaded_from_shard).to eq @shard1
+        expect(@shadow_digit.id).to eq real_digit.global_id
+        expect(@shadow_digit.appendage_id).to eq appendage.global_id
+        expect(@shadow_digit.appendage).to eq appendage
+      end
+
+      it 'works with has_many through associations with shadow objects' do
+        appendage = @user1.appendages.create!
+        real_digit = @shard2.activate { Digit.create!(appendage: appendage) }
+        real_digit.save_shadow_record(target_shard: @shard1)
+
+        shadow_digit = @shard1.activate { Digit.find_by('id = ?', real_digit.global_id) }
+        expect(shadow_digit.shard).to eq @shard2
         expect(@user1.digits.scope.shard_value).to eq @user1
         expect(@user1.digits.find(shadow_digit.id)).to eq shadow_digit
       end

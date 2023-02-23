@@ -134,7 +134,7 @@ module Switchman
 
               abs_raw_value = raw_value.abs
               current_shard = ::Switchman::Shard.current(#{attr_connection_class})
-              same_shard = shard == current_shard
+              same_shard = loaded_from_shard == current_shard
               return raw_value if same_shard && abs_raw_value < ::Switchman::Shard::IDS_PER_SHARD
 
               value_shard_id = abs_raw_value / ::Switchman::Shard::IDS_PER_SHARD
@@ -142,9 +142,9 @@ module Switchman
               # of a local id
               return raw_value % ::Switchman::Shard::IDS_PER_SHARD if value_shard_id == current_shard.id
               return raw_value if !same_shard && abs_raw_value > ::Switchman::Shard::IDS_PER_SHARD
-              return shard.global_id_for(raw_value) if !same_shard && abs_raw_value < ::Switchman::Shard::IDS_PER_SHARD
+              return loaded_from_shard.global_id_for(raw_value) if !same_shard && abs_raw_value < ::Switchman::Shard::IDS_PER_SHARD
 
-              ::Switchman::Shard.relative_id_for(raw_value, shard, current_shard)
+              ::Switchman::Shard.relative_id_for(raw_value, loaded_from_shard, current_shard)
             end
           RUBY
         end
@@ -171,7 +171,7 @@ module Switchman
         def build_sharded_setter(attr_name, attr_field, attr_connection_class)
           <<-RUBY
             def #{attr_name}=(new_value)
-              self.original_#{attr_field} = ::Switchman::Shard.relative_id_for(new_value, ::Switchman::Shard.current(#{attr_connection_class}), shard)
+              self.original_#{attr_field} = ::Switchman::Shard.relative_id_for(new_value, ::Switchman::Shard.current(#{attr_connection_class}), loaded_from_shard)
             end
           RUBY
         end

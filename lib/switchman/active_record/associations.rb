@@ -50,7 +50,7 @@ module Switchman
         def shard
           if @owner.class.sharded_column?(@reflection.foreign_key) &&
              (foreign_id = @owner[@reflection.foreign_key])
-            Shard.shard_for(foreign_id, @owner.shard)
+            Shard.shard_for(foreign_id, @owner.loaded_from_shard)
           else
             super
           end

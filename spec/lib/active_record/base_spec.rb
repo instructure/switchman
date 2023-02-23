@@ -150,6 +150,93 @@ module Switchman
           id = user.id
           expect(@shard2.activate { User.find(id).name }).to eq('a great name')
         end
+
+        it 'allows saving a record on the current shard using a global id' do
+          user = User.new(id: Shard.current.global_id_for(1))
+          expect { user.save! }.not_to raise_error
+        end
+
+        it 'throws an error when trying to manually save! a new shadow record' do
+          user = User.new(id: @shard2.global_id_for(1))
+          expect { user.save! }.to raise_error(Errors::ManuallyCreatedShadowRecordError)
+        end
+
+        context 'when shadow records are writable' do
+          before do
+            @original_writable_value = Switchman.config[:writable_shadow_records]
+            Switchman.config[:writable_shadow_records] = true
+          end
+
+          after do
+            Switchman.config[:writable_shadow_records] = @original_writable_value
+          end
+
+          it 'does not throw an error when calling save! on an existing shadow record' do
+            user = User.create!
+            user.save_shadow_record(target_shard: @shard1)
+            shadow_user = @shard1.activate { User.find_by('id = ?', user.global_id) }
+            shadow_user.name = 'Fred'
+            expect { shadow_user.save! }.not_to raise_error
+          end
+        end
+
+        context 'when shadow records are not writable' do
+          it 'throws an error when calling save! on an existing shadow record' do
+            user = User.create!
+            user.save_shadow_record(target_shard: @shard1)
+            shadow_user = @shard1.activate { User.find_by('id = ?', user.global_id) }
+            shadow_user.name = 'Fred'
+            expect { shadow_user.save! }.to raise_error(::ActiveRecord::ReadOnlyRecord)
+          end
+        end
+      end
+
+      describe 'save' do
+        it 'throws an error when trying to manually save a new shadow record' do
+          user = User.new(id: @shard2.global_id_for(1))
+          expect { user.save }.to raise_error(Errors::ManuallyCreatedShadowRecordError)
+        end
+
+        context 'when shadow records are writable' do
+          before do
+            @original_writable_value = Switchman.config[:writable_shadow_records]
+            Switchman.config[:writable_shadow_records] = true
+          end
+
+          after do
+            Switchman.config[:writable_shadow_records] = @original_writable_value
+          end
+
+          it 'does not throw an error when calling save on an existing shadow record' do
+            user = User.create!
+            user.save_shadow_record(target_shard: @shard1)
+            shadow_user = @shard1.activate { User.find_by('id = ?', user.global_id) }
+            shadow_user.name = 'Fred'
+            expect { shadow_user.save }.not_to raise_error
+          end
+        end
+
+        context 'when shadow records are not writable' do
+          it 'throws an error when calling save on an existing shadow record' do
+            user = User.create!
+            user.save_shadow_record(target_shard: @shard1)
+            shadow_user = @shard1.activate { User.find_by('id = ?', user.global_id) }
+            shadow_user.name = 'Fred'
+            expect { shadow_user.save }.to raise_error(::ActiveRecord::ReadOnlyRecord)
+          end
+        end
+      end
+
+      describe 'create!' do
+        it 'throws an error when trying to manually create! a new shadow record' do
+          expect { User.create!(id: @shard2.global_id_for(1)) }.to raise_error(Errors::ManuallyCreatedShadowRecordError)
+        end
+      end
+
+      describe 'create' do
+        it 'throws an error when trying to manually create a new shadow record' do
+          expect { User.create(id: @shard2.global_id_for(1)) }.to raise_error(Errors::ManuallyCreatedShadowRecordError)
+        end
       end
 
       # Note this also tests `save_shadow_record` through the after hook on user.rb

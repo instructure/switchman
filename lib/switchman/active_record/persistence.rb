@@ -16,6 +16,14 @@ module Switchman
         db = shard.database_server
         db.unguard { super }
       end
+
+      def reload(*)
+        res = super
+        # When a shadow record is reloaded the real record is returned. So
+        # we need to ensure the loaded_from_shard is set correctly after a reload.
+        @loaded_from_shard = @shard
+        res
+      end
     end
   end
 end

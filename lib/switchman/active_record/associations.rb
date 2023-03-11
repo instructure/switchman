@@ -273,10 +273,11 @@ module Switchman
       end
 
       module AutosaveAssociation
-        def record_changed?(reflection, record, key)
-          record.new_record? ||
-            (record.has_attribute?(reflection.foreign_key) && record.send(reflection.foreign_key) != key) || # have to use send instead of [] because sharding
-            record.attribute_changed?(reflection.foreign_key)
+        def association_foreign_key_changed?(reflection, record, key)
+          return false if reflection.through_reflection?
+
+          # have to use send instead of _read_attribute because sharding
+          record.has_attribute?(reflection.foreign_key) && record.send(reflection.foreign_key) != key
         end
 
         def save_belongs_to_association(reflection)

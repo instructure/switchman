@@ -258,7 +258,7 @@ module Switchman
             else
               shard = partition_object.shard
             end
-          when Integer, /^\d+$/, /^(\d+)~(\d+)$/
+          when Integer, /\A\d+\Z/, /\A(\d+)~(\d+)\Z/
             local_id, shard = Shard.local_id_for(partition_object)
             local_id ||= partition_object
             object = local_id unless partition_proc
@@ -300,14 +300,14 @@ module Switchman
         case any_id
         when ::ActiveRecord::Base
           any_id.id
-        when /^(\d+)~(-?\d+)$/
+        when /\A(\d+)~(-?\d+)\Z/
           local_id = $2.to_i
           signed_id_operation(local_id) do |id|
             return nil if id > IDS_PER_SHARD
 
             ($1.to_i * IDS_PER_SHARD) + id
           end
-        when Integer, /^-?\d+$/
+        when Integer, /\A-?\d+\Z/
           any_id.to_i
         end
       end

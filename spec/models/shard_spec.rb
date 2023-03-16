@@ -415,7 +415,7 @@ module Switchman
 
       it "partitions unrecognized strings unchanged into current shard" do
         expected_shard = Shard.current
-        items = ["not an id", "something other than an id"]
+        items = ["not an id", "something other than an id", "not\n123\nad id", "not\n123~456\nan id"]
         result = Shard.partition_by_shard(items) do |shard_items|
           [Shard.current, shard_items]
         end
@@ -564,6 +564,8 @@ module Switchman
 
         it "returns nil for unrecognized ids" do
           expect(Shard.integral_id_for("not an id")).to be_nil
+          expect(Shard.integral_id_for("not\n123\nan id")).to be_nil
+          expect(Shard.integral_id_for("not\n123~456\nan id")).to be_nil
         end
       end
 

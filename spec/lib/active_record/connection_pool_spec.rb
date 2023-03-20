@@ -31,6 +31,38 @@ module Switchman
         end
       end
 
+      describe '*_schema_cache' do
+        before do
+          @server = DatabaseServer.create(Shard.default.database_server.config)
+          @shard = @server.shards.create!
+          @p1 = @shard.activate do
+            User.connection_pool.get_schema_cache(User.connection)
+            User.connection_pool
+          end
+
+          User.connection_pool.get_schema_cache(User.connection)
+          @p2 = User.connection_pool
+        end
+
+        it 'shares the same schema cache across all connection pools' do
+          expect(@p1).not_to be(@p2)
+          expect(@p1.schema_cache).to be(@p2.schema_cache)
+        end
+
+        it 'replaces the shared schema cache with the new version' do
+          connection = ::ActiveRecord::Base.connection
+          new_schema_cache = ::ActiveRecord::ConnectionAdapters::SchemaCache.new(connection)
+          new_schema_cache.connection = connection
+
+          expect(new_schema_cache.size).not_to eq(@p1.schema_cache.size) # sanity check
+
+          @p1.set_schema_cache(new_schema_cache)
+
+          expect(@p1.schema_cache).to be(@p2.schema_cache)
+          expect(@p1.schema_cache.size).to eq(@p2.schema_cache.size)
+        end
+      end
+
       describe 'release_connection' do
         before do
           @server = DatabaseServer.create(Shard.default.database_server.config)

@@ -3,6 +3,21 @@
 module Switchman
   module ActiveRecord
     module ConnectionPool
+      def get_schema_cache(connection)
+        self.schema_cache ||= SharedSchemaCache.get_schema_cache(connection)
+        self.schema_cache.connection = connection
+
+        self.schema_cache
+      end
+
+      # rubocop:disable Naming/AccessorMethodName override method
+      def set_schema_cache(cache)
+        cache.instance_variables.each do |x|
+          self.schema_cache.instance_variable_set(x, cache.instance_variable_get(x))
+        end
+      end
+      # rubocop:enable Naming/AccessorMethodName override method
+
       def default_schema
         connection unless @schemas
         # default shard will not switch databases immediately, so it won't be set yet

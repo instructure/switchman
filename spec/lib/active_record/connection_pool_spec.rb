@@ -61,6 +61,27 @@ module Switchman
           expect(@p1.schema_cache).to be(@p2.schema_cache)
           expect(@p1.schema_cache.size).to eq(@p2.schema_cache.size)
         end
+
+        it 'uses the shared schema cache if not already set' do
+          p3 = DatabaseServer.create(Shard.default.database_server.config).shards.create!.activate do
+            User.connection_pool
+          end
+
+          connection = ::ActiveRecord::Base.connection
+          new_schema_cache = ::ActiveRecord::ConnectionAdapters::SchemaCache.new(connection)
+          new_schema_cache.connection = connection
+          new_schema_cache.columns('users')
+
+          # sanity check
+          expect(p3.schema_cache).to be_nil
+          expect(new_schema_cache.size).not_to eq(@p2.schema_cache)
+
+          @p1.set_schema_cache(new_schema_cache)
+
+          expect(@p1.schema_cache).to be(@p2.schema_cache)
+          expect(@p1.schema_cache.size).to eq(new_schema_cache.size)
+          expect(@p2.schema_cache.size).to eq(new_schema_cache.size)
+        end
       end
 
       describe 'release_connection' do

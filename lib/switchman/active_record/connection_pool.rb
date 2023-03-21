@@ -12,8 +12,10 @@ module Switchman
 
       # rubocop:disable Naming/AccessorMethodName override method
       def set_schema_cache(cache)
+        schema_cache = get_schema_cache(cache.connection)
+
         cache.instance_variables.each do |x|
-          self.schema_cache.instance_variable_set(x, cache.instance_variable_get(x))
+          schema_cache.instance_variable_set(x, cache.instance_variable_get(x))
         end
       end
       # rubocop:enable Naming/AccessorMethodName override method

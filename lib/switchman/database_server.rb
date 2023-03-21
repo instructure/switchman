@@ -221,12 +221,12 @@ module Switchman
 
           unless schema == false
             shard.activate do
-              reset_column_information
-
-              ::ActiveRecord::Base.connection.transaction(requires_new: true) do
-                ::ActiveRecord::Base.connection.migration_context.migrate
+              with_empty_caches do
+                ::ActiveRecord::Base.connection.transaction(requires_new: true) do
+                  ::ActiveRecord::Base.connection.migration_context.migrate
+                end
               end
-              reset_column_information
+
               ::ActiveRecord::Base.descendants.reject do |m|
                 m <= UnshardedRecord || !m.table_exists?
               end.each(&:define_attribute_methods)
@@ -277,6 +277,21 @@ module Switchman
 
     def reset_column_information
       ::ActiveRecord::Base.descendants.reject { |m| m <= UnshardedRecord }.each(&:reset_column_information)
+    end
+
+    def with_empty_caches
+      connection = ::ActiveRecord::Base.connection
+      connection_pool = ::ActiveRecord::Base.connection_pool
+      previous_schema_cache = connection_pool.get_schema_cache(connection)
+      temporary_schema_cache = ::ActiveRecord::ConnectionAdapters::SchemaCache.new(connection)
+
+      reset_column_information
+      connection_pool.set_schema_cache(temporary_schema_cache)
+
+      yield
+
+      connection_pool.set_schema_cache(previous_schema_cache)
+      reset_column_information
     end
   end
 end

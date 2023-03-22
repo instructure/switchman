@@ -251,7 +251,7 @@ module Switchman
 
       def local_attribute(attr_name)
         if self.class.sharded_column?(attr_name)
-          ::Switchman::Shard.local_id_for(attribute(attr_name), shard).first
+          ::Switchman::Shard.local_id_for(attribute(attr_name)).first
         else
           attribute(attr_name)
         end

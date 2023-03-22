@@ -44,12 +44,35 @@ module Switchman
     end
 
     module MigrationContext
+      def migrate(...)
+        connection = ::ActiveRecord::Base.connection
+        connection_pool = ::ActiveRecord::Base.connection_pool
+        previous_schema_cache = connection_pool.get_schema_cache(connection)
+        temporary_schema_cache = ::ActiveRecord::ConnectionAdapters::SchemaCache.new(connection)
+
+        reset_column_information
+        connection_pool.set_schema_cache(temporary_schema_cache)
+
+        begin
+          super(...)
+        ensure
+          connection_pool.set_schema_cache(previous_schema_cache)
+          reset_column_information
+        end
+      end
+
       def migrations
         return @migrations if instance_variable_defined?(:@migrations)
 
         migrations_cache = Thread.current[:migrations_cache] ||= {}
         key = Digest::MD5.hexdigest(migration_files.sort.join(','))
         @migrations = migrations_cache[key] ||= super
+      end
+
+      private
+
+      def reset_column_information
+        ::ActiveRecord::Base.descendants.reject { |m| m <= UnshardedRecord }.each(&:reset_column_information)
       end
     end
   end

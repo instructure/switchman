@@ -38,7 +38,11 @@ pipeline {
 
     stage('Lint') {
       steps {
-        sh "docker-compose run --rm app bin/rubocop"
+        sh """
+        # Always rebuild the image so that we don't accidentally reuse one that had a custom RUBY_VERSION / BUNDLE_GEMFILE
+        docker-compose build --pull
+        docker-compose run --rm app bin/rubocop
+        """
       }
     }
 

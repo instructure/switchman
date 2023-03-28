@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-describe ::ActiveRecord::Batches do
+describe ActiveRecord::Batches do
   include Switchman::RSpecHelper
 
   describe '#find_in_batches' do

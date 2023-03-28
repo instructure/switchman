@@ -47,11 +47,11 @@ end
 
 def where_value(value)
   case value
-  when ::Arel::Nodes::Casted
+  when Arel::Nodes::Casted
     value.value
-  when ::Arel::Nodes::BindParam
+  when Arel::Nodes::BindParam
     where_value(value.value)
-  when ::ActiveRecord::Relation::QueryAttribute
+  when ActiveRecord::Relation::QueryAttribute
     value.value_before_type_cast
   when Array
     value.map { |v| where_value(v) }

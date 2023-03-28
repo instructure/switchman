@@ -3,9 +3,9 @@
 # In rails 7.0+ if you have only 1 db in the env it doesn't try to do explicit activation
 # (and for rails purposes we only have one db per env because each database server is a separate env)
 if Rails.version < '7.0'
-  task_prefix = ::Rake::Task.task_defined?('app:db:migrate') ? 'app:db' : 'db'
-  ::Rake::Task["#{task_prefix}:migrate"].clear_actions.enhance do
-    ::ActiveRecord::Tasks::DatabaseTasks.migrate
+  task_prefix = Rake::Task.task_defined?('app:db:migrate') ? 'app:db' : 'db'
+  Rake::Task["#{task_prefix}:migrate"].clear_actions.enhance do
+    ActiveRecord::Tasks::DatabaseTasks.migrate
     # Ensure this doesn't blow up when running inside the dummy app
     Rake::Task["#{task_prefix}:_dump"].invoke
   end
@@ -19,8 +19,8 @@ module Switchman
     end
 
     def self.scope(base_scope = Shard,
-                   database_server: ENV['DATABASE_SERVER'],
-                   shard: ENV['SHARD'])
+                   database_server: ENV.fetch('DATABASE_SERVER', nil),
+                   shard: ENV.fetch('SHARD', nil))
       servers = DatabaseServer.all
 
       if database_server

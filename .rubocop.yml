@@ -9,6 +9,8 @@ AllCops:
     - 'bin/*'
     - 'gemfiles/*'
 
+Gemspec/DevelopmentDependencies:
+  EnforcedStyle: gemspec
 Layout/DotPosition:
   EnforcedStyle: trailing
 Layout/LineLength:
@@ -25,6 +27,8 @@ RSpec/DescribedClass:
   Enabled: false
 RSpec/ExampleLength:
   Enabled: false
+RSpec/ExampleWording:
+  Enabled: false
 RSpec/ExpectInHook:
   Enabled: false
 RSpec/InstanceVariable:
@@ -34,6 +38,8 @@ RSpec/MessageSpies:
 RSpec/MultipleExpectations:
   Enabled: false
 RSpec/NestedGroups:
+  Enabled: false
+RSpec/NoExpectationExample:
   Enabled: false
 RSpec/StubbedMock:
   Enabled: false

@@ -46,7 +46,6 @@ module Switchman
           raise if connection.open_transactions.positive?
         end
 
-        # rubocop:disable Naming/MethodParameterName
         def define_cached_method(owner, name, namespace:, as:, &block)
           if ::Rails.version < '7.0'
             yield owner
@@ -55,7 +54,6 @@ module Switchman
             owner.define_cached_method(name, namespace: namespace, as: as, &block)
           end
         end
-        # rubocop:enable Naming/MethodParameterName
 
         def define_method_global_attribute(attr_name, owner:)
           if sharded_column?(attr_name)

@@ -221,7 +221,7 @@ module Switchman
       end
 
       def hash
-        self.class.sharded_primary_key? ? self.class.hash ^ global_id.hash : super
+        self.class.sharded_primary_key? ? [self.class, global_id].hash : super
       end
 
       def to_param

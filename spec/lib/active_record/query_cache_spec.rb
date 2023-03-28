@@ -25,7 +25,7 @@ module Switchman
           root.update(user: @user2)
           User.all.includes(:roots).to_a
         end
-        expect(users[0].roots).to match_array([])
+        expect(users[0].roots).to eq([])
       end
 
       it 'isolates queries to multiple shards on the same server' do

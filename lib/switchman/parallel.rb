@@ -65,4 +65,4 @@ module Switchman
   end
 end
 
-::Parallel::UndumpableException.prepend(::Switchman::Parallel::UndumpableException)
+Parallel::UndumpableException.prepend(Switchman::Parallel::UndumpableException)

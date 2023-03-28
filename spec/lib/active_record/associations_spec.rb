@@ -32,7 +32,7 @@ module Switchman
         end
         expect(users.length).to eq 1
         expect(users[0].id).to eq(@user1.id)
-        expect(users[0].roots).to match_array([root])
+        expect(users[0].roots).to contain_exactly(root)
       end
 
       it 'associates built objects with parent shard' do

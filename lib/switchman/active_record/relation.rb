@@ -4,7 +4,7 @@ module Switchman
   module ActiveRecord
     module Relation
       def self.prepended(klass)
-        klass::SINGLE_VALUE_METHODS.concat %i[shard shard_source]
+        klass::SINGLE_VALUE_METHODS.push(:shard, :shard_source)
       end
 
       def initialize(*, **)

@@ -286,3 +286,17 @@ database servers (say "myapp"), and later decide to move them around
 to rebalance load, you'll have the additional headache of needing to
 rename the shards and schemas so that you don't end up with multiple
 shards of the same name on the same database server.
+
+## Development
+
+### Pre-commit hooks
+
+Switchman uses [pre-commit](https://pre-commit.com) to manage a pre-commit hook
+for running Rubocop. On a Mac, all you need to do get this set up locally is:
+
+```bash
+brew install pre-commit
+pre-commit install
+```
+
+Then Rubocop will automatically run against changed files when you commit.

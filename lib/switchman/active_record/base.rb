@@ -171,6 +171,17 @@ module Switchman
         end
       end
 
+      def destroy_shadow_records(target_shards: [Shard.current])
+        raise Errors::ShadowRecordError, 'Cannot be called on a shadow record.' if shadow_record?
+        raise Errors::MethodUnsupportedForUnshardedTableError, 'Cannot be called on a record belonging to an unsharded table.' unless self.class.sharded_column?(self.class.primary_key)
+
+        Array(target_shards).each do |target_shard|
+          next if target_shard == shard
+
+          target_shard.activate { self.class.where('id = ?', global_id).delete_all }
+        end
+      end
+
       # Returns "the shard that this record was actually loaded from" , as
       # opposed to "the shard this record belongs on", which might be
       # different if this is a shadow record.

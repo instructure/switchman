@@ -240,7 +240,7 @@ module Switchman
       end
 
       # Note this also tests `save_shadow_record` through the after hook on user.rb
-      describe '.shadow_record?' do
+      describe '#shadow_record?' do
         it 'correctly identifies shadow records' do
           user = User.new
           user.name = 'a great name'
@@ -267,6 +267,41 @@ module Switchman
           shadow_user = User.where('id=?', user.id).first
           expect(shadow_user.name).to eq(user.name)
           expect(shadow_user.readonly?).to be(true)
+        end
+      end
+
+      describe '#destroy_shadow_records' do
+        before do
+          @user = User.create!(name: 'John Doe')
+          @user.save_shadow_record(target_shard: @shard1)
+        end
+
+        it 'can be passed a single target shard' do
+          expect { @user.destroy_shadow_records(target_shards: @shard1) }.to change {
+            @shard1.activate { User.where('id = ?', @user.global_id) }.count
+          }.from(1).to(0)
+        end
+
+        it 'does not delete shadow records on shards not included' do
+          @user.save_shadow_record(target_shard: @shard2)
+          expect { @user.destroy_shadow_records(target_shards: @shard1) }.not_to change {
+            @shard2.activate { User.where('id = ?', @user.global_id) }.count
+          }.from(1)
+        end
+
+        it 'can be passed a collection of target shards' do
+          @user.save_shadow_record(target_shard: @shard2)
+          expect { @user.destroy_shadow_records(target_shards: [@shard1, @shard2]) }.to change {
+            [@shard1, @shard2].reduce(0) do |count, shard|
+              count + shard.activate { User.where('id = ?', @user.global_id).count }
+            end
+          }.from(2).to(0)
+        end
+
+        it 'does not delete the root record (even when passed the root record shard)' do
+          expect { @user.destroy_shadow_records(target_shards: @user.shard) }.not_to change {
+            User.where(id: @user.id).count
+          }.from(1)
         end
       end
 

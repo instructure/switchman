@@ -10,8 +10,13 @@ SimpleCov.start do
   add_filter 'lib/tasks'
   add_filter 'spec'
   track_files 'lib/**/*.rb'
+
+  enable_coverage :branch
 end
-SimpleCov.minimum_coverage(80)
+# TODO: this branch coverage should probably be higher
+SimpleCov.minimum_coverage line: 90, branch: 74
+# Ideally we'd bring both of these up a good bit too
+SimpleCov.minimum_coverage_by_file line: 32, branch: 16
 
 require_relative 'dummy/config/environment'
 require 'byebug'

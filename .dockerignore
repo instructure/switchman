@@ -1,5 +1,4 @@
 /.bundle/
-/coverage/
 /doc/
 /Dockerfile
 /docker-compose.yml

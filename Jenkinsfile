@@ -1,5 +1,7 @@
 #! /usr/bin/env groovy
 
+def matrix_stages = []
+
 pipeline {
   agent { label 'docker' }
 
@@ -25,14 +27,51 @@ pipeline {
         stages {
           stage('Build') {
             steps {
+              script {
+                matrix_stages.add("switchman_rspec_ruby_${RUBY_VERSION}_rails_${RAILS_VERSION}")
+              }
+              sh "rm -rf coverage"
               // Allow postgres to initialize while the build runs
               sh 'docker-compose up -d postgres'
               sh "docker-compose build --pull --build-arg RUBY_VERSION=${RUBY_VERSION} --build-arg BUNDLE_GEMFILE=gemfiles/activerecord_${RAILS_VERSION}.gemfile app"
               sh 'docker-compose run --rm app bundle exec rake db:drop db:create db:migrate'
-              sh 'docker-compose run --rm app bundle exec rake'
+              sh "docker-compose run --name switchman_rspec_runner app bundle exec rake"
+              sh "docker cp switchman_rspec_runner:/app/coverage coverage"
+              sh "docker rm switchman_rspec_runner"
+              stash name: "switchman_rspec_ruby_${RUBY_VERSION}_rails_${RAILS_VERSION}_coverage", includes: "coverage/**"
             }
           }
         }
+
+        post {
+          cleanup {
+            sh 'docker-compose down --remove-orphans --rmi all'
+          }
+        }
+      }
+    }
+
+    stage('Coverage Report') {
+      steps {
+        script {
+          sh "rm -rf coverage"
+          matrix_stages.each {
+            sh "mkdir -p coverage/${it}"
+            dir("coverage/${it}") {
+              unstash("${it}_coverage")
+            }
+          }
+        }
+        sh "docker-compose build"
+        sh "docker-compose run --name switchman_coverage_reporter app bundle exec rake coverage:report"
+        sh "docker cp switchman_coverage_reporter:/app/coverage coverage"
+        sh "docker rm switchman_coverage_reporter"
+        publishHTML target: [
+          reportName: "Code Coverage",
+          reportDir: "coverage",
+          reportFiles: "coverage/index.html",
+          keepAll: true
+        ]
       }
     }
 

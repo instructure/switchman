@@ -13,10 +13,6 @@ SimpleCov.start do
 
   enable_coverage :branch
 end
-# TODO: this branch coverage should probably be higher
-SimpleCov.minimum_coverage line: 90, branch: 74
-# Ideally we'd bring both of these up a good bit too
-SimpleCov.minimum_coverage_by_file line: 32, branch: 16
 
 require_relative 'dummy/config/environment'
 require 'byebug'
@@ -25,6 +21,7 @@ require 'rspec/rails'
 
 require 'switchman/r_spec_helper'
 
+SimpleCov.command_name "ruby_#{RUBY_VERSION.split('.')[0..1].join('.')}_rails_#{Rails.version.split('.')[0..1].join('.')}"
 # Requires supporting ruby files with custom matchers and macros, etc,
 # in spec/support/ and its subdirectories.
 Dir[Rails.root.join('../spec/support/**/*.rb')].sort.each { |f| require f }

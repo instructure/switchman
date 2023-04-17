@@ -239,6 +239,28 @@ module Switchman
         end
       end
 
+      describe '#loaded_from_shard' do
+        it 'returns the shard for a non-shadow record' do
+          user = User.create!
+          expect(user.loaded_from_shard).to eq Shard.default
+        end
+
+        it 'returns the shard the record was actually loaded from for a shadow record' do
+          user = User.create!
+          user.save_shadow_record(target_shard: @shard2)
+          shadow_user = @shard2.activate { User.find_by('id = ?', user.global_id) }
+          expect(shadow_user.loaded_from_shard).to eq @shard2
+        end
+
+        it 'uses the shard as a fallback value when the ivar is not set' do
+          user = User.create!
+          user.instance_variable_set(:@loaded_from_shard, nil)
+          @shard2.activate do
+            expect(user.loaded_from_shard).to eq user.shard
+          end
+        end
+      end
+
       # Note this also tests `save_shadow_record` through the after hook on user.rb
       describe '#shadow_record?' do
         it 'correctly identifies shadow records' do

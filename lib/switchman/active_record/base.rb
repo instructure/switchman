@@ -186,7 +186,7 @@ module Switchman
       # opposed to "the shard this record belongs on", which might be
       # different if this is a shadow record.
       def loaded_from_shard
-        @loaded_from_shard || fallback_shard
+        @loaded_from_shard || shard
       end
 
       def shard

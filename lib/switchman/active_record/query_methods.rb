@@ -84,6 +84,14 @@ module Switchman
         super(other.shard(primary_shard))
       end
 
+      # use a temp variable so that the new where clause is built before self.where_clause is read,
+      # since build_where_clause might mutate self.where_clause
+      def where!(opts, *rest)
+        new_clause = build_where_clause(opts, rest)
+        self.where_clause += new_clause
+        self
+      end
+
       protected
 
       def remove_nonlocal_primary_keys!
@@ -254,9 +262,10 @@ module Switchman
         send(clause_setter, new_clause)
       end
 
-      def each_transposable_predicate(predicates = nil, &block)
+      def each_transposable_predicate(predicates, &block)
         each_predicate(predicates) do |predicate|
-          if predicate.is_a?(::Arel::Nodes::Grouping)
+          case predicate
+          when ::Arel::Nodes::Grouping
             next predicate unless predicate.expr.is_a?(::Arel::Nodes::Or)
 
             or_expr = predicate.expr
@@ -267,6 +276,40 @@ module Switchman
             next predicate if new_left == old_left && new_right == old_right
 
             next predicate.class.new predicate.expr.class.new(new_left, new_right)
+          when ::Arel::Nodes::SelectStatement
+            new_cores = predicate.cores.map do |core|
+              next core unless core.is_a?(::Arel::Nodes::SelectCore) # just in case something weird is going on
+
+              new_wheres = each_transposable_predicate(core.wheres, &block)
+              new_havings = each_transposable_predicate(core.havings, &block)
+
+              next core if core.wheres == new_wheres && core.havings == new_havings
+
+              new_core = core.clone
+              new_core.wheres = new_wheres
+              new_core.havings = new_havings
+              new_core
+            end
+
+            next predicate if predicate.cores == new_cores
+
+            new_node = predicate.clone
+            new_node.instance_variable_set(:@cores, new_cores)
+            next new_node
+          when ::Arel::Nodes::Not
+            old_value = predicate.expr
+            new_value = each_transposable_predicate([old_value], &block).first
+
+            next predicate if old_value == new_value
+
+            next predicate.class.new(new_value)
+          when ::Arel::Nodes::Exists
+            old_value = predicate.expressions
+            new_value = each_transposable_predicate([old_value], &block).first
+
+            next predicate if old_value == new_value
+
+            next predicate.class.new(new_value)
           end
 
           next predicate unless predicate.is_a?(::Arel::Nodes::Binary) || predicate.is_a?(::Arel::Nodes::HomogeneousIn)
@@ -279,41 +322,41 @@ module Switchman
         end
       end
 
-      def each_transposable_predicate_value(predicates = nil)
+      def each_transposable_predicate_value(predicates = nil, &block)
         each_transposable_predicate(predicates) do |predicate, relation, column, type|
-          each_transposable_predicate_value_cb(predicate) do |value|
+          each_transposable_predicate_value_cb(predicate, block) do |value|
             yield(value, predicate, relation, column, type)
           end
         end
       end
 
-      def each_transposable_predicate_value_cb(node, &block)
+      def each_transposable_predicate_value_cb(node, original_block, &block)
         case node
         when Array
-          node.map { |val| each_transposable_predicate_value_cb(val, &block).presence }.compact
+          node.map { |val| each_transposable_predicate_value_cb(val, original_block, &block).presence }.compact
         when ::ActiveModel::Attribute
           old_value = node.value_before_type_cast
-          new_value = each_transposable_predicate_value_cb(old_value, &block)
+          new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
 
           old_value == new_value ? node : node.class.new(node.name, new_value, node.type)
         when ::Arel::Nodes::And
           old_value = node.children
-          new_value = each_transposable_predicate_value_cb(old_value, &block)
+          new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
 
           old_value == new_value ? node : node.class.new(new_value)
         when ::Arel::Nodes::BindParam
           old_value = node.value
-          new_value = each_transposable_predicate_value_cb(old_value, &block)
+          new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
 
           old_value == new_value ? node : node.class.new(new_value)
         when ::Arel::Nodes::Casted
           old_value = node.value
-          new_value = each_transposable_predicate_value_cb(old_value, &block)
+          new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
 
           old_value == new_value ? node : node.class.new(new_value, node.attribute)
         when ::Arel::Nodes::HomogeneousIn
           old_value = node.values
-          new_value = each_transposable_predicate_value_cb(old_value, &block)
+          new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
 
           # switch to a regular In, so that Relation::WhereClause#contradiction? knows about it
           if new_value.empty?
@@ -324,9 +367,11 @@ module Switchman
           end
         when ::Arel::Nodes::Binary
           old_value = node.right
-          new_value = each_transposable_predicate_value_cb(old_value, &block)
+          new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
 
           old_value == new_value ? node : node.class.new(node.left, new_value)
+        when ::Arel::Nodes::SelectStatement
+          each_transposable_predicate_value([node], &original_block).first
         else
           yield(node)
         end
@@ -343,6 +388,8 @@ module Switchman
               Shard.current(klass.connection_class_for_self)
             elsif type == :foreign
               source_shard_for_foreign_key(relation, column)
+            else
+              primary_shard
             end
 
           transpose_predicate_value(value, current_source_shard, target_shard, type)

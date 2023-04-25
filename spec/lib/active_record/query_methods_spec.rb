@@ -337,6 +337,41 @@ module Switchman
         expect(sql.scan(@shard1.name).length).to eq 2
       end
 
+      it 'transposes ids in sub-queries' do
+        sql = @shard1.activate do
+          # a bit convoluted, but sets up the scenario we want with a subquery
+          base = Appendage.where(user_id: User.where(id: @user2.id))
+          # this will transpose the query to run against Shard.default, but the sub-query inside needs to be transposed as well
+          base.where(id: @appendage1).to_sql
+        end
+        expect(sql).to include(@user2.global_id.to_s)
+        expect(sql).not_to include(@appendage1.global_id.to_s)
+      end
+
+      it 'transposes ids in exists subqueries' do
+        sql = @shard1.activate do
+          base = User.where(Appendage.where(id: @user2.id).arel.exists)
+          # this will transpose the query to run against Shard.default, but the sub-query inside needs to be transposed as well
+          base.where(id: @user1).to_sql
+        end
+
+        expect(sql).to include(@user2.global_id.to_s)
+        expect(sql).not_to include(@user1.global_id.to_s)
+        expect(sql).not_to include(@shard1.name)
+      end
+
+      it 'transposes ids in not exists subqueries' do
+        sql = @shard1.activate do
+          base = User.where.not(Appendage.where(id: @user2.id).arel.exists)
+          # this will transpose the query to run against Shard.default, but the sub-query inside needs to be transposed as well
+          base.where(id: @user1).to_sql
+        end
+
+        expect(sql).to include(@user2.global_id.to_s)
+        expect(sql).not_to include(@user1.global_id.to_s)
+        expect(sql).not_to include(@shard1.name)
+      end
+
       it 'is able to construct eager_load queries' do
         expect(User.eager_load(:appendages).first.association(:appendages).loaded?).to be true
       end

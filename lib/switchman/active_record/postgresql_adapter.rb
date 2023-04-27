@@ -49,7 +49,7 @@ module Switchman
       # significant change: use the shard name if no explicit schema
       def quoted_scope(name = nil, type: nil)
         schema, name = extract_schema_qualified_name(name)
-        type = \
+        type =
           case type # rubocop:disable Style/HashLikeCase
           when 'BASE TABLE'
             "'r','p'"

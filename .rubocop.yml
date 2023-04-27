@@ -31,6 +31,8 @@ RSpec/ExampleWording:
   Enabled: false
 RSpec/ExpectInHook:
   Enabled: false
+RSpec/IndexedLet:
+  Enabled: false
 RSpec/InstanceVariable:
   Enabled: false
 RSpec/MessageSpies:

@@ -29,7 +29,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'pry'
   s.add_development_dependency 'rake', '~> 13.0'
   s.add_development_dependency 'rspec-mocks', '~> 3.5'
-  s.add_development_dependency 'rspec-rails', '~> 4.0'
+  s.add_development_dependency 'rspec-rails', '~> 6.0'
   s.add_development_dependency 'rubocop', '~> 1.10'
   s.add_development_dependency 'rubocop-performance',  '~> 1.16'
   s.add_development_dependency 'rubocop-rake',  '~> 0.5'

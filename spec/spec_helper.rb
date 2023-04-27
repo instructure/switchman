@@ -1,30 +1,32 @@
 # frozen_string_literal: true
 
 # This file is copied to spec/ when you run 'rails generate rspec:install'
-ENV['RAILS_ENV'] ||= 'test'
+ENV["RAILS_ENV"] ||= "test"
 
-require 'simplecov'
+require "simplecov"
 SimpleCov.start do
-  add_filter 'db'
-  add_filter 'lib/switchman/version.rb'
-  add_filter 'lib/tasks'
-  add_filter 'spec'
-  track_files 'lib/**/*.rb'
+  add_filter "db"
+  add_filter "lib/switchman/version.rb"
+  add_filter "lib/tasks"
+  add_filter "spec"
+  track_files "lib/**/*.rb"
 
   enable_coverage :branch
 end
 
-require_relative 'dummy/config/environment'
-require 'byebug'
-require 'pry'
-require 'rspec/rails'
+require_relative "dummy/config/environment"
+require "byebug"
+require "pry"
+require "rspec/rails"
 
-require 'switchman/r_spec_helper'
+require "switchman/r_spec_helper"
 
-SimpleCov.command_name "ruby_#{RUBY_VERSION.split('.')[0..1].join('.')}_rails_#{Rails.version.split('.')[0..1].join('.')}"
+ruby_minor_version = RUBY_VERSION.split(".")[0..1].join(".")
+rails_minor_version = Rails.version.split(".")[0..1].join(".")
+SimpleCov.command_name "ruby_#{ruby_minor_version}_rails_#{rails_minor_version}"
 # Requires supporting ruby files with custom matchers and macros, etc,
 # in spec/support/ and its subdirectories.
-Dir[Rails.root.join('../spec/support/**/*.rb')].sort.each { |f| require f }
+Dir[Rails.root.join("../spec/support/**/*.rb")].sort.each { |f| require f }
 
 RSpec.configure do |config|
   config.infer_spec_type_from_file_location!
@@ -44,7 +46,7 @@ RSpec.configure do |config|
   # order dependency and want to debug it, you can fix the order by providing
   # the seed, which is printed after each run.
   #     --seed 1234
-  config.order = 'random'
+  config.order = "random"
 end
 
 def where_value(value)

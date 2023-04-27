@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require "spec_helper"
 
 module Switchman
   module ActiveRecord
@@ -11,7 +11,7 @@ module Switchman
         ::ActiveRecord::Base.connection_pool.disable_query_cache!
       end
 
-      it 'Works when doing updates with a shard activated' do
+      it "Works when doing updates with a shard activated" do
         ::ActiveRecord::Base.connection_pool.enable_query_cache!
         @shard1.activate do
           @user1 = User.create!
@@ -28,7 +28,7 @@ module Switchman
         expect(users[0].roots).to eq([])
       end
 
-      it 'isolates queries to multiple shards on the same server' do
+      it "isolates queries to multiple shards on the same server" do
         expect(::ActiveRecord::Base.connection_pool.query_cache_enabled).to be false
         ::ActiveRecord::Base.connection_pool.enable_query_cache!
 

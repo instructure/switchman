@@ -15,24 +15,24 @@ module Switchman
 
         def visit_Arel_Nodes_TableAlias(o, collector)
           collector = visit o.relation, collector
-          collector << ' '
+          collector << " "
           collector << quote_local_table_name(o.name)
         end
 
         def visit_Arel_Attributes_Attribute(o, collector)
           join_name = o.relation.table_alias || o.relation.name
-          collector << quote_local_table_name(join_name) << '.' << quote_column_name(o.name)
+          collector << quote_local_table_name(join_name) << "." << quote_column_name(o.name)
         end
 
         def visit_Arel_Nodes_HomogeneousIn(o, collector)
           collector.preparable = false
 
-          collector << quote_local_table_name(o.table_name) << '.' << quote_column_name(o.column_name)
+          collector << quote_local_table_name(o.table_name) << "." << quote_column_name(o.column_name)
 
           collector << if o.type == :in
-                         ' IN ('
+                         " IN ("
                        else
-                         ' NOT IN ('
+                         " NOT IN ("
                        end
 
           values = o.casted_values
@@ -43,7 +43,7 @@ module Switchman
             collector.add_binds(values, o.proc_for_binds, &bind_block)
           end
 
-          collector << ')'
+          collector << ")"
           collector
         end
 

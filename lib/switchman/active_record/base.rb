@@ -67,7 +67,10 @@ module Switchman
         end
 
         def establish_connection(config_or_env = nil)
-          raise ArgumentError, 'establish connection cannot be used on the non-current shard/role' if config_or_env.is_a?(Symbol) && config_or_env != ::Rails.env.to_sym
+          if config_or_env.is_a?(Symbol) && config_or_env != ::Rails.env.to_sym
+            raise ArgumentError,
+                  "establish connection cannot be used on the non-current shard/role"
+          end
 
           # Ensure we don't randomly surprise change the connection parms associated with a shard/role
           config_or_env = nil if config_or_env == ::Rails.env.to_sym
@@ -82,9 +85,15 @@ module Switchman
         end
 
         def connected_to_stack
-          return super if ::Rails.version < '7.0' ? Thread.current.thread_variable?(:ar_connected_to_stack) : ::ActiveSupport::IsolatedExecutionState.key?(:active_record_connected_to_stack)
+          has_own_stack = if ::Rails.version < "7.0"
+                            Thread.current.thread_variable?(:ar_connected_to_stack)
+                          else
+                            ::ActiveSupport::IsolatedExecutionState.key?(:active_record_connected_to_stack)
+                          end
 
           ret = super
+          return ret if has_own_stack
+
           DatabaseServer.guard_servers
           ret
         end
@@ -96,10 +105,13 @@ module Switchman
           sharded_role = nil
           connected_to_stack.reverse_each do |hash|
             shard_role = hash.dig(:shard_roles, target_shard)
-            if shard_role && (hash[:klasses].include?(::ActiveRecord::Base) || hash[:klasses].include?(connection_class_for_self))
-              sharded_role = shard_role
-              break
+            unless shard_role &&
+                   (hash[:klasses].include?(::ActiveRecord::Base) || hash[:klasses].include?(connection_class_for_self))
+              next
             end
+
+            sharded_role = shard_role
+            break
           end
           # Allow a shard-specific role to be reverted to regular inheritance
           return sharded_role if sharded_role && sharded_role != :_switchman_inherit
@@ -119,13 +131,15 @@ module Switchman
 
         def current_switchman_shard
           connected_to_stack.reverse_each do |hash|
-            return hash[:switchman_shard] if hash[:switchman_shard] && hash[:klasses].include?(connection_class_for_self)
+            if hash[:switchman_shard] && hash[:klasses].include?(connection_class_for_self)
+              return hash[:switchman_shard]
+            end
           end
 
           Shard.default
         end
 
-        if ::Rails.version < '7.0'
+        if ::Rails.version < "7.0"
           def connection_class_for_self
             connection_classes
           end
@@ -172,13 +186,17 @@ module Switchman
       end
 
       def destroy_shadow_records(target_shards: [Shard.current])
-        raise Errors::ShadowRecordError, 'Cannot be called on a shadow record.' if shadow_record?
-        raise Errors::MethodUnsupportedForUnshardedTableError, 'Cannot be called on a record belonging to an unsharded table.' unless self.class.sharded_column?(self.class.primary_key)
+        raise Errors::ShadowRecordError, "Cannot be called on a shadow record." if shadow_record?
+
+        unless self.class.sharded_column?(self.class.primary_key)
+          raise Errors::MethodUnsupportedForUnshardedTableError,
+                "Cannot be called on a record belonging to an unsharded table."
+        end
 
         Array(target_shards).each do |target_shard|
           next if target_shard == shard
 
-          target_shard.activate { self.class.where('id = ?', global_id).delete_all }
+          target_shard.activate { self.class.where("id = ?", global_id).delete_all }
         end
       end
 
@@ -270,8 +288,10 @@ module Switchman
 
       def id_for_database
         if self.class.sharded_primary_key?
-          # It's an int, so so it's safe to just return it without passing it through anything else
-          # In theory we should do `@attributes[@primary_key].type.serialize(id)`, but that seems to have surprising side-effects
+          # It's an int, so it's safe to just return it without passing it
+          # through anything else. In theory we should do
+          # `@attributes[@primary_key].type.serialize(id)`, but that seems to
+          # have surprising side-effects
           id
         else
           super

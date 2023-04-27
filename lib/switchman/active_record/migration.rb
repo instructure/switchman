@@ -14,7 +14,9 @@ module Switchman
 
       def connection
         conn = super
-        ::ActiveRecord::Base.connection_pool.switch_database(conn) if conn.shard != ::ActiveRecord::Base.current_switchman_shard
+        if conn.shard != ::ActiveRecord::Base.current_switchman_shard
+          ::ActiveRecord::Base.connection_pool.switch_database(conn)
+        end
         conn
       end
     end
@@ -65,7 +67,7 @@ module Switchman
         return @migrations if instance_variable_defined?(:@migrations)
 
         migrations_cache = Thread.current[:migrations_cache] ||= {}
-        key = Digest::MD5.hexdigest(migration_files.sort.join(','))
+        key = Digest::MD5.hexdigest(migration_files.sort.join(","))
         @migrations = migrations_cache[key] ||= super
       end
 

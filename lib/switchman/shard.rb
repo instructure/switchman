@@ -36,13 +36,15 @@ module Switchman
 
           # Now find the actual record, if it exists
           @default = begin
-            find_cached('default_shard') { Shard.where(default: true).take } || default
+            find_cached("default_shard") { Shard.where(default: true).take } || default
           rescue
             default
           end
 
           # make sure this is not erroneously cached
-          @default.database_server.remove_instance_variable(:@primary_shard) if @default.database_server.instance_variable_defined?(:@primary_shard)
+          if @default.database_server.instance_variable_defined?(:@primary_shard)
+            @default.database_server.remove_instance_variable(:@primary_shard)
+          end
 
           # and finally, check for cached references to the default shard on the existing connection
           sharded_models.each do |klass|
@@ -75,28 +77,30 @@ module Switchman
                       klass.current_switchman_shard != shard
 
           (activated_classes ||= []) << klass
-          klass.connected_to_stack << { shard: shard.database_server.id.to_sym, klasses: [klass], switchman_shard: shard }
+          klass.connected_to_stack << { shard: shard.database_server.id.to_sym,
+                                        klasses: [klass],
+                                        switchman_shard: shard }
         end
         activated_classes
       end
 
       def active_shards
-        sharded_models.map do |klass|
+        sharded_models.filter_map do |klass|
           [klass, current(klass)]
-        end.compact.to_h
+        end.to_h
       end
 
       def lookup(id)
         id_i = id.to_i
-        return current if id_i == current.id || id == 'self'
-        return default if id_i == default.id || id.nil? || id == 'default'
+        return current if id_i == current.id || id == "self"
+        return default if id_i == default.id || id.nil? || id == "default"
 
         id = id_i
         raise ArgumentError if id.zero?
 
         unless cached_shards.key?(id)
           cached_shards[id] = Shard.default.activate do
-            find_cached(['shard', id]) { find_by(id: id) }
+            find_cached(["shard", id]) { find_by(id: id) }
           end
         end
         cached_shards[id]
@@ -140,13 +144,15 @@ module Switchman
         parallel = 0 if parallel == false || parallel.nil?
 
         scope ||= Shard.all
-        scope = scope.order(::Arel.sql('database_server_id IS NOT NULL, database_server_id, id')) if ::ActiveRecord::Relation === scope && scope.order_values.empty?
+        if ::ActiveRecord::Relation === scope && scope.order_values.empty?
+          scope = scope.order(::Arel.sql("database_server_id IS NOT NULL, database_server_id, id"))
+        end
 
         if parallel > 1
           if ::ActiveRecord::Relation === scope
             # still need a post-uniq, cause the default database server could be NULL or Rails.env in the db
-            database_servers = scope.reorder('database_server_id').select(:database_server_id).distinct.
-                               map(&:database_server).compact.uniq
+            database_servers = scope.reorder("database_server_id").select(:database_server_id).distinct
+                                    .filter_map(&:database_server).uniq
             # nothing to do
             return if database_servers.count.zero?
 
@@ -163,14 +169,14 @@ module Switchman
           ::ActiveRecord::Base.clear_all_connections!
 
           parent_process_name = `ps -ocommand= -p#{Process.pid}`.slice(/#{$0}.*/)
-          ret = ::Parallel.map(scopes, in_processes: scopes.length > 1 ? parallel : 0) do |server, subscope|
+          ret = ::Parallel.map(scopes, in_processes: (scopes.length > 1) ? parallel : 0) do |server, subscope|
             name = server.id
             last_description = name
 
             begin
               max_length = 128 - name.length - 3
               short_parent_name = parent_process_name[0..max_length] if max_length >= 0
-              new_title = [short_parent_name, name].join(' ')
+              new_title = [short_parent_name, name].join(" ")
               Process.setproctitle(new_title)
               Switchman.config[:on_fork_proc]&.call
               with_each_shard(subscope, classes, exception: exception, output: :decorated) do
@@ -187,8 +193,9 @@ module Switchman
           unless errors.empty?
             raise errors.first.exception if errors.length == 1
 
+            errors_desc = errors.map(&:name).sort.join(", ")
             raise Errors::ParallelShardExecError,
-                  "The following database server(s) did not finish processing cleanly: #{errors.map(&:name).sort.join(', ')}",
+                  "The following database server(s) did not finish processing cleanly: #{errors_desc}",
                   cause: errors.first.exception
           end
 
@@ -467,7 +474,7 @@ module Switchman
     end
 
     def description
-      [database_server.id, name].compact.join(':')
+      [database_server.id, name].compact.join(":")
     end
 
     # Shards are always on the default shard
@@ -501,7 +508,7 @@ module Switchman
     end
 
     def drop_database
-      raise('Cannot drop the database of the default shard') if default?
+      raise("Cannot drop the database of the default shard") if default?
       return unless read_attribute(:name)
 
       begin
@@ -510,12 +517,12 @@ module Switchman
         drop_statement = sharding_config[adapter]&.[](:drop_statement)
         drop_statement ||= sharding_config[:drop_statement]
         if drop_statement
-          drop_statement = Array(drop_statement).dup.
-                           map { |statement| statement.gsub('%{name}', name) }
+          drop_statement = Array(drop_statement).dup
+                                                .map { |statement| statement.gsub("%{name}", name) }
         end
 
         case adapter
-        when 'mysql', 'mysql2'
+        when "mysql", "mysql2"
           activate do
             ::GuardRail.activate(:deploy) do
               drop_statement ||= "DROP DATABASE #{name}"
@@ -524,7 +531,7 @@ module Switchman
               end
             end
           end
-        when 'postgresql'
+        when "postgresql"
           activate do
             ::GuardRail.activate(:deploy) do
               # Shut up, Postgres!
@@ -561,7 +568,7 @@ module Switchman
     end
 
     def destroy
-      raise('Cannot destroy the default shard') if default?
+      raise("Cannot destroy the default shard") if default?
 
       super
     end
@@ -570,8 +577,8 @@ module Switchman
 
     def clear_cache
       Shard.default.activate do
-        Switchman.cache.delete(['shard', id].join('/'))
-        Switchman.cache.delete('default_shard') if default?
+        Switchman.cache.delete(["shard", id].join("/"))
+        Switchman.cache.delete("default_shard") if default?
       end
       self.class.clear_cache
     end

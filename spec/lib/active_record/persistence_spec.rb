@@ -1,14 +1,14 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require "spec_helper"
 
 module Switchman
   module ActiveRecord
     describe FinderMethods do
       include RSpecHelper
 
-      describe '#touch' do
-        it 'touches on the correct shard' do
+      describe "#touch" do
+        it "touches on the correct shard" do
           user = @shard1.activate { User.create! }
 
           old_time = 1.day.ago
@@ -22,8 +22,8 @@ module Switchman
         end
       end
 
-      describe '#update_columns' do
-        it 'updates on the correct shard' do
+      describe "#update_columns" do
+        it "updates on the correct shard" do
           user = @shard1.activate { User.create! }
 
           new_time = 1.day.from_now

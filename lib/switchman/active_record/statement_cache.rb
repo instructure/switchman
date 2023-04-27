@@ -4,8 +4,8 @@ module Switchman
   module ActiveRecord
     module StatementCache
       module ClassMethods
-        def create(connection, &block)
-          relation = block.call ::ActiveRecord::StatementCache::Params.new
+        def create(connection)
+          relation = yield ::ActiveRecord::StatementCache::Params.new
 
           _query_builder, binds = connection.cacheable_query(self, relation.arel)
           bind_map = ::ActiveRecord::StatementCache::BindMap.new(binds)

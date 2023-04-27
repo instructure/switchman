@@ -1,14 +1,14 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require "spec_helper"
 
 module Switchman
   module ActiveRecord
     describe AttributeMethods do
       include RSpecHelper
 
-      describe 'ids' do
-        it 'returns id relative to the current shard' do
+      describe "ids" do
+        it "returns id relative to the current shard" do
           user = User.create!
           expect(user.id).to be < Shard::IDS_PER_SHARD
           expect(user.local_id).to be < Shard::IDS_PER_SHARD
@@ -21,7 +21,7 @@ module Switchman
           end
         end
 
-        it 'returns foreign keys relative to the current shard' do
+        it "returns foreign keys relative to the current shard" do
           appendage = Appendage.create!
 
           # bypass the setter; we're going to test it in just a minute
@@ -61,7 +61,7 @@ module Switchman
           # local stays local
           appendage.user_id = 6
           expect(appendage.original_user_id).to eq 6
-          appendage.user_id = '6'
+          appendage.user_id = "6"
           expect(appendage.original_user_id).to eq 6
 
           # (incorrect) global id to this shard, should become local
@@ -82,7 +82,7 @@ module Switchman
             # local to this shard becomes global
             appendage.user_id = 6
             expect(appendage.original_user_id).to eq @shard1.global_id_for(6)
-            appendage.user_id = '6'
+            appendage.user_id = "6"
             expect(appendage.original_user_id).to eq @shard1.global_id_for(6)
 
             # global id from original shard, should become local
@@ -105,7 +105,7 @@ module Switchman
           end
         end
 
-        it 'does not choke on polymorphic associations that are missing their type' do
+        it "does not choke on polymorphic associations that are missing their type" do
           f = Feature.create!(owner: User.create!)
           f = Feature.select(:owner_id).where(id: f).first
           f.owner_id

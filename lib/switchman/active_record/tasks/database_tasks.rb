@@ -7,7 +7,7 @@ module Switchman
         def drop(*)
           super
           # no really, it's gone
-          Switchman.cache.delete('default_shard')
+          Switchman.cache.delete("default_shard")
           Shard.default(reload: true)
         end
       end

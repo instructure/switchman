@@ -49,7 +49,7 @@ module Switchman
         relation = apply_join_dependency(eager_loading: false)
         return false if ::ActiveRecord::NullRelation === relation
 
-        relation = relation.except(:select, :order).select('1 AS one').limit(1)
+        relation = relation.except(:select, :order).select("1 AS one").limit(1)
 
         case conditions
         when Array, Hash

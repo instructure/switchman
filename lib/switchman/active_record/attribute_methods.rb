@@ -31,8 +31,16 @@ module Switchman
           # and not the silly one in AR::AttributeMethods::PrimaryKey
           return unless sharded_column?(@primary_key)
 
-          class_eval(build_sharded_getter('id', '_read_attribute(@primary_key)', "::#{connection_class_for_self.name}"), __FILE__, __LINE__)
-          class_eval(build_sharded_setter('id', @primary_key, "::#{connection_class_for_self.name}"), __FILE__, __LINE__)
+          class_eval(
+            build_sharded_getter("id",
+                                 "_read_attribute(@primary_key)",
+                                 "::#{connection_class_for_self.name}"),
+            __FILE__,
+            __LINE__
+          )
+          class_eval(build_sharded_setter("id", @primary_key, "::#{connection_class_for_self.name}"),
+                     __FILE__,
+                     __LINE__)
         end
 
         protected
@@ -47,7 +55,7 @@ module Switchman
         end
 
         def define_cached_method(owner, name, namespace:, as:, &block)
-          if ::Rails.version < '7.0'
+          if ::Rails.version < "7.0"
             yield owner
             owner.rename_method(as, name)
           else
@@ -57,7 +65,10 @@ module Switchman
 
         def define_method_global_attribute(attr_name, owner:)
           if sharded_column?(attr_name)
-            define_cached_method(owner, "global_#{attr_name}", as: "sharded_global_#{attr_name}", namespace: :switchman) do |batch|
+            define_cached_method(owner,
+                                 "global_#{attr_name}",
+                                 as: "sharded_global_#{attr_name}",
+                                 namespace: :switchman) do |batch|
               batch << <<-RUBY
                 def sharded_global_#{attr_name}
                   raw_value = original_#{attr_name}
@@ -69,13 +80,16 @@ module Switchman
               RUBY
             end
           else
-            define_method_unsharded_column(attr_name, 'global', owner)
+            define_method_unsharded_column(attr_name, "global", owner)
           end
         end
 
         def define_method_local_attribute(attr_name, owner:)
           if sharded_column?(attr_name)
-            define_cached_method(owner, "local_#{attr_name}", as: "sharded_local_#{attr_name}", namespace: :switchman) do |batch|
+            define_cached_method(owner,
+                                 "local_#{attr_name}",
+                                 as: "sharded_local_#{attr_name}",
+                                 namespace: :switchman) do |batch|
               batch << <<-RUBY
                 def sharded_local_#{attr_name}
                   raw_value = original_#{attr_name}
@@ -85,7 +99,7 @@ module Switchman
               RUBY
             end
           else
-            define_method_unsharded_column(attr_name, 'local', owner)
+            define_method_unsharded_column(attr_name, "local", owner)
           end
         end
 
@@ -97,7 +111,13 @@ module Switchman
             if reflection.options[:polymorphic]
               # a polymorphic association has to be discovered at runtime. This code ends up being something like
               # context_type.&.constantize&.connection_class_for_self
-              "begin;read_attribute(:#{reflection.foreign_type})&.constantize&.connection_class_for_self;rescue NameError;::ActiveRecord::Base;end"
+              <<~RUBY
+                begin
+                  read_attribute(:#{reflection.foreign_type})&.constantize&.connection_class_for_self
+                rescue NameError
+                  ::ActiveRecord::Base
+                end
+              RUBY
             else
               # otherwise we can just return a symbol for the statically known type of the association
               "::#{reflection.klass.connection_class_for_self.name}"
@@ -111,9 +131,14 @@ module Switchman
           if sharded_column?(attr_name)
             reflection = reflection_for_integer_attribute(attr_name)
             class_name = connection_class_for_self_code_for_reflection(reflection)
-            safe_class_name = class_name.unpack1('h*')
-            define_cached_method(owner, attr_name, as: "sharded_#{safe_class_name}_#{attr_name}", namespace: :switchman) do |batch|
-              batch << build_sharded_getter("sharded_#{safe_class_name}_#{attr_name}", "original_#{attr_name}", class_name)
+            safe_class_name = class_name.unpack1("h*")
+            define_cached_method(owner,
+                                 attr_name,
+                                 as: "sharded_#{safe_class_name}_#{attr_name}",
+                                 namespace: :switchman) do |batch|
+              batch << build_sharded_getter("sharded_#{safe_class_name}_#{attr_name}",
+                                            "original_#{attr_name}",
+                                            class_name)
             end
           else
             define_cached_method(owner, attr_name, as: "plain_#{attr_name}", namespace: :switchman) do |batch|
@@ -153,8 +178,11 @@ module Switchman
           if sharded_column?(attr_name)
             reflection = reflection_for_integer_attribute(attr_name)
             class_name = connection_class_for_self_code_for_reflection(reflection)
-            safe_class_name = class_name.unpack1('h*')
-            define_cached_method(owner, "#{attr_name}=", as: "sharded_#{safe_class_name}_#{attr_name}=", namespace: :switchman) do |batch|
+            safe_class_name = class_name.unpack1("h*")
+            define_cached_method(owner,
+                                 "#{attr_name}=",
+                                 as: "sharded_#{safe_class_name}_#{attr_name}=",
+                                 namespace: :switchman) do |batch|
               batch << build_sharded_setter("sharded_#{safe_class_name}_#{attr_name}", attr_name, class_name)
             end
           else
@@ -178,7 +206,10 @@ module Switchman
 
         def define_method_original_attribute(attr_name, owner:)
           if sharded_column?(attr_name)
-            define_cached_method(owner, "original_#{attr_name}", as: "sharded_original_#{attr_name}", namespace: :switchman) do |batch|
+            define_cached_method(owner,
+                                 "original_#{attr_name}",
+                                 as: "sharded_original_#{attr_name}",
+                                 namespace: :switchman) do |batch|
               batch << <<-RUBY
                 def sharded_original_#{attr_name}
                   _read_attribute("#{attr_name}") { |n| missing_attribute(n, caller) }
@@ -186,14 +217,17 @@ module Switchman
               RUBY
             end
           else
-            define_method_unsharded_column(attr_name, 'global', owner)
+            define_method_unsharded_column(attr_name, "global", owner)
           end
         end
 
         def define_method_original_attribute=(attr_name, owner:)
           return unless sharded_column?(attr_name)
 
-          define_cached_method(owner, "original_#{attr_name}=", as: "sharded_original_#{attr_name}=", namespace: :switchman) do |batch|
+          define_cached_method(owner,
+                               "original_#{attr_name}=",
+                               as: "sharded_original_#{attr_name}=",
+                               namespace: :switchman) do |batch|
             batch << <<-RUBY
               def sharded_original_#{attr_name}=(new_value)
                 _write_attribute('#{attr_name}', new_value)
@@ -203,9 +237,12 @@ module Switchman
         end
 
         def define_method_unsharded_column(attr_name, prefix, owner)
-          return if columns_hash["#{prefix}_#{attr_name}"] || attr_name == 'id'
+          return if columns_hash["#{prefix}_#{attr_name}"] || attr_name == "id"
 
-          define_cached_method(owner, "#{prefix}_#{attr_name}", as: "unsharded_#{prefix}_#{attr_name}", namespace: :switchman) do |batch|
+          define_cached_method(owner,
+                               "#{prefix}_#{attr_name}",
+                               as: "unsharded_#{prefix}_#{attr_name}",
+                               namespace: :switchman) do |batch|
             batch << <<-RUBY
               def unsharded_#{prefix}_#{attr_name}
                 raise NoMethodError, "undefined method `#{prefix}_#{attr_name}'; are you missing an association?"
@@ -217,8 +254,8 @@ module Switchman
 
       def self.prepended(klass)
         klass.singleton_class.prepend(ClassMethods)
-        klass.attribute_method_prefix 'global_', 'local_', 'original_'
-        klass.attribute_method_affix prefix: 'original_', suffix: '='
+        klass.attribute_method_prefix "global_", "local_", "original_"
+        klass.attribute_method_affix prefix: "original_", suffix: "="
       end
 
       # these are called if the specific methods haven't been defined yet
@@ -226,7 +263,11 @@ module Switchman
         return super unless self.class.sharded_column?(attr_name)
 
         reflection = self.class.send(:reflection_for_integer_attribute, attr_name)
-        ::Switchman::Shard.relative_id_for(super, shard, ::Switchman::Shard.current(connection_class_for_self_for_reflection(reflection)))
+        ::Switchman::Shard.relative_id_for(
+          super,
+          shard,
+          ::Switchman::Shard.current(connection_class_for_self_for_reflection(reflection))
+        )
       end
 
       def attribute=(attr_name, new_value)
@@ -236,7 +277,11 @@ module Switchman
         end
 
         reflection = self.class.send(:reflection_for_integer_attribute, attr_name)
-        super(::Switchman::Shard.relative_id_for(new_value, ::Switchman::Shard.current(connection_class_for_self_for_reflection(reflection)), shard))
+        super(::Switchman::Shard.relative_id_for(
+          new_value,
+          ::Switchman::Shard.current(connection_class_for_self_for_reflection(reflection)),
+          shard
+        ))
       end
 
       def global_attribute(attr_name)

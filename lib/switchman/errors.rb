@@ -3,7 +3,10 @@
 module Switchman
   module Errors
     class ManuallyCreatedShadowRecordError < RuntimeError
-      def initialize(msg = "It looks like you're trying to manually create a shadow record. Please use Switchman::ActiveRecord::Base#save_shadow_record instead.")
+      DEFAULT_MSG = "It looks like you're trying to manually create a shadow record. " \
+                    "Please use Switchman::ActiveRecord::Base#save_shadow_record instead."
+
+      def initialize(msg = DEFAULT_MSG)
         super
       end
     end

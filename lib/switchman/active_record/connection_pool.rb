@@ -48,7 +48,9 @@ module Switchman
       end
 
       def switch_database(conn)
-        @schemas = conn.current_schemas if !@schemas && conn.adapter_name == 'PostgreSQL' && !current_shard.database_server.config[:shard_name]
+        if !@schemas && conn.adapter_name == "PostgreSQL" && !current_shard.database_server.config[:shard_name]
+          @schemas = conn.current_schemas
+        end
 
         conn.shard = current_shard
       end
@@ -56,7 +58,7 @@ module Switchman
       private
 
       def current_shard
-        ::Rails.version < '7.0' ? connection_klass.current_switchman_shard : connection_class.current_switchman_shard
+        (::Rails.version < "7.0") ? connection_klass.current_switchman_shard : connection_class.current_switchman_shard
       end
 
       def tls_key

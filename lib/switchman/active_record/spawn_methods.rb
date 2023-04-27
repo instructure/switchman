@@ -17,7 +17,7 @@ module Switchman
             final_shard_source_value = %i[explicit association].detect do |source_value|
               shard_source_value == source_value || rhs.shard_source_value == source_value
             end
-            raise 'unknown shard_source_value' unless final_shard_source_value
+            raise "unknown shard_source_value" unless final_shard_source_value
 
             # have to merge shard_value
             lhs_shard_value = all_shards
@@ -36,7 +36,7 @@ module Switchman
           final_shard_source_value = %i[explicit association implicit].detect do |source_value|
             shard_source_value == source_value || rhs.shard_source_value == source_value
           end
-          raise 'unknown shard_source_value' unless final_shard_source_value
+          raise "unknown shard_source_value" unless final_shard_source_value
         end
 
         [final_shard_value, final_primary_shard, final_shard_source_value]

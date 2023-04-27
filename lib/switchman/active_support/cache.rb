@@ -24,7 +24,10 @@ module Switchman
           store = super
           # can't use defined?, because it's a _ruby_ autoloaded constant,
           # so just checking that will cause it to get required
-          ::ActiveSupport::Cache::RedisCacheStore.prepend(RedisCacheStore) if store.instance_of?(ActiveSupport::Cache::RedisCacheStore) && !::ActiveSupport::Cache::RedisCacheStore.ancestors.include?(RedisCacheStore)
+          if store.instance_of?(ActiveSupport::Cache::RedisCacheStore) &&
+             !::ActiveSupport::Cache::RedisCacheStore <= RedisCacheStore
+            ::ActiveSupport::Cache::RedisCacheStore.prepend(RedisCacheStore)
+          end
           store.options[:namespace] ||= -> { Shard.current.default? ? nil : "shard_#{Shard.current.id}" }
           store
         end

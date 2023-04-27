@@ -12,7 +12,7 @@ module Switchman
       method.super_method
     end
 
-    if RUBY_VERSION <= '2.8'
+    if RUBY_VERSION <= "2.8"
       def call_super(method, above_module, *args, &block)
         super_method_above(method, above_module).call(*args, &block)
       end

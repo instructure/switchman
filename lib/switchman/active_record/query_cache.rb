@@ -20,7 +20,7 @@ module Switchman
                 type_casted_binds: -> { type_casted_binds(binds) }
               }
               ::ActiveSupport::Notifications.instrument(
-                'sql.active_record',
+                "sql.active_record",
                 args
               )
               query_cache[sql][binds]

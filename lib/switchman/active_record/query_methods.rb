@@ -101,7 +101,7 @@ module Switchman
             predicate.left.relation.klass == klass &&
             (predicate.is_a?(::Arel::Nodes::Equality) || predicate.is_a?(::Arel::Nodes::HomogeneousIn))
 
-          value.is_a?(Integer) && value > Shard::IDS_PER_SHARD ? [] : value
+          (value.is_a?(Integer) && value > Shard::IDS_PER_SHARD) ? [] : value
         end
         self
       end
@@ -180,7 +180,7 @@ module Switchman
 
       def sharded_primary_key?(relation, column)
         column = column.to_s
-        return column == 'id' if relation.klass == ::ActiveRecord::Base
+        return column == "id" if relation.klass == ::ActiveRecord::Base
 
         relation.klass.primary_key == column && relation.klass.integral_id?
       end
@@ -207,9 +207,12 @@ module Switchman
 
         case opts
         when String, Array
-          values = Hash === rest.first ? rest.first.values : rest
+          values = (Hash === rest.first) ? rest.first.values : rest
 
-          raise 'Sub-queries are not allowed as simple substitutions; please build your relation with more structured methods so that Switchman is able to introspect it.' if values.grep(ActiveRecord::Relation).first
+          if values.grep(ActiveRecord::Relation).first
+            raise "Sub-queries are not allowed as simple substitutions; " \
+                  "please build your relation with more structured methods so that Switchman is able to introspect it."
+          end
 
           super
         when Hash, ::Arel::Nodes::Node
@@ -329,43 +332,43 @@ module Switchman
       def each_transposable_predicate_value_cb(node, original_block, &block)
         case node
         when Array
-          node.map { |val| each_transposable_predicate_value_cb(val, original_block, &block).presence }.compact
+          node.filter_map { |val| each_transposable_predicate_value_cb(val, original_block, &block).presence }
         when ::ActiveModel::Attribute
           old_value = node.value_before_type_cast
           new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
 
-          old_value == new_value ? node : node.class.new(node.name, new_value, node.type)
+          (old_value == new_value) ? node : node.class.new(node.name, new_value, node.type)
         when ::Arel::Nodes::And
           old_value = node.children
           new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
 
-          old_value == new_value ? node : node.class.new(new_value)
+          (old_value == new_value) ? node : node.class.new(new_value)
         when ::Arel::Nodes::BindParam
           old_value = node.value
           new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
 
-          old_value == new_value ? node : node.class.new(new_value)
+          (old_value == new_value) ? node : node.class.new(new_value)
         when ::Arel::Nodes::Casted
           old_value = node.value
           new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
 
-          old_value == new_value ? node : node.class.new(new_value, node.attribute)
+          (old_value == new_value) ? node : node.class.new(new_value, node.attribute)
         when ::Arel::Nodes::HomogeneousIn
           old_value = node.values
           new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
 
           # switch to a regular In, so that Relation::WhereClause#contradiction? knows about it
           if new_value.empty?
-            klass = node.type == :in ? ::Arel::Nodes::In : ::Arel::Nodes::NotIn
+            klass = (node.type == :in) ? ::Arel::Nodes::In : ::Arel::Nodes::NotIn
             klass.new(node.attribute, new_value)
           else
-            old_value == new_value ? node : node.class.new(new_value, node.attribute, node.type)
+            (old_value == new_value) ? node : node.class.new(new_value, node.attribute, node.type)
           end
         when ::Arel::Nodes::Binary
           old_value = node.right
           new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
 
-          old_value == new_value ? node : node.class.new(node.left, new_value)
+          (old_value == new_value) ? node : node.class.new(node.left, new_value)
         when ::Arel::Nodes::SelectStatement
           each_transposable_predicate_value([node], &original_block).first
         else

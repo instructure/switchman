@@ -7,7 +7,7 @@ class Appendage < ActiveRecord::Base
   has_many :features, as: :owner
 
   scope :has_no_value, -> { where(value: nil) }
-  scope :has_value, -> { where('appendages.value IS NOT NULL') }
+  scope :has_value, -> { where("appendages.value IS NOT NULL") }
 
   attr_writer :should_test_scoping, :associated_shards
   attr_reader :all_appendages

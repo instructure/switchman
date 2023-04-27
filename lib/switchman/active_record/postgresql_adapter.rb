@@ -5,9 +5,9 @@ module Switchman
     module PostgreSQLAdapter
       # copy/paste; use quote_local_table_name
       def create_database(name, options = {})
-        options = { encoding: 'utf8' }.merge!(options.symbolize_keys)
+        options = { encoding: "utf8" }.merge!(options.symbolize_keys)
 
-        option_string = options.sum('') do |key, value|
+        option_string = options.sum("") do |key, value|
           case key
           when :owner
             " OWNER = \"#{value}\""
@@ -24,7 +24,7 @@ module Switchman
           when :connection_limit
             " CONNECTION LIMIT = #{value}"
           else
-            ''
+            ""
           end
         end
 
@@ -37,7 +37,7 @@ module Switchman
       end
 
       def current_schemas
-        select_values('SELECT * FROM unnest(current_schemas(false))')
+        select_values("SELECT * FROM unnest(current_schemas(false))")
       end
 
       def extract_schema_qualified_name(string)
@@ -51,11 +51,11 @@ module Switchman
         schema, name = extract_schema_qualified_name(name)
         type =
           case type # rubocop:disable Style/HashLikeCase
-          when 'BASE TABLE'
+          when "BASE TABLE"
             "'r','p'"
-          when 'VIEW'
+          when "VIEW"
             "'v','m'"
-          when 'FOREIGN TABLE'
+          when "FOREIGN TABLE"
             "'f'"
           end
         scope = {}
@@ -67,7 +67,8 @@ module Switchman
 
       def foreign_keys(table_name)
         super.each do |fk|
-          to_table_qualified_name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(fk.to_table)
+          to_table_qualified_name =
+            ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(fk.to_table)
           fk.to_table = to_table_qualified_name.identifier if to_table_qualified_name.schema == shard.name
         end
       end
@@ -101,7 +102,7 @@ module Switchman
 
       def add_index_options(_table_name, _column_name, **)
         index, algorithm, if_not_exists = super
-        algorithm = nil if DatabaseServer.creating_new_shard && algorithm == 'CONCURRENTLY'
+        algorithm = nil if DatabaseServer.creating_new_shard && algorithm == "CONCURRENTLY"
         [index, algorithm, if_not_exists]
       end
 

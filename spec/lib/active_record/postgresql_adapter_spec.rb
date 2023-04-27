@@ -1,17 +1,17 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require "spec_helper"
 
 module Switchman
   module ActiveRecord
     describe PostgreSQLAdapter do
       before do
-        skip 'requires PostgreSQL' unless ::ActiveRecord::Base.connection.adapter_name == 'PostgreSQL'
+        skip "requires PostgreSQL" unless ::ActiveRecord::Base.connection.adapter_name == "PostgreSQL"
       end
 
-      describe '#quote_table_name' do
+      describe "#quote_table_name" do
         before do
-          shard = double(name: 'bob')
+          shard = double(name: "bob")
           allow(::ActiveRecord::Base.connection).to receive(:shard).and_return(shard)
         end
 
@@ -19,44 +19,54 @@ module Switchman
           allow(::ActiveRecord::Base.connection).to receive(:shard).and_call_original
         end
 
-        it 'adds schema if not included' do
-          expect(::ActiveRecord::Base.connection.quote_table_name('table')).to eq '"bob"."table"'
+        it "adds schema if not included" do
+          expect(::ActiveRecord::Base.connection.quote_table_name("table")).to eq '"bob"."table"'
         end
 
-        it 'does not add schema if already included' do
-          expect(::ActiveRecord::Base.connection.quote_table_name('schema.table')).to eq '"schema"."table"'
+        it "does not add schema if already included" do
+          expect(::ActiveRecord::Base.connection.quote_table_name("schema.table")).to eq '"schema"."table"'
         end
 
-        it 'does not add schema under with_local_table_name' do
+        it "does not add schema under with_local_table_name" do
           ::ActiveRecord::Base.connection.with_local_table_name do
-            expect(::ActiveRecord::Base.connection.quote_table_name('table')).to eq '"table"'
+            expect(::ActiveRecord::Base.connection.quote_table_name("table")).to eq '"table"'
           end
-          expect(::ActiveRecord::Base.connection.quote_table_name('table')).to eq '"bob"."table"'
+          expect(::ActiveRecord::Base.connection.quote_table_name("table")).to eq '"bob"."table"'
         end
       end
 
-      context 'with table aliases' do
-        it 'qualifies tables, but not aliases or columns' do
+      context "with table aliases" do
+        it "qualifies tables, but not aliases or columns" do
           # preload schema metadata
           User.primary_key
 
-          expect(User.joins(:parent).where(id: 1).to_sql).to be_include %(* FROM "public"."users" INNER JOIN "public"."users" "parents_users" ON "parents_users"."id" = "users"."parent_id" WHERE "users"."id" = 1)
+          expect(User.joins(:parent).where(id: 1).to_sql).to include(<<~SQL.squish)
+            * FROM "public"."users"
+            INNER JOIN "public"."users" "parents_users"
+              ON "parents_users"."id" = "users"."parent_id"
+            WHERE "users"."id" = 1
+          SQL
         end
 
-        it 'qualifies tables, but not aliases with IN' do
+        it "qualifies tables, but not aliases with IN" do
           # preload schema metadata
           User.primary_key
 
-          expect(User.joins(:parent).where(id: [1, 2]).to_sql).to be_include %(* FROM "public"."users" INNER JOIN "public"."users" "parents_users" ON "parents_users"."id" = "users"."parent_id" WHERE "users"."id" IN \(1, 2\))
+          expect(User.joins(:parent).where(id: [1, 2]).to_sql).to include(<<~SQL.squish)
+            * FROM "public"."users"
+            INNER JOIN "public"."users" "parents_users"
+              ON "parents_users"."id" = "users"."parent_id"
+            WHERE "users"."id" IN (1, 2)
+          SQL
         end
       end
 
-      describe '#indexes' do
-        it 'successfully lists indexes' do
+      describe "#indexes" do
+        it "successfully lists indexes" do
           expect(::ActiveRecord::Base.connection.indexes(:users).length).not_to eq 0
         end
 
-        it 'identifies unique indexes' do
+        it "identifies unique indexes" do
           conn = ::ActiveRecord::Base.connection
 
           conn.create_table :unique_index_test do |t|
@@ -69,17 +79,17 @@ module Switchman
         end
       end
 
-      describe '#foreign_keys' do
-        it 'returns non-qualified to_table with qualified names' do
+      describe "#foreign_keys" do
+        it "returns non-qualified to_table with qualified names" do
           search_path = User.connection.schema_search_path
           User.connection.schema_search_path = "''"
-          expect(User.connection.foreign_keys(:users).first.to_table).to eq 'users'
+          expect(User.connection.foreign_keys(:users).first.to_table).to eq "users"
         ensure
           Face.connection.schema_search_path = search_path
         end
       end
 
-      describe '#rename_table' do
+      describe "#rename_table" do
         it "doesn't have problems with qualified names" do
           conn = ::ActiveRecord::Base.connection
 
@@ -93,12 +103,12 @@ module Switchman
         end
       end
 
-      describe '#columns' do
-        it 'properly quotes, even when nested within a with_local_table_names call' do
+      describe "#columns" do
+        it "properly quotes, even when nested within a with_local_table_names call" do
           search_path = User.connection.schema_search_path
           User.connection.schema_search_path = "''"
           User.connection.with_local_table_name do
-            expect { User.connection.columns('users') }.not_to raise_error
+            expect { User.connection.columns("users") }.not_to raise_error
           end
         ensure
           User.connection.schema_search_path = search_path

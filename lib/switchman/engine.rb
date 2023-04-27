@@ -10,19 +10,23 @@ module Switchman
 
     ::GuardRail.singleton_class.prepend(GuardRail::ClassMethods)
 
-    # after :initialize_dependency_mechanism to ensure autoloading is configured for any downstream initializers that care
-    # In rails 7.0 we should be able to just use an explicit after on configuring the once autoloaders and not need to go monkey around with initializer order
-    if ::Rails.version < '7.0'
-      initialize_dependency_mechanism = ::Rails::Application::Bootstrap.initializers.find { |i| i.name == :initialize_dependency_mechanism }
+    # after :initialize_dependency_mechanism to ensure autoloading is
+    # configured for any downstream initializers that care. In rails 7.0 we
+    # should be able to just use an explicit after on configuring the once
+    # autoloaders and not need to go monkey around with initializer order
+    if ::Rails.version < "7.0"
+      initialize_dependency_mechanism = ::Rails::Application::Bootstrap.initializers.find do |i|
+        i.name == :initialize_dependency_mechanism
+      end
       initialize_dependency_mechanism.instance_variable_get(:@options)[:after] = :set_autoload_paths
     end
 
-    initializer 'switchman.active_record_patch',
-                before: 'active_record.initialize_database',
-                after: (::Rails.version < '7.0' ? :initialize_dependency_mechanism : :setup_once_autoloader) do
+    initializer "switchman.active_record_patch",
+                before: "active_record.initialize_database",
+                after: ((::Rails.version < "7.0") ? :initialize_dependency_mechanism : :setup_once_autoloader) do
       ::ActiveSupport.on_load(:active_record) do
         # Switchman requires postgres, so just always load the pg adapter
-        require 'active_record/connection_adapters/postgresql_adapter'
+        require "active_record/connection_adapters/postgresql_adapter"
 
         self.default_shard = ::Rails.env.to_sym
         self.default_role = :primary
@@ -50,14 +54,20 @@ module Switchman
         ::ActiveRecord::Associations::CollectionProxy.include(ActiveRecord::Associations::CollectionProxy)
 
         ::ActiveRecord::Associations::Preloader::Association.prepend(ActiveRecord::Associations::Preloader::Association)
-        ::ActiveRecord::Associations::Preloader::Association::LoaderRecords.prepend(ActiveRecord::Associations::Preloader::Association::LoaderRecords) unless ::Rails.version < '7.0'
+        unless ::Rails.version < "7.0"
+          ::ActiveRecord::Associations::Preloader::Association::LoaderRecords.prepend(
+            ActiveRecord::Associations::Preloader::Association::LoaderRecords
+          )
+        end
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::AbstractAdapter)
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.prepend(ActiveRecord::ConnectionPool)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::QueryCache)
         ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(ActiveRecord::PostgreSQLAdapter)
 
         ::ActiveRecord::DatabaseConfigurations.prepend(ActiveRecord::DatabaseConfigurations)
-        ::ActiveRecord::DatabaseConfigurations::DatabaseConfig.prepend(ActiveRecord::DatabaseConfigurations::DatabaseConfig)
+        ::ActiveRecord::DatabaseConfigurations::DatabaseConfig.prepend(
+          ActiveRecord::DatabaseConfigurations::DatabaseConfig
+        )
 
         ::ActiveRecord::LogSubscriber.prepend(ActiveRecord::LogSubscriber)
         ::ActiveRecord::Migration.prepend(ActiveRecord::Migration)
@@ -77,8 +87,12 @@ module Switchman
         ::ActiveRecord::Relation.include(ActiveRecord::SpawnMethods)
         ::ActiveRecord::Relation.include(CallSuper)
 
-        ::ActiveRecord::PredicateBuilder::AssociationQueryValue.prepend(ActiveRecord::PredicateBuilder::AssociationQueryValue)
-        ::ActiveRecord::PredicateBuilder::PolymorphicArrayValue.prepend(ActiveRecord::PredicateBuilder::AssociationQueryValue)
+        ::ActiveRecord::PredicateBuilder::AssociationQueryValue.prepend(
+          ActiveRecord::PredicateBuilder::AssociationQueryValue
+        )
+        ::ActiveRecord::PredicateBuilder::PolymorphicArrayValue.prepend(
+          ActiveRecord::PredicateBuilder::AssociationQueryValue
+        )
 
         ::ActiveRecord::Tasks::DatabaseTasks.singleton_class.prepend(ActiveRecord::Tasks::DatabaseTasks)
 
@@ -96,17 +110,18 @@ module Switchman
 
         ::ActiveRecord::ConnectionAdapters::TableDefinition.prepend(ActiveRecord::TableDefinition)
       end
-      # Ensure that ActiveRecord::Base is always loaded before any app-level initializers can go try to load Switchman::Shard or we get a loop
+      # Ensure that ActiveRecord::Base is always loaded before any app-level
+      # initializers can go try to load Switchman::Shard or we get a loop
       ::ActiveRecord::Base
     end
 
-    initializer 'switchman.error_patch', after: 'active_record.initialize_database' do
+    initializer "switchman.error_patch", after: "active_record.initialize_database" do
       ::ActiveSupport.on_load(:active_record) do
         ::StandardError.include(StandardError)
       end
     end
 
-    initializer 'switchman.initialize_cache', before: :initialize_cache, after: 'active_record.initialize_database' do
+    initializer "switchman.initialize_cache", before: :initialize_cache, after: "active_record.initialize_database" do
       ::ActiveSupport::Cache.singleton_class.prepend(ActiveSupport::Cache::ClassMethods)
 
       # if we haven't already setup our cache map out-of-band, set it up from
@@ -130,11 +145,11 @@ module Switchman
         Switchman.config[:cache_map][::Rails.env] = value
       end
 
-      middlewares = Switchman.config[:cache_map].values.map do |store|
+      middlewares = Switchman.config[:cache_map].values.filter_map do |store|
         store.middleware if store.respond_to?(:middleware)
-      end.compact.uniq
+      end.uniq
       middlewares.each do |middleware|
-        config.middleware.insert_before('Rack::Runtime', middleware)
+        config.middleware.insert_before("Rack::Runtime", middleware)
       end
 
       # prevent :initialize_cache from trying to (or needing to) set

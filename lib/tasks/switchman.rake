@@ -2,8 +2,8 @@
 
 # In rails 7.0+ if you have only 1 db in the env it doesn't try to do explicit activation
 # (and for rails purposes we only have one db per env because each database server is a separate env)
-if Rails.version < '7.0'
-  task_prefix = Rake::Task.task_defined?('app:db:migrate') ? 'app:db' : 'db'
+if Rails.version < "7.0"
+  task_prefix = Rake::Task.task_defined?("app:db:migrate") ? "app:db" : "db"
   Rake::Task["#{task_prefix}:migrate"].clear_actions.enhance do
     ActiveRecord::Tasks::DatabaseTasks.migrate
     # Ensure this doesn't blow up when running inside the dummy app
@@ -13,26 +13,27 @@ end
 
 module Switchman
   module Rake
-    def self.filter_database_servers(&block)
-      chain = filter_database_servers_chain # use a local variable so that the current chain is closed over in the following lambda
-      @filter_database_servers_chain = ->(servers) { block.call(servers, chain) }
+    def self.filter_database_servers
+      # use a local variable so that the current chain is closed over in the following lambda
+      chain = filter_database_servers_chain
+      @filter_database_servers_chain = ->(servers) { yield(servers, chain) }
     end
 
     def self.scope(base_scope = Shard,
-                   database_server: ENV.fetch('DATABASE_SERVER', nil),
-                   shard: ENV.fetch('SHARD', nil))
+                   database_server: ENV.fetch("DATABASE_SERVER", nil),
+                   shard: ENV.fetch("SHARD", nil))
       servers = DatabaseServer.all
 
       if database_server
         servers = database_server
-        if servers.first == '-'
+        if servers.first == "-"
           negative = true
           servers = servers[1..]
         end
-        servers = servers.split(',')
-        open = servers.delete('open')
+        servers = servers.split(",")
+        open = servers.delete("open")
 
-        servers = servers.map { |server| DatabaseServer.find(server) }.compact
+        servers = servers.filter_map { |server| DatabaseServer.find(server) }
         if open
           open_servers = DatabaseServer.all.select { |server| server.config[:open] }
           servers.concat(open_servers)
@@ -44,7 +45,7 @@ module Switchman
 
       servers = filter_database_servers_chain.call(servers)
 
-      scope = base_scope.order(::Arel.sql('database_server_id IS NOT NULL, database_server_id, id'))
+      scope = base_scope.order(::Arel.sql("database_server_id IS NOT NULL, database_server_id, id"))
       if servers != DatabaseServer.all
         database_server_ids = servers.map(&:id)
         database_server_ids << nil if servers.include?(Shard.default.database_server)
@@ -57,7 +58,7 @@ module Switchman
     end
 
     def self.options
-      { parallel: ENV['PARALLEL'].to_i }
+      { parallel: ENV["PARALLEL"].to_i }
     end
 
     # classes - an array or proc, to activate as the current shard during the
@@ -69,7 +70,7 @@ module Switchman
 
       old_task.enhance do |*task_args|
         if ::Rails.env.test?
-          require 'switchman/test_helper'
+          require "switchman/test_helper"
           TestHelper.recreate_persistent_test_shards(dont_create: true)
         end
 
@@ -86,7 +87,9 @@ module Switchman
               nil
             end
           rescue => e
-            warn "Exception from #{e.current_shard.id}: #{e.current_shard.description}:\n#{e.full_message}" if options[:parallel] != 0
+            if options[:parallel] != 0
+              warn "Exception from #{e.current_shard.id}: #{e.current_shard.description}:\n#{e.full_message}"
+            end
             raise
           end
         end
@@ -98,7 +101,7 @@ module Switchman
     end
 
     def self.shard_scope(scope, raw_shard_ids)
-      raw_shard_ids = raw_shard_ids.split(',')
+      raw_shard_ids = raw_shard_ids.split(",")
 
       shard_ids = []
       negative_shard_ids = []
@@ -108,13 +111,13 @@ module Switchman
 
       raw_shard_ids.each do |id|
         case id
-        when 'default'
+        when "default"
           shard_ids << Shard.default.id
-        when '-default'
+        when "-default"
           negative_shard_ids << Shard.default.id
-        when 'primary'
+        when "primary"
           shard_ids.concat(Shard.primary.pluck(:id))
-        when '-primary'
+        when "-primary"
           negative_shard_ids.concat(Shard.primary.pluck(:id))
         when /^(-?)(\d+)?\.\.(\.)?(\d+)?$/
           negative, start, open, finish = $1.present?, $2, $3.present?, $4
@@ -122,8 +125,8 @@ module Switchman
 
           range = []
           range << "id>=#{start}" if start
-          range << "id<#{'=' unless open}#{finish}" if finish
-          (negative ? negative_ranges : ranges) << "(#{range.join(' AND ')})"
+          range << "id<#{"=" unless open}#{finish}" if finish
+          (negative ? negative_ranges : ranges) << "(#{range.join(" AND ")})"
         when /^-(\d+)$/
           negative_shard_ids << $1.to_i
         when /^\d+$/
@@ -151,21 +154,21 @@ module Switchman
           select = []
           if index != 1
             subscope = subscope.offset(per_chunk * (index - 1))
-            select << 'MIN(id) AS min_id'
+            select << "MIN(id) AS min_id"
           end
           if index != denominator
             subscope = subscope.limit(per_chunk)
-            select << 'MAX(id) AS max_id'
+            select << "MAX(id) AS max_id"
           end
 
-          result = Shard.from(subscope).select(select.join(', ')).to_a.first
+          result = Shard.from(subscope).select(select.join(", ")).to_a.first
           range = case index
                   when 1
-                    "id<=#{result['max_id']}"
+                    "id<=#{result["max_id"]}"
                   when denominator
-                    "id>=#{result['min_id']}"
+                    "id>=#{result["min_id"]}"
                   else
-                    "(id>=#{result['min_id']} AND id<=#{result['max_id']})"
+                    "(id>=#{result["min_id"]} AND id<=#{result["max_id"]})"
                   end
 
           (numerator.negative? ? negative_ranges : ranges) << range
@@ -186,16 +189,16 @@ module Switchman
 
       conditions = []
       positive_queries = []
-      positive_queries << ranges.join(' OR ') unless ranges.empty?
+      positive_queries << ranges.join(" OR ") unless ranges.empty?
       unless shard_ids.empty?
-        positive_queries << 'id IN (?)'
+        positive_queries << "id IN (?)"
         conditions << shard_ids
       end
-      positive_query = positive_queries.join(' OR ')
+      positive_query = positive_queries.join(" OR ")
       scope = scope.where(positive_query, *conditions) unless positive_queries.empty?
 
-      scope = scope.where("NOT (#{negative_ranges.join(' OR')})") unless negative_ranges.empty?
-      scope = scope.where('id NOT IN (?)', negative_shard_ids) unless negative_shard_ids.empty?
+      scope = scope.where("NOT (#{negative_ranges.join(" OR")})") unless negative_ranges.empty?
+      scope = scope.where("id NOT IN (?)", negative_shard_ids) unless negative_shard_ids.empty?
       scope
     end
 
@@ -208,19 +211,19 @@ module Switchman
     module PostgreSQLDatabaseTasks
       def structure_dump(filename, extra_flags = nil)
         set_psql_env
-        args = ['--schema-only', '--no-privileges', '--no-owner', '--file', filename]
+        args = ["--schema-only", "--no-privileges", "--no-owner", "--file", filename]
         args.concat(Array(extra_flags)) if extra_flags
         shard = Shard.current.name
         serialized_search_path = shard
         args << "--schema=#{Shellwords.escape(shard)}"
 
         ignore_tables = ::ActiveRecord::SchemaDumper.ignore_tables
-        args += ignore_tables.flat_map { |table| ['-T', table] } if ignore_tables.any?
+        args += ignore_tables.flat_map { |table| ["-T", table] } if ignore_tables.any?
 
         args << db_config.database
-        run_cmd('pg_dump', args, 'dumping')
+        run_cmd("pg_dump", args, "dumping")
         remove_sql_header_comments(filename)
-        File.open(filename, 'a') { |f| f << "SET search_path TO #{serialized_search_path};\n\n" }
+        File.open(filename, "a") { |f| f << "SET search_path TO #{serialized_search_path};\n\n" }
       end
     end
   end

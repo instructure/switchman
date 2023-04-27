@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require 'guard_rail'
-require 'zeitwerk'
+require "guard_rail"
+require "zeitwerk"
 
 class SwitchmanInflector < Zeitwerk::GemInflector
   def camelize(basename, abspath)
     if basename =~ /\Apostgresql_(.*)/
-      'PostgreSQL' + super($1, abspath)
+      "PostgreSQL" + super($1, abspath)
     else
       super
     end
@@ -32,7 +32,13 @@ module Switchman
   end
 
   def self.foreign_key_check(name, type, limit: nil)
-    puts "WARNING: All foreign keys need to be 8-byte integers. #{name} looks like a foreign key. If so, please add the option: `:limit => 8`" if name.to_s =~ /_id\z/ && type.to_s == 'integer' && limit.to_i < 8
+    return unless name.to_s.end_with?("_id") && type.to_s == "integer" && limit.to_i < 8
+
+    puts <<~TEXT.squish
+      WARNING: All foreign keys need to be 8-byte integers.
+      #{name} looks like a foreign key.
+      If so, please add the option: `:limit => 8`
+    TEXT
   end
 
   class OrderOnMultiShardQuery < RuntimeError; end

@@ -49,7 +49,7 @@ module Switchman
       end
 
       def load(&block)
-        if !loaded? || (::Rails.version >= '7.0' && scheduled?)
+        if !loaded? || (::Rails.version >= "7.0" && scheduled?)
           @records = activate { |relation| relation.send(:exec_queries, &block) }
           @loaded = true
         end
@@ -58,7 +58,7 @@ module Switchman
       end
 
       %I[update_all delete_all].each do |method|
-        arg_params = RUBY_VERSION <= '2.8' ? '*args' : '*args, **kwargs'
+        arg_params = (RUBY_VERSION <= "2.8") ? "*args" : "*args, **kwargs"
         class_eval <<-RUBY, __FILE__, __LINE__ + 1
           def #{method}(#{arg_params})
             result = self.activate(unordered: true) { |relation| relation.call_super(#{method.inspect}, Relation, #{arg_params}) }
@@ -73,12 +73,16 @@ module Switchman
         loose_mode = options[:loose] && is_integer
         # loose_mode: if we don't care about getting exactly batch_size ids in between
         # don't get the max - just get the min and add batch_size so we get that many _at most_
-        values = loose_mode ? 'MIN(id)' : 'MIN(id), MAX(id)'
+        values = loose_mode ? "MIN(id)" : "MIN(id), MAX(id)"
 
         batch_size = options[:batch_size].try(:to_i) || 1000
-        quoted_primary_key = "#{klass.connection.quote_local_table_name(table_name)}.#{klass.connection.quote_column_name(primary_key)}"
-        as_id = ' AS id' unless primary_key == 'id'
-        subquery_scope = except(:select).select("#{quoted_primary_key}#{as_id}").reorder(primary_key.to_sym).limit(loose_mode ? 1 : batch_size)
+        quoted_primary_key =
+          "#{klass.connection.quote_local_table_name(table_name)}.#{klass.connection.quote_column_name(primary_key)}"
+        as_id = " AS id" unless primary_key == "id"
+        subquery_scope = except(:select)
+                         .select("#{quoted_primary_key}#{as_id}")
+                         .reorder(primary_key.to_sym)
+                         .limit(loose_mode ? 1 : batch_size)
         subquery_scope = subquery_scope.where("#{quoted_primary_key} <= ?", options[:end_at]) if options[:end_at]
 
         first_subquery_scope = if options[:start_at]
@@ -121,7 +125,9 @@ module Switchman
             relation = shard(Shard.current(klass.connection_class_for_self))
             relation.remove_nonlocal_primary_keys!
             # do a minimal query if possible
-            relation = relation.limit(limit_value - result_count) if limit_value && !result_count.zero? && order_values.empty?
+            if limit_value && !result_count.zero? && order_values.empty?
+              relation = relation.limit(limit_value - result_count)
+            end
 
             shard_results = relation.activate(&block)
 

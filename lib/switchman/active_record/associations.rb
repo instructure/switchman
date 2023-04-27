@@ -24,10 +24,15 @@ module Switchman
 
       module CollectionAssociation
         def find_target
-          shards = reflection.options[:multishard] && owner.respond_to?(:associated_shards) ? owner.associated_shards : [shard]
+          shards = if reflection.options[:multishard] && owner.respond_to?(:associated_shards)
+                     owner.associated_shards
+                   else
+                     [shard]
+                   end
           # activate both the owner and the target's shard category, so that Reflection#join_id_for,
           # when called for the owner, will be returned relative to shard the query will execute on
-          Shard.with_each_shard(shards, [klass.connection_class_for_self, owner.class.connection_class_for_self].uniq) do
+          Shard.with_each_shard(shards,
+                                [klass.connection_class_for_self, owner.class.connection_class_for_self].uniq) do
             super
           end
         end
@@ -128,7 +133,12 @@ module Switchman
                 Shard.lookup(shard).activate do
                   scope_was = loader_query.scope
                   begin
-                    loader_query.instance_variable_set(:@scope, loader_query.scope.shard(Shard.current(loader_query.scope.model.connection_class_for_self)))
+                    loader_query.instance_variable_set(
+                      :@scope,
+                      loader_query.scope.shard(
+                        Shard.current(loader_query.scope.model.connection_class_for_self)
+                      )
+                    )
                     ret += loader_query.load_records_for_keys(keys) do |record|
                       loaders.each { |l| l.set_inverse(record) }
                     end
@@ -186,7 +196,7 @@ module Switchman
             # #compare_by_identity makes such owners different hash keys
             @records_by_owner = {}.compare_by_identity
 
-            if ::Rails.version >= '7.0'
+            if ::Rails.version >= "7.0"
               raw_records ||= loader_query.records_for([self])
             elsif owner_keys.empty?
               raw_records ||= []
@@ -210,7 +220,8 @@ module Switchman
                 relative_owner_keys = partitioned_owners.map do |owner|
                   key = owner[owner_key_name]
                   if key && owner.class.sharded_column?(owner_key_name)
-                    key = Shard.relative_id_for(key, owner.shard,
+                    key = Shard.relative_id_for(key,
+                                                owner.shard,
                                                 Shard.current(klass.connection_class_for_self))
                   end
                   convert_key(key)

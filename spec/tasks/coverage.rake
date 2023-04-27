@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 namespace :coverage do
-  desc 'Aggregate coverage across ruby/rails versions'
+  desc "Aggregate coverage across ruby/rails versions"
   task :report do
-    require 'simplecov'
+    require "simplecov"
 
-    SimpleCov.collate Dir['coverage/*/coverage/.resultset.json'] do
+    SimpleCov.collate Dir["coverage/*/coverage/.resultset.json"] do
       enable_coverage :branch
       # TODO: this branch coverage should probably be higher
       minimum_coverage line: 92, branch: 79

@@ -3,9 +3,9 @@
 module Switchman
   class DefaultShard
     def id
-      'default'
+      "default"
     end
-    alias cache_key id
+    alias_method :cache_key, :id
     def activate(*_classes)
       yield
     end
@@ -58,7 +58,7 @@ module Switchman
     end
 
     def _dump(_depth)
-      ''
+      ""
     end
 
     def self._load(_str)

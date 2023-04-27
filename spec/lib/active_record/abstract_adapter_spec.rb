@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require "spec_helper"
 
 module Switchman
   module ActiveRecord
@@ -14,7 +14,7 @@ module Switchman
         expect(conn.last_query_at).to eq Time.now
       end
 
-      context 'when non-transactional' do
+      context "when non-transactional" do
         self.use_transactional_tests = false
 
         after do
@@ -32,8 +32,8 @@ module Switchman
             # now talk to a sharded model
             name1 = ::ActiveRecord::Base.connection.schema_migration.connection_specification_name
             name2 = @shard2.activate { ::ActiveRecord::Base.connection.schema_migration.connection_specification_name }
-            expect(name1).to eq 'ActiveRecord::Base'
-            expect(name2).to eq 'ActiveRecord::Base'
+            expect(name1).to eq "ActiveRecord::Base"
+            expect(name2).to eq "ActiveRecord::Base"
           end
         end
       end

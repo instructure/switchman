@@ -28,7 +28,7 @@ module Switchman
 
       def execute_simple_calculation(operation, column_name, distinct)
         operation = operation.to_s.downcase
-        if operation == 'average'
+        if operation == "average"
           result = calculate_simple_average(column_name, distinct)
         else
           result = activate do |relation|
@@ -36,11 +36,11 @@ module Switchman
           end
           if result.is_a?(Array)
             case operation
-            when 'count', 'sum'
+            when "count", "sum"
               result = result.sum
-            when 'minimum'
+            when "minimum"
               result = result.min
-            when 'maximum'
+            when "maximum"
               result = result.max
             end
           end
@@ -52,20 +52,20 @@ module Switchman
         # See activerecord#execute_simple_calculation
         relation = except(:order)
         column = aggregate_column(column_name)
-        relation.select_values = [operation_over_aggregate_column(column, 'average', distinct).as('average'),
-                                  operation_over_aggregate_column(column, 'count', distinct).as('count')]
+        relation.select_values = [operation_over_aggregate_column(column, "average", distinct).as("average"),
+                                  operation_over_aggregate_column(column, "count", distinct).as("count")]
 
         initial_results = relation.activate { |rel| klass.connection.select_all(rel) }
         if initial_results.is_a?(Array)
           initial_results.each do |r|
-            r['average'] = type_cast_calculated_value_switchman(r['average'], column_name, 'average')
-            r['count'] = type_cast_calculated_value_switchman(r['count'], column_name, 'count')
+            r["average"] = type_cast_calculated_value_switchman(r["average"], column_name, "average")
+            r["count"] = type_cast_calculated_value_switchman(r["count"], column_name, "count")
           end
-          result = initial_results.map { |r| r['average'] * r['count'] }.sum / initial_results.map do |r|
-                                                                                 r['count']
-                                                                               end.sum
+          result = initial_results.sum { |r| r["average"] * r["count"] } / initial_results.sum do |r|
+                                                                             r["count"]
+                                                                           end
         else
-          result = type_cast_calculated_value_switchman(initial_results.first['average'], column_name, 'average')
+          result = type_cast_calculated_value_switchman(initial_results.first["average"], column_name, "average")
         end
         result
       end
@@ -90,7 +90,7 @@ module Switchman
             row[opts[:aggregate_alias]] = type_cast_calculated_value_switchman(
               row[opts[:aggregate_alias]], column_name, opts[:operation]
             )
-            row['count'] = row['count'].to_i if opts[:operation] == 'average'
+            row["count"] = row["count"].to_i if opts[:operation] == "average"
 
             opts[:group_columns].each do |aliaz, _type, group_column_name|
               if opts[:associated] && (aliaz == opts[:group_aliases].first)
@@ -109,7 +109,7 @@ module Switchman
       private
 
       def type_cast_calculated_value_switchman(value, column_name, operation)
-        if ::Rails.version < '7.0'
+        if ::Rails.version < "7.0"
           type_cast_calculated_value(value, operation) do |val|
             column = aggregate_column(column_name)
             type ||= column.try(:type_caster) ||
@@ -125,7 +125,7 @@ module Switchman
       end
 
       def column_name_for(field)
-        field.respond_to?(:name) ? field.name.to_s : field.to_s.split('.').last
+        field.respond_to?(:name) ? field.name.to_s : field.to_s.split(".").last
       end
 
       def grouped_calculation_options(operation, column_name, distinct)
@@ -135,7 +135,8 @@ module Switchman
         group_attrs = group_values
         if group_attrs.first.respond_to?(:to_sym)
           association  = klass.reflect_on_association(group_attrs.first.to_sym)
-          associated   = group_attrs.size == 1 && association && association.macro == :belongs_to # only count belongs_to associations
+          # only count belongs_to associations
+          associated   = group_attrs.size == 1 && association && association.macro == :belongs_to
           group_fields = Array(associated ? association.foreign_key : group_attrs)
         else
           group_fields = group_attrs
@@ -146,18 +147,20 @@ module Switchman
         group_columns = group_aliases.zip(group_fields).map do |aliaz, field|
           [aliaz, type_for(field), column_name_for(field)]
         end
-        opts.merge!(association: association, associated: associated,
-                    group_aliases: group_aliases, group_columns: group_columns,
+        opts.merge!(association: association,
+                    associated: associated,
+                    group_aliases: group_aliases,
+                    group_columns: group_columns,
                     group_fields: group_fields)
 
         opts
       end
 
       def aggregate_alias_for(operation, column_name)
-        if operation == 'count' && column_name == :all
-          'count_all'
-        elsif operation == 'average'
-          'average'
+        if operation == "count" && column_name == :all
+          "count_all"
+        elsif operation == "average"
+          "average"
         else
           column_alias_for("#{operation} #{column_name}")
         end
@@ -173,13 +176,14 @@ module Switchman
             opts[:distinct]
           ).as(opts[:aggregate_alias])
         ]
-        if opts[:operation] == 'average'
+        if opts[:operation] == "average"
           # include count in average so we can recalculate the average
           # across all shards if needed
           select_values << operation_over_aggregate_column(
             aggregate_column(opts[:column_name]),
-            'count', opts[:distinct]
-          ).as('count')
+            "count",
+            opts[:distinct]
+          ).as("count")
         end
 
         haves = having_clause.send(:predicates)
@@ -205,22 +209,22 @@ module Switchman
           key = key.first if key.size == 1
           value = row[opts[:aggregate_alias]]
 
-          if opts[:operation] == 'average'
+          if opts[:operation] == "average"
             if result.key?(key)
               old_value, old_count = result[key]
-              new_count = old_count + row['count']
-              new_value = ((old_value * old_count) + (value * row['count'])) / new_count
+              new_count = old_count + row["count"]
+              new_value = ((old_value * old_count) + (value * row["count"])) / new_count
               result[key] = [new_value, new_count]
             else
-              result[key] = [value, row['count']]
+              result[key] = [value, row["count"]]
             end
           elsif result.key?(key)
             case opts[:operation]
-            when 'count', 'sum'
+            when "count", "sum"
               result[key] += value
-            when 'minimum'
+            when "minimum"
               result[key] = value if value < result[key]
-            when 'maximum'
+            when "maximum"
               result[key] = value if value > result[key]
             end
           else
@@ -228,7 +232,7 @@ module Switchman
           end
         end
 
-        result.transform_values!(&:first) if opts[:operation] == 'average'
+        result.transform_values!(&:first) if opts[:operation] == "average"
 
         result
       end

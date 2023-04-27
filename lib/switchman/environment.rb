@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require 'etc'
+require "etc"
 
 module Switchman
   class Environment
-    def self.cpu_count(nproc_bin = 'nproc')
+    def self.cpu_count(nproc_bin = "nproc")
       return Etc.nprocessors if Etc.respond_to?(:nprocessors)
 
       `#{nproc_bin}`.to_i

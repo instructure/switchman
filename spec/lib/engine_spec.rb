@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require "spec_helper"
 
 module Switchman
   describe Engine do
     include RSpecHelper
 
-    it 'registers initializers in the correct order' do
+    it "registers initializers in the correct order" do
       order = ::Rails.application.initializers.map(&:name)
 
       # These are part of Rail::Railtie - we never want to supersede these
@@ -16,7 +16,7 @@ module Switchman
       indexes.push(order.index(:set_eager_load))
       indexes.push(order.index(:initialize_logger))
       indexes.push(order.index(:initialize_cache))
-      indexes.push(order.index(::Rails.version < '7.0' ? :initialize_dependency_mechanism : :setup_once_autoloader))
+      indexes.push(order.index((::Rails.version < "7.0") ? :initialize_dependency_mechanism : :setup_once_autoloader))
       indexes.push(order.index(:bootstrap_hook))
       indexes.push(order.index(:set_secrets_root))
 
@@ -26,9 +26,9 @@ module Switchman
       # The first one is the application switchman is installed in, the second is switchman itself
       # followed by any other engines registered
       lower_bound = order.each_index.select { |i| order[i] == :set_autoload_paths }.second
-      sm_arp = order.index('switchman.active_record_patch')
-      sm_ep = order.index('switchman.error_patch')
-      sm_ic = order.index('switchman.initialize_cache')
+      sm_arp = order.index("switchman.active_record_patch")
+      sm_ep = order.index("switchman.error_patch")
+      sm_ic = order.index("switchman.initialize_cache")
 
       expect(indexes_max).to be < lower_bound
 

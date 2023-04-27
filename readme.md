@@ -240,7 +240,11 @@ In this case, the query will serialize as
 causing a cross-shard query. If the two shards are on separate database
 servers, it will simply fail. This happens because the JOIN serialized
 while shard 1 was active, but the query executed (and the initial FROM)
-against shard 2. This could also happen with a subquery:
+against shard 2.
+
+Note that subqueries are explicitly not allowed to to be serialized
+accidentally. In other words Switchman will raise an exception if you try to do
+this:
 
 ```ruby
   relation = Appendage.all
@@ -248,10 +252,17 @@ against shard 2. This could also happen with a subquery:
   relation.first
 ```
 
-In this case, the subquery was serialized at the `where` call, and not
-delayed until actual query execution. The solution to both of these
-problems is you must be careful around such queries, to ensure the
-serialization happens on the correct shard.
+Instead, you _must_ do this:
+
+```ruby
+  relation = Appendage.all
+  @shard1.activate { relation.where(User.where(name: 'bob').arel.exists) }
+  relation.first
+```
+
+In this form, enough metadata about the subquery is preserved that Switchman
+is able to serialize it as whole against the correct shard, and also do any
+ID transposition in the subquery.
 
 ## A Note on Shard Naming
 

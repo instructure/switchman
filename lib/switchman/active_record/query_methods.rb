@@ -209,11 +209,7 @@ module Switchman
         when String, Array
           values = Hash === rest.first ? rest.first.values : rest
 
-          values.grep(ActiveRecord::Relation) do |rel|
-            # serialize subqueries against the same shard as the outer query is currently
-            # targeted to run against
-            rel.shard!(primary_shard) if rel.shard_source_value == :implicit && rel.primary_shard != primary_shard
-          end
+          raise 'Sub-queries are not allowed as simple substitutions; please build your relation with more structured methods so that Switchman is able to introspect it.' if values.grep(ActiveRecord::Relation).first
 
           super
         when Hash, ::Arel::Nodes::Node

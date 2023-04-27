@@ -330,11 +330,8 @@ module Switchman
         end
       end
 
-      it "serializes subqueries relative to the relation's shard" do
-        skip "can't detect which shard it serialized against" if Shard.default.name.include?(@shard1.name)
-        sql = User.shard(@shard1).where('EXISTS (?)', User.all).to_sql
-        expect(sql).not_to be_include(Shard.default.name)
-        expect(sql.scan(@shard1.name).length).to eq 2
+      it 'disallows serialized subqueries' do
+        expect { User.shard(@shard1).where('EXISTS (?)', User.all).to_sql }.to raise_error(/introspect/)
       end
 
       it 'transposes ids in sub-queries' do

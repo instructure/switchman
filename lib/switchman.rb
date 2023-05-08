@@ -18,6 +18,8 @@ loader.inflector = SwitchmanInflector.new(__FILE__)
 loader.setup
 
 module Switchman
+  Deprecation = ::ActiveSupport::Deprecation.new("4.0", "Switchman")
+
   def self.config
     # TODO: load from yaml
     @config ||= {}

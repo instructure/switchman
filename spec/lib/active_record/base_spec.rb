@@ -1,11 +1,13 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "active_support/testing/deprecation"
 
 module Switchman
   module ActiveRecord
     describe Base do
       include RSpecHelper
+      include ::ActiveSupport::Testing::Deprecation
 
       describe "hash" do
         it "works with unsharded models" do
@@ -177,6 +179,16 @@ module Switchman
             shadow_user = @shard1.activate { User.find_by("id = ?", user.global_id) }
             shadow_user.name = "Fred"
             expect { shadow_user.save! }.not_to raise_error
+          end
+
+          it "does raise a warning when calling save! on an existing shadow record" do
+            user = User.create!
+            user.save_shadow_record(target_shard: @shard1)
+            shadow_user = @shard1.activate { User.find_by("id = ?", user.global_id) }
+            shadow_user.name = "Fred"
+            _, deprecations = collect_deprecations(Switchman::Deprecation) { shadow_user.save! }
+            expect(deprecations.length).to eq(1)
+            expect(deprecations).to include(/writing to shadow records is not supported/)
           end
         end
 

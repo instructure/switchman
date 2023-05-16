@@ -27,12 +27,17 @@ module Switchman
         return configs if configs.is_a?(Array)
 
         db_configs = configs.flat_map do |env_name, config|
-          # It would be nice to do the auto-fallback that we want here, but we haven't
-          # actually done that for years (or maybe ever) and it will be a big lift to get working
-          roles = config.keys.select do |k|
-            config[k].is_a?(Hash) || (config[k].is_a?(Array) && config[k].all?(Hash))
+          if config.is_a?(Hash)
+            # It would be nice to do the auto-fallback that we want here, but we haven't
+            # actually done that for years (or maybe ever) and it will be a big lift to get working
+            roles = config.keys.select do |k|
+              config[k].is_a?(Hash) || (config[k].is_a?(Array) && config[k].all?(Hash))
+            end
+            base_config = config.except(*roles)
+          else
+            base_config = config
+            roles = []
           end
-          base_config = config.except(*roles)
 
           name = "#{env_name}/primary"
           name = "primary" if env_name == default_env

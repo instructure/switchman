@@ -81,6 +81,8 @@ module Switchman
           # Do this after so that all database servers for all roles are established and we won't prematurely
           # configure a connection for the wrong role
           @all_roles = roles.uniq
+          return @database_servers if @database_servers.empty?
+
           Shard.send(:configure_connects_to)
         end
         @database_servers

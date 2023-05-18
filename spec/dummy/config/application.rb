@@ -43,7 +43,7 @@ module Dummy
     # Enable escaping HTML in JSON.
     config.active_support.escape_html_entities_in_json = true
 
-    config.active_record.dump_schema_after_migration = false
+    config.active_record.schema_format = :sql
 
     config.public_file_server.enabled = false
   end

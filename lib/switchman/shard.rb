@@ -168,7 +168,7 @@ module Switchman
           # silly like dealloc'ing prepared statements)
           ::ActiveRecord::Base.clear_all_connections!
 
-          parent_process_name = `ps -ocommand= -p#{Process.pid}`.slice(/#{$0}.*/)
+          parent_process_name = sanitized_process_title
           ret = ::Parallel.map(scopes, in_processes: (scopes.length > 1) ? parallel : 0) do |server, subscope|
             name = server.id
             last_description = name
@@ -443,6 +443,39 @@ module Switchman
         # pretend the shard doesn't exist either
         shard = nil unless shard.database_server
         shard
+      end
+
+      # Determines the name of the current process, including arguments, but stripping
+      # any shebang from the invoked script, and any additional path info from the
+      # executable.
+      #
+      # @return [String]
+      def sanitized_process_title
+        # get the effective process name from `ps`; this will include any changes
+        # from Process.setproctitle _or_ assigning to $0.
+        parent_process_name = `ps -ocommand= -p#{Process.pid}`.strip
+        # Effective process titles may be shorter than the actual
+        # command; truncate our ARGV[0] so that they are comparable
+        # for the next step
+        argv0 = if parent_process_name.length < Process.argv0.length
+                  Process.argv0[0..parent_process_name.length]
+                else
+                  Process.argv0
+                end
+
+        # when running via a shebang, the `ps` output will include the shebang
+        # (i.e. it will be "ruby bin/rails c"); attempt to strip it off.
+        # Note that argv0 in this case will _only_ be `bin/rails` (no shebang,
+        # no arguments). We want to preserve the arguments we got from `ps`
+        if (index = parent_process_name.index(argv0))
+          parent_process_name.slice!(0...index)
+        end
+
+        # remove directories from the main executable to make more room
+        # for additional info
+        argv = parent_process_name.shellsplit
+        argv[0] = File.basename(argv[0])
+        argv.shelljoin
       end
     end
 

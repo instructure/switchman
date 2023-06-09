@@ -541,48 +541,39 @@ module Switchman
     end
 
     def drop_database
-      raise("Cannot drop the database of the default shard") if default?
+      raise "Cannot drop the database of the default shard" if default?
       return unless read_attribute(:name)
 
       begin
-        adapter = database_server.config[:adapter]
-        sharding_config = Switchman.config || {}
-        drop_statement = sharding_config[adapter]&.[](:drop_statement)
-        drop_statement ||= sharding_config[:drop_statement]
-        if drop_statement
-          drop_statement = Array(drop_statement).dup
-                                                .map { |statement| statement.gsub("%{name}", name) }
+        activate do
+          self.class.drop_database(name)
         end
+      rescue ::ActiveRecord::StatementInvalid => e
+        logger.error "Drop failed: #{e}"
+      end
+    end
 
-        case adapter
-        when "mysql", "mysql2"
-          activate do
-            ::GuardRail.activate(:deploy) do
-              drop_statement ||= "DROP DATABASE #{name}"
-              Array(drop_statement).each do |stmt|
-                ::ActiveRecord::Base.connection.execute(stmt)
-              end
-            end
+    #
+    # Drops a specific database/schema from the currently active connection
+    #
+    def self.drop_database(name)
+      sharding_config = Switchman.config || {}
+      drop_statement = sharding_config["postgresql"]&.[](:drop_statement)
+      drop_statement ||= sharding_config[:drop_statement]
+      drop_statement = Array(drop_statement).map { |statement| statement.gsub("%{name}", name) } if drop_statement
+
+      ::GuardRail.activate(:deploy) do
+        # Shut up, Postgres!
+        conn = ::ActiveRecord::Base.connection
+        old_proc = conn.raw_connection.set_notice_processor {}
+        begin
+          drop_statement ||= "DROP SCHEMA #{name} CASCADE"
+          Array(drop_statement).each do |stmt|
+            ::ActiveRecord::Base.connection.execute(stmt)
           end
-        when "postgresql"
-          activate do
-            ::GuardRail.activate(:deploy) do
-              # Shut up, Postgres!
-              conn = ::ActiveRecord::Base.connection
-              old_proc = conn.raw_connection.set_notice_processor {}
-              begin
-                drop_statement ||= "DROP SCHEMA #{name} CASCADE"
-                Array(drop_statement).each do |stmt|
-                  ::ActiveRecord::Base.connection.execute(stmt)
-                end
-              ensure
-                conn.raw_connection.set_notice_processor(&old_proc) if old_proc
-              end
-            end
-          end
+        ensure
+          conn.raw_connection.set_notice_processor(&old_proc) if old_proc
         end
-      rescue
-        logger.info "Drop failed: #{$!}"
       end
     end
 

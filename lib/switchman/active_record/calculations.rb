@@ -131,7 +131,12 @@ module Switchman
       def grouped_calculation_options(operation, column_name, distinct)
         opts = { operation: operation, column_name: column_name, distinct: distinct }
 
-        opts[:aggregate_alias] = aggregate_alias_for(operation, column_name)
+        # Rails 7.0.5
+        if defined?(::ActiveRecord::Calculations::ColumnAliasTracker)
+          column_alias_tracker = ::ActiveRecord::Calculations::ColumnAliasTracker.new(connection)
+        end
+
+        opts[:aggregate_alias] = aggregate_alias_for(operation, column_name, column_alias_tracker)
         group_attrs = group_values
         if group_attrs.first.respond_to?(:to_sym)
           association  = klass.reflect_on_association(group_attrs.first.to_sym)
@@ -142,8 +147,14 @@ module Switchman
           group_fields = group_attrs
         end
 
-        # to_s is because Rails 5 returns a string but Rails 6 returns a symbol.
-        group_aliases = group_fields.map { |field| column_alias_for(field.downcase.to_s).to_s }
+        group_aliases = group_fields.map do |field|
+          field = connection.visitor.compile(field) if ::Arel.arel_node?(field)
+          if column_alias_tracker
+            column_alias_tracker.alias_for(field.to_s.downcase)
+          else
+            column_alias_for(field.to_s.downcase)
+          end
+        end
         group_columns = group_aliases.zip(group_fields).map do |aliaz, field|
           [aliaz, type_for(field), column_name_for(field)]
         end
@@ -156,11 +167,13 @@ module Switchman
         opts
       end
 
-      def aggregate_alias_for(operation, column_name)
+      def aggregate_alias_for(operation, column_name, column_alias_tracker)
         if operation == "count" && column_name == :all
           "count_all"
         elsif operation == "average"
           "average"
+        elsif column_alias_tracker
+          column_alias_tracker.alias_for("#{operation} #{column_name}")
         else
           column_alias_for("#{operation} #{column_name}")
         end

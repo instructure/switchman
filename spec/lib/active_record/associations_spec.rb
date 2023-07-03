@@ -64,6 +64,16 @@ module Switchman
         expect(@user1.renamed_digits.to_a).to eq [d]
       end
 
+      it "handles querying by the target of a has_many" do
+        a = @user1.appendages.create!
+        d = a.digits.create!
+        # Ensure this test doesn't pass by accidnet
+        d = a.digits.create! if a.id == d.id
+        expect(a.id).not_to eq(d.id)
+
+        expect(Appendage.where(digits: d)).to eq [a]
+      end
+
       it "transposes ids correctly when using AR objects as query params" do
         a1 = @user1.appendages.create!
 

@@ -11,11 +11,11 @@ module Switchman
         end
       end
 
-      module AssociationQueryValue
+      module PolymorphicArrayValue
         def convert_to_id(value)
           case value
           when ::ActiveRecord::Base
-            value.id
+            value.send(primary_key(value))
           else
             super
           end

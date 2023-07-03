@@ -87,11 +87,8 @@ module Switchman
         ::ActiveRecord::Relation.include(ActiveRecord::SpawnMethods)
         ::ActiveRecord::Relation.include(CallSuper)
 
-        ::ActiveRecord::PredicateBuilder::AssociationQueryValue.prepend(
-          ActiveRecord::PredicateBuilder::AssociationQueryValue
-        )
         ::ActiveRecord::PredicateBuilder::PolymorphicArrayValue.prepend(
-          ActiveRecord::PredicateBuilder::AssociationQueryValue
+          ActiveRecord::PredicateBuilder::PolymorphicArrayValue
         )
 
         ::ActiveRecord::Tasks::DatabaseTasks.singleton_class.prepend(ActiveRecord::Tasks::DatabaseTasks)

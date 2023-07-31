@@ -13,6 +13,8 @@ module Switchman
         Thread.current[:switchman_error_handler] = true
 
         @active_shards ||= Shard.active_shards
+      rescue ThreadError # e.g. `require': can't be called from trap context (ThreadError)
+        # intentionally empty
       ensure
         Thread.current[:switchman_error_handler] = nil
       end

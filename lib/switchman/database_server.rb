@@ -268,12 +268,18 @@ module Switchman
     end
 
     def primary_shard
-      unless instance_variable_defined?(:@primary_shard)
+      return nil unless primary_shard_id
+
+      Shard.lookup(primary_shard_id)
+    end
+
+    def primary_shard_id
+      unless instance_variable_defined?(:@primary_shard_id)
         # if sharding isn't fully set up yet, we may not be able to query the shards table
-        @primary_shard = Shard.default if Shard.default.database_server == self
-        @primary_shard ||= shards.where(name: nil).first
+        @primary_shard_id = Shard.default.id if Shard.default.database_server == self
+        @primary_shard_id ||= shards.where(name: nil).first&.id
       end
-      @primary_shard
+      @primary_shard_id
     end
   end
 end

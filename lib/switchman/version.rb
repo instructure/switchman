@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module Switchman
-  VERSION = "3.5.7"
+  VERSION = "3.5.8"
 end

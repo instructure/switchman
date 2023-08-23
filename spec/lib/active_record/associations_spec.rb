@@ -305,6 +305,17 @@ module Switchman
           expect(@user1.digits.to_a.map(&:value).sort).to eq [1, 2]
         end
 
+        it "follow shards for has_many :through combined with association scope" do
+          @shard1.activate { Appendage.create!(user_id: @user1).digits.create!(value: 1) }
+          @shard2.activate { Appendage.create!(user_id: @user1).digits.create!(value: 2) }
+
+          expect(@user1.digits_with_scope.to_a.map(&:value)).to eq [1]
+
+          @user1.reload
+          @user1.associated_shards = [@shard1, @shard2]
+          expect(@user1.digits_with_scope.to_a.map(&:value).sort).to eq [1, 2]
+        end
+
         it "follows shards for has_many :through combined with where" do
           @shard1.activate { @appendage1 = Appendage.create!(user_id: @user1).digits.create!(value: 1) }
           @shard2.activate { @appendage2 = Appendage.create!(user_id: @user1).digits.create!(value: 2) }

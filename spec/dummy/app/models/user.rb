@@ -5,6 +5,7 @@ class User < ActiveRecord::Base
 
   has_many :appendages, multishard: true
   has_many :digits, through: :appendages, multishard: true
+  has_many :digits_with_scope, -> { where("1 = 1") }, source: :digits, through: :appendages, multishard: true
   has_many :renamed_digits, through: :appendages, source: :digits
 
   has_many :features, as: :owner, multishard: true

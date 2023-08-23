@@ -33,7 +33,14 @@ module Switchman
           # when called for the owner, will be returned relative to shard the query will execute on
           Shard.with_each_shard(shards,
                                 [klass.connection_class_for_self, owner.class.connection_class_for_self].uniq) do
-            super
+            if reflection.options[:multishard] && owner.respond_to?(:associated_shards) && reflection.has_scope?
+              # Prevent duplicate results when reflection has a scope (when it would use the skip_statement_cache? path)
+              # otherwise, the super call will set the shard_value to the object, causing it to iterate too many times
+              # over the associated shards
+              scope.shard(Shard.current(scope.klass.connection_class_for_self), :association).to_a
+            else
+              super
+            end
           end
         end
 

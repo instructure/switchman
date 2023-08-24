@@ -23,6 +23,10 @@ module Switchman
           10.times { @ids << User.create!.id }
         end
 
+        after :all do
+          User.delete_all
+        end
+
         it "returns ids from the table in ranges" do
           batches = []
           User.where(id: @ids).find_ids_in_ranges(batch_size: 4) do |*found_ids|

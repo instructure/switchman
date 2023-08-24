@@ -5,6 +5,8 @@ require "spec_helper"
 module Switchman
   module ActiveRecord
     describe PostgreSQLAdapter do
+      include RSpecHelper
+
       before do
         skip "requires PostgreSQL" unless ::ActiveRecord::Base.connection.adapter_name == "PostgreSQL"
       end

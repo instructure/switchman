@@ -687,6 +687,11 @@ module Switchman
       end
 
       context "when using reload with_fallback" do
+        after do
+          # ensure we remove the cached default shard for other tests that run after this one
+          Shard.remove_instance_variable(:@default)
+        end
+
         it "replaces DefaultShard instance if cached" do
           Shard.instance_variable_set(:@default, DefaultShard.instance)
           expect(Shard.default(reload: true, with_fallback: true)).to be_a(Switchman::Shard)

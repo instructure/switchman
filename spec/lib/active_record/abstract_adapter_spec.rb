@@ -18,10 +18,15 @@ module Switchman
         self.use_transactional_tests = false
 
         after do
-          ::ActiveRecord::Base.clear_all_connections!
+          if ::Rails.version < "7.1"
+            ::ActiveRecord::Base.clear_all_connections!(nil)
+          else
+            ::ActiveRecord::Base.connection_handler.clear_all_connections!(:all)
+          end
         end
 
-        it "doesn't get confused if another env is active when creating the SchemaMigration class" do
+        it "doesn't get confused if another env is active when creating the SchemaMigration class",
+           if: ::Rails.version < "7.1" do
           # this doesn't manifest itself in test normally
           allow(::Rails.env).to receive(:test?).and_return(false)
           ::GuardRail.activate(:deploy) do

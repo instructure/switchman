@@ -466,6 +466,7 @@ module Switchman
         )
         expect(connection).to receive(:current_schemas).once.and_return(%w[canvas public])
         expect(connection).to receive(:shard=).with(shard)
+        allow(connection).to receive(:lock_thread=)
         allow_any_instance_of(::ActiveRecord::ConnectionAdapters::ConnectionPool)
           .to receive(:checkout).and_return(connection)
         begin
@@ -473,7 +474,11 @@ module Switchman
         ensure
           allow_any_instance_of(::ActiveRecord::ConnectionAdapters::ConnectionPool)
             .to receive(:checkout).and_call_original
-          shard.activate { ::ActiveRecord::Base.clear_active_connections! }
+          if ::Rails.version < "7.1"
+            shard.activate { ::ActiveRecord::Base.clear_active_connections! }
+          else
+            shard.activate { ::ActiveRecord::Base.connection_handler.clear_active_connections!(:all) }
+          end
         end
       end
     end

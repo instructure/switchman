@@ -167,8 +167,9 @@ module Switchman
 
         it "removes the non-pertinent primary keys when transposing for to_a" do
           relation = User.where(id: [@user1, @user2])
-          original_method = User.connection.method(:exec_query)
-          expect(User.connection).to receive(:exec_query).twice do |sql, type, binds|
+          method_name = (::Rails.version < "7.1") ? :exec_query : :internal_exec_query
+          original_method = User.connection.method(method_name)
+          expect(User.connection).to receive(method_name).twice do |sql, type, binds|
             if Shard.current.default?
               expect(binds.map(&:value_before_type_cast)).to eq [@user1.id]
             else
@@ -222,7 +223,7 @@ module Switchman
         end
 
         it "doesn't change the shard for non-integral primary keys that look like global ids" do
-          expect(::ActiveRecord::SchemaMigration.where(version: @shard1.global_id_for(1).to_s).shard_value)
+          expect(Document.where(version: @shard1.global_id_for(1).to_s).shard_value)
             .to eq Shard.default
         end
 

@@ -92,7 +92,7 @@ module Switchman
 
     describe ".scope" do
       it "supports selecting open servers" do
-        db = DatabaseServer.create({ open: true, adapter: "postgresql" })
+        db = DatabaseServer.create(Shard.default.database_server.config.merge({ open: true }))
         shard = db.shards.create!
         expect(Rake.scope(database_server: "open").to_a).to eq([shard])
       end

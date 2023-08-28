@@ -57,7 +57,7 @@ module Switchman
         end
 
         def clear_query_caches_for_current_thread
-          ::ActiveRecord::Base.connection_handler.connection_pool_list.each do |pool|
+          ::ActiveRecord::Base.connection_handler.connection_pool_list(:all).each do |pool|
             pool.connection(switch_shard: false).clear_query_cache if pool.active_connection?
           end
         end

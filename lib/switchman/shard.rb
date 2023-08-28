@@ -166,7 +166,11 @@ module Switchman
           # clear connections prior to forking (no more queries will be executed in the parent,
           # and we want them gone so that we don't accidentally use them post-fork doing something
           # silly like dealloc'ing prepared statements)
-          ::ActiveRecord::Base.clear_all_connections!
+          if ::Rails.version < "7.1"
+            ::ActiveRecord::Base.clear_all_connections!(nil)
+          else
+            ::ActiveRecord::Base.connection_handler.clear_all_connections!(:all)
+          end
 
           parent_process_name = sanitized_process_title
           ret = ::Parallel.map(scopes, in_processes: (scopes.length > 1) ? parallel : 0) do |server, subscope|
@@ -410,7 +414,10 @@ module Switchman
             end
           end
 
+          # this resets the default shard on rails 7.1+, but we want to preserve it
+          shard_was = klass.default_shard
           klass.connects_to shards: connects_to_hash
+          klass.default_shard = shard_was
         end
       end
 
@@ -516,6 +523,10 @@ module Switchman
     end
 
     def original_id
+      id
+    end
+
+    def original_id_value
       id
     end
 

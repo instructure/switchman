@@ -298,11 +298,48 @@ module Switchman
           record.has_attribute?(reflection.foreign_key) && record.send(reflection.foreign_key) != key
         end
 
-        def save_belongs_to_association(reflection)
-          # this seems counter-intuitive, but the autosave code will assign to attribute bypassing switchman,
-          # after reading the id attribute _without_ bypassing switchman. So we need Shard.current for the
-          # category of the associated record to match Shard.current for the category of self
-          shard.activate(connection_class_for_self_for_reflection(reflection)) { super }
+        if ::Rails.version < "7.1"
+          def save_belongs_to_association(reflection)
+            # this seems counter-intuitive, but the autosave code will assign to attribute bypassing switchman,
+            # after reading the id attribute _without_ bypassing switchman. So we need Shard.current for the
+            # category of the associated record to match Shard.current for the category of self
+            shard.activate(connection_class_for_self_for_reflection(reflection)) { super }
+          end
+        else
+          def save_belongs_to_association(reflection)
+            association = association_instance_get(reflection.name)
+            return unless association&.loaded? && !association.stale_target?
+
+            record = association.load_target
+            return unless record && !record.destroyed?
+
+            autosave = reflection.options[:autosave]
+
+            if autosave && record.marked_for_destruction?
+              foreign_key = Array(reflection.foreign_key)
+              foreign_key.each { |key| self[key] = nil }
+              record.destroy
+            elsif autosave != false
+              if record.new_record? || (autosave && record.changed_for_autosave?)
+                saved = record.save(validate: !autosave)
+              end
+
+              if association.updated?
+                primary_key = Array(compute_primary_key(reflection, record)).map(&:to_s)
+                foreign_key = Array(reflection.foreign_key)
+
+                primary_key_foreign_key_pairs = primary_key.zip(foreign_key)
+                primary_key_foreign_key_pairs.each do |pk, fk|
+                  # Notable change: add relative_id_for here
+                  association_id = Shard.relative_id_for(record._read_attribute(pk), record.shard, shard)
+                  self[fk] = association_id unless self[fk] == association_id
+                end
+                association.loaded!
+              end
+
+              saved if autosave
+            end
+          end
         end
       end
     end

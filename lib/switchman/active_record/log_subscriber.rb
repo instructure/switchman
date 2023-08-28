@@ -5,8 +5,10 @@ module Switchman
     module LogSubscriber
       # sadly, have to completely replace this
       def sql(event)
-        self.class.runtime += event.duration
-        return unless logger.debug?
+        if ::Rails.version < "7.1"
+          self.class.runtime += event.duration
+          return unless logger.debug?
+        end
 
         payload = event.payload
 
@@ -27,7 +29,11 @@ module Switchman
         end
 
         name = colorize_payload_name(name, payload[:name])
-        sql  = color(sql, sql_color(sql), true)
+        sql  = if ::Rails.version < "7.1"
+                 color(sql, sql_color(sql), true)
+               else
+                 color(sql, sql_color(sql), bold: true)
+               end
 
         debug "  #{name}  #{sql}#{binds}#{shard}"
       end

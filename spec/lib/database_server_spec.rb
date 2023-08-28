@@ -48,7 +48,7 @@ module Switchman
       end
 
       it "does not use a temp name" do
-        db = DatabaseServer.create(adapter: "postgresql")
+        db = DatabaseServer.create(Shard.default.database_server.config)
         expect(Shard).to receive(:create!) do |hash|
           expect(hash[:name]).to eq "new_shard"
           expect(hash[:database_server_id]).to eq db.id

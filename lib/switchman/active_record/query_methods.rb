@@ -175,7 +175,7 @@ module Switchman
       end
 
       def sharded_foreign_key?(relation, column)
-        models_for_table(relation.table_name).any? { |m| m.sharded_column?(column) }
+        models_for_table(relation.name).any? { |m| m.sharded_column?(column) }
       end
 
       def sharded_primary_key?(relation, column)
@@ -187,7 +187,7 @@ module Switchman
 
       def source_shard_for_foreign_key(relation, column)
         reflection = nil
-        models_for_table(relation.table_name).each do |model|
+        models_for_table(relation.name).each do |model|
           reflection = model.send(:reflection_for_integer_attribute, column)
           break if reflection
         end

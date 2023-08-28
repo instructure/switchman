@@ -24,27 +24,29 @@ module Switchman
           collector << quote_local_table_name(join_name) << "." << quote_column_name(o.name)
         end
 
-        def visit_Arel_Nodes_HomogeneousIn(o, collector)
-          collector.preparable = false
+        if ::Rails.version < "7.1"
+          def visit_Arel_Nodes_HomogeneousIn(o, collector)
+            collector.preparable = false
 
-          collector << quote_local_table_name(o.table_name) << "." << quote_column_name(o.column_name)
+            collector << quote_local_table_name(o.table_name) << "." << quote_column_name(o.column_name)
 
-          collector << if o.type == :in
-                         " IN ("
-                       else
-                         " NOT IN ("
-                       end
+            collector << if o.type == :in
+                           " IN ("
+                         else
+                           " NOT IN ("
+                         end
 
-          values = o.casted_values
+            values = o.casted_values
 
-          if values.empty?
-            collector << @connection.quote(nil)
-          else
-            collector.add_binds(values, o.proc_for_binds, &bind_block)
+            if values.empty?
+              collector << @connection.quote(nil)
+            else
+              collector.add_binds(values, o.proc_for_binds, &bind_block)
+            end
+
+            collector << ")"
+            collector
           end
-
-          collector << ")"
-          collector
         end
 
         # rubocop:enable Naming/MethodName

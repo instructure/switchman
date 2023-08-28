@@ -228,7 +228,11 @@ module Switchman
           unless schema == false
             shard.activate do
               ::ActiveRecord::Base.connection.transaction(requires_new: true) do
-                ::ActiveRecord::Base.connection.migration_context.migrate
+                if ::Rails.version < "7.1"
+                  ::ActiveRecord::Base.connection.migration_context.migrate
+                else
+                  ::ActiveRecord::MigrationContext.new(::ActiveRecord::Migrator.migrations_paths).migrate
+                end
               end
 
               ::ActiveRecord::Base.descendants.reject do |m|

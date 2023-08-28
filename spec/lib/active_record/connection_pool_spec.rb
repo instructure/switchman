@@ -31,7 +31,7 @@ module Switchman
         end
       end
 
-      describe "*_schema_cache" do
+      describe "*_schema_cache", if: ::Rails.version < "7.1" do
         before do
           @server = DatabaseServer.create(Shard.default.database_server.config)
           @shard = @server.shards.create!

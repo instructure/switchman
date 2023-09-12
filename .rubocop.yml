@@ -10,7 +10,9 @@ AllCops:
   TargetRubyVersion: 2.7
   Exclude:
     - 'bin/*'
-    - 'gemfiles/*'
+
+Bundler/DuplicatedGem:
+  Enabled: false
 
 Lint/EmptyBlock:
   Enabled: false

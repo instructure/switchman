@@ -33,9 +33,9 @@ pipeline {
               sh "rm -rf coverage"
               // Allow postgres to initialize while the build runs
               sh 'docker-compose up -d postgres'
-              sh "docker-compose build --pull --build-arg RUBY_VERSION=${RUBY_VERSION} --build-arg BUNDLE_GEMFILE=gemfiles/activerecord_${RAILS_VERSION}.gemfile app"
-              sh 'docker-compose run --rm app bundle exec rake db:drop db:create db:migrate'
-              sh "docker-compose run --name switchman_rspec_runner app bundle exec rake"
+              sh "docker-compose build --pull --build-arg RUBY_VERSION=${RUBY_VERSION} app"
+              sh "BUNDLE_LOCKFILE=activerecord-${RAILS_VERSION} docker-compose run --rm app bundle exec rake db:drop db:create db:migrate"
+              sh "BUNDLE_LOCKFILE=activerecord-${RAILS_VERSION} docker-compose run --name switchman_rspec_runner app bundle exec rake"
               sh "docker cp switchman_rspec_runner:/app/coverage coverage"
               sh "docker rm switchman_rspec_runner"
               stash name: "switchman_rspec_ruby_${RUBY_VERSION}_rails_${RAILS_VERSION}_coverage", includes: "coverage/**"

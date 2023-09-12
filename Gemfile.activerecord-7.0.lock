@@ -157,9 +157,12 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  activerecord (~> 7.0.0)
+  activesupport (~> 7.0.0)
   byebug
   pg (~> 1.2)
   pry
+  railties (~> 7.0.0)
   rake (~> 13.0)
   rspec-mocks (~> 3.5)
   rspec-rails (~> 6.0)

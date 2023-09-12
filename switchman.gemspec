@@ -25,7 +25,6 @@ Gem::Specification.new do |s|
   s.add_dependency "parallel", "~> 1.22"
   s.add_dependency "railties", ">= 6.1", "< 7.1"
 
-  s.add_development_dependency "appraisal", "~> 2.3"
   s.add_development_dependency "byebug"
   s.add_development_dependency "pg", "~> 1.2"
   s.add_development_dependency "pry"

@@ -13,8 +13,10 @@ module Switchman
         Thread.current[:switchman_error_handler] = true
 
         @active_shards ||= Shard.active_shards
-      rescue ThreadError # e.g. `require': can't be called from trap context (ThreadError)
-        # intentionally empty
+      rescue
+        # intentionally empty - don't allow calculating the active_shards to prevent
+        # creating the StandardError for any reason. this prevents various random issues
+        # when a StandardError is created within a finalizer
       ensure
         Thread.current[:switchman_error_handler] = nil
       end

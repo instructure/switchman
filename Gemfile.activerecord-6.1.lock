@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    switchman (3.5.10)
+    switchman (3.5.11)
       activerecord (>= 6.1.4, < 7.1)
       guardrail (~> 3.0.1)
       parallel (~> 1.22)
@@ -147,7 +147,7 @@ GEM
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     unicode-display_width (2.4.2)
-    zeitwerk (2.6.11)
+    zeitwerk (2.6.12)
 
 PLATFORMS
   aarch64-linux

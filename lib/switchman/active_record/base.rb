@@ -169,6 +169,10 @@ module Switchman
         pkey > Shard::IDS_PER_SHARD
       end
 
+      def canonical?
+        !shadow_record?
+      end
+
       def save_shadow_record(new_attrs: attributes, target_shard: Shard.current)
         return if target_shard == shard
 

@@ -138,7 +138,7 @@ module Switchman
 
         it "works with dates across shards" do
           expect(Appendage.where(id: @appendages).maximum(:created_at).to_i)
-            .to eq @appendages.map(&:created_at).map(&:to_i).max
+            .to eq @appendages.map { |a| a.created_at.to_i }.max
         end
 
         it "calculates sum across shards" do

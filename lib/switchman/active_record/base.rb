@@ -265,9 +265,9 @@ module Switchman
         result
       end
 
-      def transaction(**kwargs, &block)
+      def transaction(...)
         shard.activate(self.class.connection_class_for_self) do
-          self.class.transaction(**kwargs, &block)
+          self.class.transaction(...)
         end
       end
 

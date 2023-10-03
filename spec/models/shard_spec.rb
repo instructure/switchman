@@ -298,6 +298,8 @@ module Switchman
 
         it "properly re-raises a SystemStackError" do
           begin
+            old_report_on_exception = Thread.report_on_exception
+            Thread.report_on_exception = false
             Shard.with_each_shard([Shard.default, @shard2], parallel: true) do
               next unless Shard.current == @shard2
 
@@ -307,6 +309,8 @@ module Switchman
             end
           rescue SystemStackError
             raised = true
+          ensure
+            Thread.report_on_exception = old_report_on_exception
           end
           expect(raised).to be true
         end

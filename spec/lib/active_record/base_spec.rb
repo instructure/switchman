@@ -168,13 +168,12 @@ module Switchman
         end
 
         context "when shadow records are writable" do
-          before do
-            @original_writable_value = Switchman.config[:writable_shadow_records]
+          around do |block|
+            original_writable_value = Switchman.config[:writable_shadow_records]
             Switchman.config[:writable_shadow_records] = true
-          end
-
-          after do
-            Switchman.config[:writable_shadow_records] = @original_writable_value
+            Deprecation.silence(&block)
+          ensure
+            Switchman.config[:writable_shadow_records] = original_writable_value
           end
 
           it "does not throw an error when calling save! on an existing shadow record" do
@@ -190,9 +189,8 @@ module Switchman
             user.save_shadow_record(target_shard: @shard1)
             shadow_user = @shard1.activate { User.find_by("id = ?", user.global_id) }
             shadow_user.name = "Fred"
-            _, deprecations = collect_deprecations(Switchman::Deprecation) { shadow_user.save! }
-            expect(deprecations.length).to eq(1)
-            expect(deprecations).to include(/writing to shadow records is not supported/)
+            expect(Switchman::Deprecation).to receive(:warn).with("writing to shadow records is not supported")
+            shadow_user.save!
           end
         end
 
@@ -214,13 +212,12 @@ module Switchman
         end
 
         context "when shadow records are writable" do
-          before do
-            @original_writable_value = Switchman.config[:writable_shadow_records]
+          around do |block|
+            original_writable_value = Switchman.config[:writable_shadow_records]
             Switchman.config[:writable_shadow_records] = true
-          end
-
-          after do
-            Switchman.config[:writable_shadow_records] = @original_writable_value
+            Deprecation.silence(&block)
+          ensure
+            Switchman.config[:writable_shadow_records] = original_writable_value
           end
 
           it "does not throw an error when calling save on an existing shadow record" do

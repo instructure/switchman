@@ -103,6 +103,8 @@ module Switchman
         ::Rake::Task.define_task("dummy:touch_mirror_users") do
           MirrorUser.update_all(updated_at: Time.now.utc)
         end
+        # drop output
+        allow(Rake).to receive(:puts)
       end
 
       after do

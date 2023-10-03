@@ -15,8 +15,7 @@ SimpleCov.start do
 end
 
 require_relative "dummy/config/environment"
-require "byebug"
-require "pry"
+require "debug/prelude"
 require "rspec/rails"
 
 require "switchman/r_spec_helper"

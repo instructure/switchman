@@ -178,7 +178,7 @@ module Switchman
       end
     end
 
-    describe ".with_each_shard" do
+    describe ".with_each_shard", if: !defined?(::DEBUGGER__::Session) do
       describe ":exception" do
         it "defaults to :raise" do
           expect { Shard.with_each_shard { raise "error" } }.to raise_error("error")

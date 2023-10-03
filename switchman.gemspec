@@ -25,9 +25,8 @@ Gem::Specification.new do |s|
   s.add_dependency "parallel", "~> 1.22"
   s.add_dependency "railties", ">= 6.1", "< 7.1"
 
-  s.add_development_dependency "byebug"
+  s.add_development_dependency "debug", "~> 1.8"
   s.add_development_dependency "pg", "~> 1.2"
-  s.add_development_dependency "pry"
   s.add_development_dependency "rake", "~> 13.0"
   s.add_development_dependency "rspec-mocks", "~> 3.5"
   s.add_development_dependency "rspec-rails", "~> 6.0"

@@ -158,7 +158,15 @@ module Switchman
                    end
 
         @loaded_from_shard ||= Shard.current(self.class.connection_class_for_self)
-        readonly! if shadow_record? && !Switchman.config[:writable_shadow_records]
+        if shadow_record? && !Switchman.config[:writable_shadow_records]
+          @readonly = true
+          @readonly_from_shadow ||= true
+        end
+        super
+      end
+
+      def readonly!
+        @readonly_from_shadow = false
         super
       end
 

@@ -31,6 +31,31 @@ module Switchman
           expect(user.reload.updated_at.to_i).to eq new_time.to_i
         end
       end
+
+      describe "#reload" do
+        it "loads canonical record as writable for shadow records" do
+          real_digit = @shard2.activate { Digit.create! }
+          real_digit.save_shadow_record(target_shard: @shard1)
+          shadow_digit = @shard1.activate { Digit.find_by("id = ?", real_digit.global_id) }
+          expect(shadow_digit).to be_shadow_record
+          expect(shadow_digit).to be_readonly
+          shadow_digit.reload
+          expect(shadow_digit).not_to be_shadow_record
+          expect(shadow_digit).not_to be_readonly
+        end
+
+        it "preserves explicit readonly" do
+          real_digit = @shard2.activate { Digit.create! }
+          real_digit.save_shadow_record(target_shard: @shard1)
+          shadow_digit = @shard1.activate { Digit.find_by("id = ?", real_digit.global_id) }
+          shadow_digit.readonly!
+          expect(shadow_digit).to be_shadow_record
+          expect(shadow_digit).to be_readonly
+          shadow_digit.reload
+          expect(shadow_digit).not_to be_shadow_record
+          expect(shadow_digit).to be_readonly
+        end
+      end
     end
   end
 end

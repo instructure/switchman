@@ -34,6 +34,10 @@ module Switchman
         # When a shadow record is reloaded the real record is returned. So
         # we need to ensure the loaded_from_shard is set correctly after a reload.
         @loaded_from_shard = @shard
+        if @readonly_from_shadow
+          @readonly_from_shadow = false
+          @readonly = false
+        end
         res
       end
 

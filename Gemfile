@@ -2,7 +2,7 @@
 
 source "http://rubygems.org"
 
-plugin "bundler-multilock", "1.0.6"
+plugin "bundler-multilock", "1.0.11"
 return unless Plugin.installed?("bundler-multilock")
 
 Plugin.send(:load_plugin, "bundler-multilock")
@@ -22,7 +22,7 @@ lockfile "activerecord-7.0" do
 end
 
 lockfile "activerecord-7.1" do
-  gem "activerecord", "~> 7.1.0.beta1"
-  gem "activesupport", "~> 7.1.0.beta1"
-  gem "railties", "~> 7.1.0.beta1"
+  gem "activerecord", "~> 7.1.0"
+  gem "activesupport", "~> 7.1.0"
+  gem "railties", "~> 7.1.0"
 end

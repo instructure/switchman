@@ -1,11 +1,11 @@
 PATH
   remote: .
   specs:
-    switchman (3.5.12)
-      activerecord (>= 6.1.4, < 7.1)
+    switchman (3.5.13)
+      activerecord (>= 6.1.4, < 7.2)
       guardrail (~> 3.0.1)
       parallel (~> 1.22)
-      railties (>= 6.1, < 7.1)
+      railties (>= 6.1, < 7.2)
 
 GEM
   remote: http://rubygems.org/
@@ -44,9 +44,9 @@ GEM
     diff-lcs (1.5.0)
     docile (1.4.0)
     erubi (1.12.0)
-    guardrail (3.0.2)
-      activerecord (>= 6.1, < 7.1)
-      railties (>= 6.1, < 7.1)
+    guardrail (3.0.3)
+      activerecord (>= 6.1, < 7.2)
+      railties (>= 6.1, < 7.2)
     i18n (1.14.1)
       concurrent-ruby (~> 1.0)
     io-console (0.6.0)

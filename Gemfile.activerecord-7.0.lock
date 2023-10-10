@@ -175,7 +175,6 @@ PLATFORMS
 
 DEPENDENCIES
   activerecord (~> 7.0.0)
-  activesupport (~> 7.0.0)
   debug (~> 1.8)
   pg (~> 1.2)
   railties (~> 7.0.0)

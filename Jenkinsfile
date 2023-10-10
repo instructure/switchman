@@ -20,25 +20,25 @@ pipeline {
             values '2.7', '3.0', '3.1', '3.2'
           }
           axis {
-            name 'RAILS_VERSION'
-            values '6.1', '7.0', '7.1'
+            name 'LOCKFILE'
+            values 'activerecord-6.1', 'activerecord-7.0', 'Gemfile.lock'
           }
         }
         stages {
           stage('Build') {
             steps {
               script {
-                matrix_stages.add("switchman_rspec_ruby_${RUBY_VERSION}_rails_${RAILS_VERSION}")
+                matrix_stages.add("switchman_rspec_ruby_${RUBY_VERSION}_${LOCKFILE}")
               }
               sh "rm -rf coverage"
               // Allow postgres to initialize while the build runs
               sh 'docker-compose up -d postgres'
               sh "docker-compose build --pull --build-arg RUBY_VERSION=${RUBY_VERSION} app"
-              sh "BUNDLE_LOCKFILE=activerecord-${RAILS_VERSION} docker-compose run --rm app bundle exec rake db:drop db:create db:migrate"
-              sh "BUNDLE_LOCKFILE=activerecord-${RAILS_VERSION} docker-compose run --name switchman_rspec_runner app bundle exec rake"
+              sh "BUNDLE_LOCKFILE=${LOCKFILE} docker-compose run --rm app bundle exec rake db:drop db:create db:migrate"
+              sh "BUNDLE_LOCKFILE=${LOCKFILE} docker-compose run --name switchman_rspec_runner app bundle exec rake"
               sh "docker cp switchman_rspec_runner:/app/coverage coverage"
               sh "docker rm switchman_rspec_runner"
-              stash name: "switchman_rspec_ruby_${RUBY_VERSION}_rails_${RAILS_VERSION}_coverage", includes: "coverage/**"
+              stash name: "switchman_rspec_ruby_${RUBY_VERSION}_${LOCKFILE}_coverage", includes: "coverage/**"
             }
           }
         }

@@ -53,6 +53,28 @@ module Switchman
           User.where(id: 1).take
         end
       end
+
+      it "clears the query cache on write" do
+        u = User.create
+        User.cache do
+          User.first
+
+          count = 0
+          allow(User.connection).to receive(:select).and_wrap_original do |original, *args, **kwargs|
+            count += 1
+            original.call(*args, **kwargs)
+          end
+          User.first
+          expect(count).to eq 0
+
+          u2 = User.new
+          u2.id = u.id
+          expect { u2.save! }.to raise_error(::ActiveRecord::RecordNotUnique)
+          count = 0
+          User.first
+          expect(count).to eq 1
+        end
+      end
     end
   end
 end

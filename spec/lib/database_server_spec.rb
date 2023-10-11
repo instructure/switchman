@@ -115,6 +115,8 @@ module Switchman
             end
           end
         end
+      ensure
+        ds.unguard!
       end
 
       it "overrides GuardRail.environment cross-thread" do

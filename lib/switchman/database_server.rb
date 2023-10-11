@@ -54,6 +54,10 @@ module Switchman
         all.each { |db| db.guard! if db.config[:prefer_secondary] }
       end
 
+      def regions
+        @regions ||= all.filter_map(&:region).uniq.sort
+      end
+
       private
 
       def reference_role(role)
@@ -142,6 +146,29 @@ module Switchman
         else
           @config
         end
+    end
+
+    def region
+      config[:region]
+    end
+
+    # @param region [String, Array<String>] the region(s) to check against
+    # @return true if the database server doesn't have a region, or it
+    #   matches the specified region
+    def in_region?(region)
+      !self.region || (region.is_a?(Array) ? region.include?(self.region) : self.region == region)
+    end
+
+    # @return true if the database server doesn't have a region, Switchman is
+    #   not configured with a region, or the database server's region matches
+    #   Switchman's current region
+    def in_current_region?
+      unless instance_variable_defined?(:@in_current_region)
+        @in_current_region = !region ||
+                             !Switchman.region ||
+                             region == Switchman.region
+      end
+      @in_current_region
     end
 
     # locks this db to a specific environment, except for

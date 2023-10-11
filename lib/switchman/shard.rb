@@ -13,6 +13,47 @@ module Switchman
 
     scope :primary, -> { where(name: nil).order(:database_server_id, :id).distinct_on(:database_server_id) }
 
+    scope :in_region, (lambda do |region, include_regionless: true|
+      next in_current_region if region.nil?
+
+      dbs_by_region = DatabaseServer.group_by(&:region)
+      db_count_in_this_region = dbs_by_region[region]&.length.to_i
+      db_count_in_this_region += dbs_by_region[nil]&.length.to_i if include_regionless
+      non_existent_database_servers = Shard.send(:non_existent_database_servers)
+      db_count_in_other_regions = DatabaseServer.all.length -
+                                  db_count_in_this_region +
+                                  non_existent_database_servers.length
+
+      dbs_in_this_region = dbs_by_region[region]&.map(&:id) || []
+      dbs_in_this_region += dbs_by_region[nil]&.map(&:id) || [] if include_regionless
+
+      if db_count_in_this_region <= db_count_in_other_regions
+        if dbs_in_this_region.include?(Shard.default.database_server.id)
+          where("database_server_id IN (?) OR database_server_id IS NULL", dbs_in_this_region)
+        else
+          where(database_server_id: dbs_in_this_region)
+        end
+      elsif db_count_in_other_regions.zero?
+        all
+      else
+        dbs_not_in_this_region = DatabaseServer.map(&:id) - dbs_in_this_region + non_existent_database_servers
+        if dbs_in_this_region.include?(Shard.default.database_server.id)
+          where("database_server_id NOT IN (?) OR database_server_id IS NULL", dbs_not_in_this_region)
+        else
+          where.not(database_server_id: dbs_not_in_this_region)
+        end
+      end
+    end)
+
+    scope :in_current_region, (lambda do |include_regionless: true|
+      # sharding isn't set up? maybe we're in tests, or a somehow degraded environment
+      # either way there's only one shard, and we always want to see it
+      return [default] unless default.is_a?(Switchman::Shard)
+      return all if !Switchman.region || DatabaseServer.none?(&:region)
+
+      in_region(Switchman.region, include_regionless: include_regionless)
+    end)
+
     class << self
       def sharded_models
         @sharded_models ||= [::ActiveRecord::Base, UnshardedRecord].freeze
@@ -484,7 +525,16 @@ module Switchman
         argv[0] = File.basename(argv[0])
         argv.shelljoin
       end
+
+      # @return [Array<String>] the list of database servers that are in the
+      #   config, but don't have any shards on them
+      def non_existent_database_servers
+        @non_existent_database_servers ||=
+          Shard.distinct.pluck(:database_server_id).compact - DatabaseServer.all.map(&:id)
+      end
     end
+
+    delegate :region, :in_region?, :in_current_region?, to: :database_server
 
     def name
       unless instance_variable_defined?(:@name)

@@ -6,6 +6,7 @@ module Switchman
       "default"
     end
     alias_method :cache_key, :id
+
     def activate(*_classes)
       yield
     end
@@ -55,6 +56,16 @@ module Switchman
     # The default's shard is always the default shard
     def shard
       self
+    end
+
+    def region; end
+
+    def in_region?(_region)
+      true
+    end
+
+    def in_current_region?
+      true
     end
 
     def _dump(_depth)

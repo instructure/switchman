@@ -43,6 +43,19 @@ module Switchman
         servers = DatabaseServer.all - servers if negative
       end
 
+      ENV["REGION"]&.split(",")&.each do |region|
+        method = :select!
+        if region[0] == "-"
+          method = :reject!
+          region = region[1..]
+        end
+        if region == "self"
+          servers.send(method, &:in_current_region?)
+        else
+          servers.send(method) { |server| server.in_region?(region) }
+        end
+      end
+
       servers = filter_database_servers_chain.call(servers)
 
       scope = base_scope.order(::Arel.sql("database_server_id IS NOT NULL, database_server_id, id"))

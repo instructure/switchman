@@ -48,6 +48,56 @@ module Switchman
       end
     end
 
+    describe ".in_region" do
+      it "includes regionless shards by default" do
+        allow(@shard2.database_server).to receive(:region).and_return("eu-west-1")
+        expect(Shard.in_region("eu-west-1").where(id: [@shard1, @shard2]).to_a).to eq [@shard1, @shard2]
+      end
+
+      it "optionally excludes regionless shards" do
+        allow(@shard2.database_server).to receive(:region).and_return("eu-west-1")
+        expect(Shard.in_region("eu-west-1", include_regionless: false).to_a).to eq [@shard2]
+      end
+
+      it "does not include shards referencing non-extant database servers" do
+        # this one isn't actually in the config
+        allow(Shard).to receive(:non_existent_database_servers).and_return(["jobs4"])
+
+        dbs = []
+        dbs << DatabaseServer.new("jobs1", { region: "us-east-1" })
+        dbs << DatabaseServer.new("jobs2", { region: "us-east-1" })
+        dbs << DatabaseServer.new("jobs3", { region: "eu-west-1" })
+        allow(DatabaseServer).to receive(:all).and_return(dbs)
+
+        s1 = Shard.create!(database_server_id: "jobs1")
+        s2 = Shard.create!(database_server_id: "jobs2")
+        s3 = Shard.create!(database_server_id: "jobs3")
+        Shard.create!(database_server_id: "jobs4")
+
+        expect(Shard.in_region("us-east-1")).to eq([s1, s2])
+        expect(Shard.in_region("eu-west-1")).to eq([s3])
+      end
+    end
+
+    describe ".in_current_region" do
+      it "just returns the default shard when sharding isn't set up" do
+        allow(Shard).to receive(:default).and_return(DefaultShard.instance)
+        expect(Shard).not_to receive(:in_region)
+        expect(Shard.in_current_region).to eq([Shard.default])
+      end
+
+      it "returns all shards if regions are not configured" do
+        expect(Shard.in_current_region).to eq Shard.all
+      end
+
+      it "delegates to in_region" do
+        allow(Switchman).to receive(:region).and_return("eu-west-1")
+        allow(@shard1.database_server).to receive(:region).and_return("us-east-1")
+        allow(@shard2.database_server).to receive(:region).and_return("eu-west-1")
+        expect(Shard.in_current_region.to_a).to eq [@shard2]
+      end
+    end
+
     describe "#activate" do
       it "activates the default category when no args are used" do
         expect(Shard.current).to eq Shard.default

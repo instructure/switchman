@@ -10,13 +10,13 @@ module Switchman
       shared_examples_for "sharded cache store" do
         describe "cache_store" do
           before do
-            DatabaseServer.all.each do |ds|
+            DatabaseServer.each do |ds|
               ds.instance_variable_set(:@cache_store, double("cache_store #{ds.id}"))
             end
           end
 
           after do
-            DatabaseServer.all.each do |ds|
+            DatabaseServer.each do |ds|
               ds.instance_variable_set(:@cache_store, nil)
             end
           end

@@ -395,7 +395,7 @@ module Switchman
       end
 
       def configure_connects_to
-        full_connects_to_hash = DatabaseServer.all.to_h { |db| [db.id.to_sym, db.connects_to_hash] }
+        full_connects_to_hash = DatabaseServer.to_h { |db| [db.id.to_sym, db.connects_to_hash] }
         sharded_models.each do |klass|
           connects_to_hash = full_connects_to_hash.deep_dup
           if klass == UnshardedRecord

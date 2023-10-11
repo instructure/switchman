@@ -35,7 +35,7 @@ module Switchman
 
         servers = servers.filter_map { |server| DatabaseServer.find(server) }
         if open
-          open_servers = DatabaseServer.all.select { |server| server.config[:open] }
+          open_servers = DatabaseServer.select { |server| server.config[:open] }
           servers.concat(open_servers)
           servers << DatabaseServer.find(nil) if open_servers.empty?
           servers.uniq!

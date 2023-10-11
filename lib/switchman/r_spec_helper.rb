@@ -121,7 +121,7 @@ module Switchman
         next if @@sharding_failed
 
         # clean up after specs
-        DatabaseServer.all.each do |ds|
+        DatabaseServer.each do |ds|
           if ds.fake? && ds != @shard2.database_server
             ds.shards.delete_all unless use_transactional_tests
             ds.destroy

@@ -10,6 +10,10 @@ module Switchman
       attr_accessor :creating_new_shard
       attr_reader :all_roles
 
+      include Enumerable
+
+      delegate :each, to: :all
+
       def all
         database_servers.values
       end

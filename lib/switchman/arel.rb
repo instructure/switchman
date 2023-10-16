@@ -13,6 +13,20 @@ module Switchman
         # rubocop:disable Naming/MethodName
         # rubocop:disable Naming/MethodParameterName
 
+        def visit_Arel_Nodes_Cte(o, collector)
+          collector << quote_local_table_name(o.name)
+          collector << " AS "
+
+          case o.materialized
+          when true
+            collector << "MATERIALIZED "
+          when false
+            collector << "NOT MATERIALIZED "
+          end
+
+          visit o.relation, collector
+        end
+
         def visit_Arel_Nodes_TableAlias(o, collector)
           collector = visit o.relation, collector
           collector << " "

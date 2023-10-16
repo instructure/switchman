@@ -114,6 +114,11 @@ module Switchman
           expect(relation.shard([Shard.default, @shard1]).to_a).to eq []
         end
 
+        it "doesn't munge a CTE expression's table name", if: ::Rails.version >= "7.1" do
+          relation = User.with(cte_table: User.where(id: @user1)).from("cte_table").select("cte_table.*")
+          expect(relation.to_a).to eq [@user1]
+        end
+
         it "doesn't munge a subquery" do
           relation = User.where(id: User.where(id: @user1))
           expect(relation.to_a).to eq [@user1]

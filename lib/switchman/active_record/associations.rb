@@ -331,7 +331,15 @@ module Switchman
                 primary_key_foreign_key_pairs = primary_key.zip(foreign_key)
                 primary_key_foreign_key_pairs.each do |pk, fk|
                   # Notable change: add relative_id_for here
-                  association_id = Shard.relative_id_for(record._read_attribute(pk), record.shard, shard)
+                  association_id = if record.class.sharded_column?(pk)
+                                     Shard.relative_id_for(
+                                       record._read_attribute(pk),
+                                       record.shard,
+                                       shard
+                                     )
+                                   else
+                                     record._read_attribute(pk)
+                                   end
                   self[fk] = association_id unless self[fk] == association_id
                 end
                 association.loaded!

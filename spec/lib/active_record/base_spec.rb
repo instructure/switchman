@@ -340,6 +340,16 @@ module Switchman
         end
       end
 
+      describe ".shadow/.not_shadow" do
+        it "works" do
+          user1 = User.create!
+          user2 = User.create!(shard: @shard2)
+
+          expect(User.shadow.to_a).to eq [user2]
+          expect(User.non_shadow.to_a).to eq [user1]
+        end
+      end
+
       describe ".unscoped" do
         it "doesn't capture the shard permanently (block form)" do
           @shard1.activate do

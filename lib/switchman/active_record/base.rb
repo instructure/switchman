@@ -153,6 +153,8 @@ module Switchman
 
       def self.prepended(klass)
         klass.singleton_class.prepend(ClassMethods)
+        klass.scope :non_shadow, ->(key = primary_key) { where("#{key}<=? AND #{key}>?", Shard::IDS_PER_SHARD, 0) }
+        klass.scope :shadow, ->(key = primary_key) { where("#{key}>?", Shard::IDS_PER_SHARD) }
       end
 
       def _run_initialize_callbacks

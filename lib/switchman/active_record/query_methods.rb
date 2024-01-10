@@ -112,7 +112,9 @@ module Switchman
         return unless klass.integral_id?
 
         primary_key = predicates.detect do |predicate|
-          (predicate.is_a?(::Arel::Nodes::Binary) || predicate.is_a?(::Arel::Nodes::HomogeneousIn)) &&
+          (predicate.is_a?(::Arel::Nodes::Equality) ||
+           predicate.is_a?(::Arel::Nodes::In) ||
+           predicate.is_a?(::Arel::Nodes::HomogeneousIn)) &&
             predicate.left.is_a?(::Arel::Attributes::Attribute) &&
             predicate.left.relation.is_a?(::Arel::Table) && predicate.left.relation.klass == klass &&
             klass.primary_key == predicate.left.name

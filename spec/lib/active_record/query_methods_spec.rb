@@ -78,6 +78,11 @@ module Switchman
           expect(where_value(predicates(relation).first.right)).to eq @user2.local_id
         end
 
+        it "does _not_ infer the shard for a non-equality condition" do
+          relation = User.where(User.predicate_builder["id", @shard2.global_id_for(1), :lt])
+          expect(relation.shard_value).to eq Shard.default
+        end
+
         describe "with OR conditions" do
           it "handles applying shard and transposing ID for an or method" do
             inner_relation = User.where(id: @user2)

@@ -211,7 +211,7 @@ module Switchman
         when String, Array
           values = (Hash === rest.first) ? rest.first.values : rest
 
-          if values.grep(ActiveRecord::Relation).first
+          if shard_source_value != :explicit && values.grep(ActiveRecord::Relation).first
             raise "Sub-queries are not allowed as simple substitutions; " \
                   "please build your relation with more structured methods so that Switchman is able to introspect it."
           end

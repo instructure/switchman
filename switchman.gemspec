@@ -14,7 +14,10 @@ Gem::Specification.new do |s|
   s.description = "Sharding"
   s.license     = "MIT"
 
-  s.metadata["rubygems_mfa_required"] = "true"
+  s.metadata = {
+    "rubygems_mfa_required" => "true",
+    "source_code_uri" => "https://github.com/instructure/switchman"
+  }
 
   s.files = Dir["{app,db,lib}/**/*", "Rakefile"]
 

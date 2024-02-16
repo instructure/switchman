@@ -676,6 +676,12 @@ module Switchman
         expect(face.user_id).to eq @user1.id # shouldn't change face's id to be @user1's local id in rails 4.2
       end
 
+      it "does not ping-pong autosaving has_one associations" do
+        face = Face.create!(user: @user1)
+        expect(face).not_to receive(:save)
+        @user1.save!
+      end
+
       it "does not break cross-shard, cross-category belongs_to associations when autosaving" do
         mirror = MirrorUser.new
         @shard1.activate do

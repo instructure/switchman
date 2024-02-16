@@ -291,14 +291,14 @@ module Switchman
       end
 
       module AutosaveAssociation
-        def association_foreign_key_changed?(reflection, record, key)
-          return false if reflection.through_reflection?
-
-          # have to use send instead of _read_attribute because sharding
-          record.has_attribute?(reflection.foreign_key) && record.send(reflection.foreign_key) != key
-        end
-
         if ::Rails.version < "7.1"
+          def association_foreign_key_changed?(reflection, record, key)
+            return false if reflection.through_reflection?
+
+            # have to use send instead of _read_attribute because sharding
+            record.has_attribute?(reflection.foreign_key) && record.send(reflection.foreign_key) != key
+          end
+
           def save_belongs_to_association(reflection)
             # this seems counter-intuitive, but the autosave code will assign to attribute bypassing switchman,
             # after reading the id attribute _without_ bypassing switchman. So we need Shard.current for the
@@ -306,6 +306,16 @@ module Switchman
             shard.activate(connection_class_for_self_for_reflection(reflection)) { super }
           end
         else
+          def association_foreign_key_changed?(reflection, record, key)
+            return false if reflection.through_reflection?
+
+            foreign_key = Array(reflection.foreign_key)
+            return false unless foreign_key.all? { |k| record._has_attribute?(k) }
+
+            # have to use send instead of _read_attribute because sharding
+            foreign_key.map { |k| record.send(k) } != Array(key)
+          end
+
           def save_belongs_to_association(reflection)
             association = association_instance_get(reflection.name)
             return unless association&.loaded? && !association.stale_target?

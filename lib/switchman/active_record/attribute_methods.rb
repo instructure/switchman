@@ -277,7 +277,7 @@ module Switchman
         end
 
         reflection = self.class.send(:reflection_for_integer_attribute, attr_name)
-        super(::Switchman::Shard.relative_id_for(
+        super(attr_name, ::Switchman::Shard.relative_id_for(
           new_value,
           ::Switchman::Shard.current(connection_class_for_self_for_reflection(reflection)),
           shard

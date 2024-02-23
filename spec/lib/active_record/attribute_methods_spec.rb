@@ -64,6 +64,10 @@ module Switchman
           appendage.user_id = "6"
           expect(appendage.original_user_id).to eq 6
 
+          # generic method works
+          appendage.send(:attribute=, "user_id", 6)
+          expect(appendage.original_user_id).to eq 6
+
           # (incorrect) global id to this shard, should become local
           appendage.user_id = Shard.current.global_id_for(6)
           expect(appendage.original_user_id).to eq 6

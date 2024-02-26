@@ -304,6 +304,27 @@ module Switchman
           expect(Appendage.joins(:user).group(:mirror_user_id).count).to eq({ nil => 1 })
         end
       end
+
+      describe "#ids" do
+        context "with a cross-shard association" do
+          before do
+            @user1 = User.create!
+            @appendage1 = @user1.appendages.create!
+            @appendage2 = @shard1.activate { Appendage.create!(user: @user1) }
+          end
+
+          let(:relation) { @user1.appendages.shard([Shard.current, @shard1]) }
+
+          it "works for a loaded relation" do
+            relation.to_a
+            expect(relation.ids).to match_array [@appendage1.id, @appendage2.id]
+          end
+
+          it "works for a non-loaded relation" do
+            expect(relation.ids).to match_array [@appendage1.id, @appendage2.id]
+          end
+        end
+      end
     end
   end
 end

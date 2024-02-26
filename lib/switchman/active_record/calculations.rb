@@ -106,6 +106,45 @@ module Switchman
         compact_grouped_calculation_rows(rows, opts)
       end
 
+      if ::Rails.version >= "7.1"
+        def ids
+          return super unless klass.sharded_primary_key?
+
+          if loaded?
+            result = records.map do |record|
+              Shard.relative_id_for(record._read_attribute(primary_key),
+                                    record.shard,
+                                    Shard.current(klass.connection_class_for_self))
+            end
+            return @async ? Promise::Complete.new(result) : result
+          end
+
+          if has_include?(primary_key)
+            relation = apply_join_dependency.group(primary_key)
+            return relation.ids
+          end
+
+          columns = arel_columns([primary_key])
+          base_shard = Shard.current(klass.connection_class_for_self)
+          activate do |r|
+            relation = r.spawn
+            relation.select_values = columns
+
+            result = if relation.where_clause.contradiction?
+                       ActiveRecord::Result.empty
+                     else
+                       skip_query_cache_if_necessary do
+                         klass.connection.select_all(relation, "#{klass.name} Ids", async: @async)
+                       end
+                     end
+
+            result.then do |res|
+              type_cast_pluck_values(res, columns).map { |id| Shard.relative_id_for(id, Shard.current, base_shard) }
+            end
+          end
+        end
+      end
+
       private
 
       def type_cast_calculated_value_switchman(value, column_name, operation)

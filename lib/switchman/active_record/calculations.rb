@@ -131,7 +131,7 @@ module Switchman
             relation.select_values = columns
 
             result = if relation.where_clause.contradiction?
-                       ActiveRecord::Result.empty
+                       ::ActiveRecord::Result.empty
                      else
                        skip_query_cache_if_necessary do
                          klass.connection.select_all(relation, "#{klass.name} Ids", async: @async)

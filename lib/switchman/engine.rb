@@ -78,6 +78,10 @@ module Switchman
         ::ActiveRecord::MigrationContext.prepend(ActiveRecord::MigrationContext)
         ::ActiveRecord::Migrator.prepend(ActiveRecord::Migrator)
 
+        if ::Rails.version > "7.1.3"
+          ::ActiveRecord::PendingMigrationConnection.include(ActiveRecord::PendingMigrationConnection)
+        end
+
         ::ActiveRecord::Reflection::AbstractReflection.include(ActiveRecord::Reflection::AbstractReflection)
         ::ActiveRecord::Reflection::AssociationReflection.prepend(ActiveRecord::Reflection::AssociationScopeCache)
         ::ActiveRecord::Reflection::ThroughReflection.prepend(ActiveRecord::Reflection::AssociationScopeCache)

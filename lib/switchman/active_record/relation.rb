@@ -44,6 +44,12 @@ module Switchman
         primary_shard.activate(klass.connection_class_for_self) { super }
       end
 
+      if ::Rails.version > "7.1.2"
+        def transaction(...)
+          primary_shard.activate(klass.connection_class_for_self) { super }
+        end
+      end
+
       def explain
         activate { |relation| relation.call_super(:explain, Relation) }
       end

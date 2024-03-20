@@ -24,10 +24,10 @@ module Switchman
       it "excludes default shard" do
         scope = shard_scope("-default")
         # the query is negative
-        expect(scope.to_sql).to be_include(Shard.default.id.to_s)
+        expect(scope.to_sql).to include(Shard.default.id.to_s)
         shards = scope.to_a
         expect(shards).not_to be_empty
-        expect(shards).not_to be_include(Shard.default)
+        expect(shards).not_to include(Shard.default)
       end
 
       it "no-ops exclude the default shard" do
@@ -62,7 +62,7 @@ module Switchman
       it "defaults include all if you're only excluding" do
         scope = shard_scope("-#{@s1.id}").to_a
         expect(scope.length).to eq(Shard.count - 1)
-        expect(scope).not_to be_include(@s1)
+        expect(scope).not_to include(@s1)
       end
 
       it "does not forget about ranges when specific ids cancel out" do

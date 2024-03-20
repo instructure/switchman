@@ -58,10 +58,9 @@ module Switchman
       end
 
       %I[update_all delete_all].each do |method|
-        arg_params = (RUBY_VERSION <= "2.8") ? "*args" : "*args, **kwargs"
         class_eval <<-RUBY, __FILE__, __LINE__ + 1
-          def #{method}(#{arg_params})
-            result = self.activate(unordered: true) { |relation| relation.call_super(#{method.inspect}, Relation, #{arg_params}) }
+          def #{method}(*args, **kwargs)
+            result = self.activate(unordered: true) { |relation| relation.call_super(#{method.inspect}, Relation, *args, **kwargs) }
             result = result.sum if result.is_a?(Array)
             result
           end

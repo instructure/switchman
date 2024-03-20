@@ -25,7 +25,7 @@ rails_minor_version = Rails.version.split(".")[0..1].join(".")
 SimpleCov.command_name "ruby_#{ruby_minor_version}_rails_#{rails_minor_version}"
 # Requires supporting ruby files with custom matchers and macros, etc,
 # in spec/support/ and its subdirectories.
-Dir[Rails.root.join("../spec/support/**/*.rb")].sort.each { |f| require f }
+Dir[Rails.root.join("../spec/support/**/*.rb")].each { |f| require f }
 
 RSpec.configure do |config|
   config.infer_spec_type_from_file_location!

@@ -3,7 +3,7 @@
 module Switchman
   class ShardedInstrumenter < ::SimpleDelegator
     def initialize(instrumenter, shard_host)
-      super instrumenter
+      super(instrumenter)
       @shard_host = shard_host
     end
 
@@ -23,7 +23,7 @@ module Switchman
                end
         }
       end
-      super name, payload
+      super(name, payload)
     end
   end
 end

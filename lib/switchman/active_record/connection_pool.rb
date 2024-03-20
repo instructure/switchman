@@ -64,7 +64,7 @@ module Switchman
       end
 
       def tls_key
-        "#{object_id}_shard".to_sym
+        :"#{object_id}_shard"
       end
     end
   end

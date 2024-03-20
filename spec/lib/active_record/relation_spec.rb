@@ -96,8 +96,8 @@ module Switchman
       describe "#to_sql" do
         it "activates the primary shard for qualified name purposes" do
           sql = User.shard(@shard1).to_sql
-          expect(sql).to be_include(@shard1.name)
-          expect(sql).not_to be_include(Shard.default.name)
+          expect(sql).to include(@shard1.name)
+          expect(sql).not_to include(Shard.default.name)
         end
       end
     end

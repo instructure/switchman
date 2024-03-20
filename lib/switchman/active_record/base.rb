@@ -83,7 +83,7 @@ module Switchman
           config_or_env ||= if current_shard == ::Rails.env.to_sym && current_role == :primary
                               :primary
                             else
-                              "#{current_shard}/#{current_role}".to_sym
+                              :"#{current_shard}/#{current_role}"
                             end
 
           super(config_or_env)

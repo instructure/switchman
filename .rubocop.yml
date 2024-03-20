@@ -7,7 +7,7 @@ inherit_gem:
   - rubocop-rspec.yml
 
 AllCops:
-  TargetRubyVersion: 2.7
+  TargetRubyVersion: 3.0
   Exclude:
     - 'bin/*'
 

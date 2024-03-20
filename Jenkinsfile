@@ -17,7 +17,7 @@ pipeline {
         axes {
           axis {
             name 'RUBY_VERSION'
-            values '3.0', '3.1', '3.2'
+            values '3.0', '3.1', '3.2', '3.3'
           }
           axis {
             name 'LOCKFILE'
@@ -28,7 +28,7 @@ pipeline {
           exclude {
             axis {
               name 'RUBY_VERSION'
-              values '3.2'
+              values '3.2', '3.3'
             }
             axis {
               name 'LOCKFILE'

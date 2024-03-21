@@ -3,8 +3,14 @@
 module Switchman
   module ActiveRecord
     module PendingMigrationConnection
-      def self.current_switchman_shard
-        ::ActiveRecord::Base.current_switchman_shard
+      module ClassMethods
+        def current_role
+          ::ActiveRecord::Base.current_role
+        end
+
+        def current_switchman_shard
+          ::ActiveRecord::Base.current_switchman_shard
+        end
       end
     end
   end

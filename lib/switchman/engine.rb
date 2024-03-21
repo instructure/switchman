@@ -79,7 +79,8 @@ module Switchman
         ::ActiveRecord::Migrator.prepend(ActiveRecord::Migrator)
 
         if ::Rails.version > "7.1.3"
-          ::ActiveRecord::PendingMigrationConnection.include(ActiveRecord::PendingMigrationConnection)
+          ::ActiveRecord::PendingMigrationConnection.singleton_class
+                                                    .include(ActiveRecord::PendingMigrationConnection::ClassMethods)
         end
 
         ::ActiveRecord::Reflection::AbstractReflection.include(ActiveRecord::Reflection::AbstractReflection)

@@ -50,8 +50,8 @@ module Switchman
         end
       end
 
-      def explain
-        activate { |relation| relation.call_super(:explain, Relation) }
+      def explain(*args)
+        activate { |relation| relation.call_super(:explain, Relation, *args) }
       end
 
       def load(&block)

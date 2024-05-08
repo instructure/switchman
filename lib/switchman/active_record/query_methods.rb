@@ -3,6 +3,19 @@
 module Switchman
   module ActiveRecord
     module QueryMethods
+      # Use this class to prevent a value from getting transposed across shards
+      class NonTransposingValue < SimpleDelegator
+        def class
+          __getobj__.class
+        end
+
+        def is_a?(other)
+          return true if other == NonTransposingValue
+
+          __getobj__.is_a?(other)
+        end
+      end
+
       # shard_value is one of:
       #   A shard
       #   An array or relation of shards
@@ -398,7 +411,9 @@ module Switchman
       end
 
       def transpose_predicate_value(value, current_shard, target_shard, attribute_type)
-        if value.is_a?(::ActiveRecord::StatementCache::Substitute)
+        if value.is_a?(NonTransposingValue)
+          value
+        elsif value.is_a?(::ActiveRecord::StatementCache::Substitute)
           value.sharded = true # mark for transposition later
           value.primary = true if attribute_type == :primary
           value

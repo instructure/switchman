@@ -153,8 +153,13 @@ module Switchman
 
       def self.prepended(klass)
         klass.singleton_class.prepend(ClassMethods)
-        klass.scope :non_shadow, ->(key = primary_key) { where(key => 0..Shard::IDS_PER_SHARD) }
-        klass.scope :shadow, ->(key = primary_key) { where(key => Shard::IDS_PER_SHARD..) }
+        klass.scope :non_shadow, lambda { |key = primary_key|
+                                   where(key => (QueryMethods::NonTransposingValue.new(0)..
+                                                 QueryMethods::NonTransposingValue.new(Shard::IDS_PER_SHARD)))
+                                 }
+        klass.scope :shadow, lambda { |key = primary_key|
+                               where(key => QueryMethods::NonTransposingValue.new(Shard::IDS_PER_SHARD)..)
+                             }
       end
 
       def _run_initialize_callbacks

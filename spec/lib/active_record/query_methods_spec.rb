@@ -247,6 +247,10 @@ module Switchman
           expect(User.shard(@shard1).where(id: u.local_id).take).to be_nil
           expect(User.shard(@shard1).where(id: u.global_id).take).to eq u
         end
+
+        it "finds non-shadow users from multiple explicit shards" do
+          expect(User.shard([Shard.default, @shard1]).non_shadow.to_a).to eql [@user1, @user2]
+        end
       end
 
       describe "with foreign key conditions" do

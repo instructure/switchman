@@ -165,7 +165,7 @@ module Switchman
       #                forking.
       #    exception: - :ignore, :raise, :defer (wait until the end and raise the first
       #                error), or a proc
-      #    output: - :simple, :decorated (with database_server_id:shard_name)
+      #    output: - :simple, :decorated (with database_server_id:shard_name), custom lambda transformer
       def with_each_shard(*args, parallel: false, exception: :raise, output: :simple)
         raise ArgumentError, "wrong number of arguments (#{args.length} for 0...2)" if args.length > 2
 
@@ -181,6 +181,13 @@ module Switchman
           scope, classes = args
         end
 
+        output = if output == :decorated
+                   ->(arg) { "#{Shard.current.description}: #{arg}" }
+                 elsif output == :simple
+                   nil
+                 else
+                   output
+                 end
         parallel = [Environment.cpu_count || 2, 2].min if parallel == true
         parallel = 0 if parallel == false || parallel.nil?
 
@@ -224,7 +231,10 @@ module Switchman
               new_title = [short_parent_name, name].join(" ")
               Process.setproctitle(new_title)
               Switchman.config[:on_fork_proc]&.call
-              with_each_shard(subscope, classes, exception: exception, output: :decorated) do
+              with_each_shard(subscope,
+                              classes,
+                              exception: exception,
+                              output: output || :decorated) do
                 last_description = Shard.current.description
                 Parallel::ResultWrapper.new(yield)
               end
@@ -258,10 +268,9 @@ module Switchman
           next unless shard.database_server
 
           shard.activate(*classes) do
-            if output == :decorated
-              log_transformer = ->(arg) { "#{shard.description}: #{arg}" }
-              $stdout = Parallel::TransformingIO.new(log_transformer, $stdout)
-              $stderr = Parallel::TransformingIO.new(log_transformer, $stderr)
+            if output
+              $stdout = Parallel::TransformingIO.new(output, $stdout)
+              $stderr = Parallel::TransformingIO.new(output, $stderr)
             end
 
             result.concat Array.wrap(yield)

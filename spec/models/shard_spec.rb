@@ -307,6 +307,47 @@ module Switchman
           end.to output(/public.+OUTPUT.+switchman_test_shard.+OUTPUT/m).to_stdout
         end
 
+        it "allows a custom output lambda to be specified" do
+          output = ->(msg) { "#{Shard.current.description} transformed log #{msg}" }
+          expect { puts "hello" }.to output("hello\n").to_stdout
+          expect do
+            Shard.with_each_shard([Shard.default, @shard2], output: output) do
+              puts "OUTPUT"
+            end
+          end.to output(/public.+transformed log OUTPUT.+switchman_test_shard.+transformed log OUTPUT/m).to_stdout
+        end
+
+        it "prefix output with the appropriate shard and no output lambda is specified" do
+          expect { puts "hello" }.to output("hello\n").to_stdout
+          expect do
+            Shard.with_each_shard([Shard.default, @shard2], parallel: true) do
+              puts "OUTPUT"
+            end
+          end.to output(/public.+OUTPUT/m).to_stdout_from_any_process
+
+          expect do
+            Shard.with_each_shard([Shard.default, @shard2], parallel: true) do
+              puts "OUTPUT"
+            end
+          end.to output(/switchman_test_shard.+OUTPUT/m).to_stdout_from_any_process
+        end
+
+        it "prefix output with the appropriate shard and an output lambda is specified" do
+          output = ->(msg) { "#{Shard.current.description} transformed log #{msg}" }
+          expect { puts "hello" }.to output("hello\n").to_stdout
+          expect do
+            Shard.with_each_shard([Shard.default, @shard2], parallel: true, output: output) do
+              puts "OUTPUT"
+            end
+          end.to output(/public.+transformed log OUTPUT/m).to_stdout_from_any_process
+
+          expect do
+            Shard.with_each_shard([Shard.default, @shard2], parallel: true, output: output) do
+              puts "OUTPUT"
+            end
+          end.to output(/switchman_test_shard.+transformed log OUTPUT/m).to_stdout_from_any_process
+        end
+
         it "handles undumpable results" do
           res = Shard.with_each_shard([Shard.default, @shard2], parallel: true) do
             -> { "result" }

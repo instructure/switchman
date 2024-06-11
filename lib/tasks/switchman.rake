@@ -71,12 +71,13 @@ module Switchman
     end
 
     def self.options
-      { parallel: ENV["PARALLEL"].to_i }
+      { exception: (ENV["FAIL_FAST"] == "0") ? :defer : :raise, parallel: ENV["PARALLEL"].to_i }
     end
 
     # classes - an array or proc, to activate as the current shard during the
     # task.
     def self.shardify_task(task_name, classes: [::ActiveRecord::Base])
+      log_format = ENV.fetch("LOG_FORMAT", nil)
       old_task = ::Rake::Task[task_name]
       old_actions = old_task.actions.dup
       old_task.actions.clear
@@ -90,14 +91,56 @@ module Switchman
         ::GuardRail.activate(:deploy) do
           Shard.default.database_server.unguard do
             classes = classes.call if classes.respond_to?(:call)
-            Shard.with_each_shard(scope, classes, **options) do
+
+            # We don't want the shard status messages to be wrapped using a custom log transfomer
+            original_stderr = $stderr
+            original_stdout = $stdout
+            output = if log_format == "json"
+                       lambda { |msg|
+                         JSON.dump(shard: Shard.current.id,
+                                   database_server: Shard.current.database_server.id,
+                                   type: "log",
+                                   message: msg)
+                       }
+                     else
+                       nil
+                     end
+            Shard.with_each_shard(scope, classes, output: output, **options) do
               shard = Shard.current
-              puts "#{shard.id}: #{shard.description}"
+
+              if log_format == "json"
+                original_stdout.puts JSON.dump(
+                  shard: shard.id,
+                  database_server: shard.database_server.id,
+                  type: "started"
+                )
+              else
+                original_stdout.puts "#{shard.id}: #{shard.description}"
+              end
 
               shard.database_server.unguard do
                 old_actions.each { |action| action.call(*task_args) }
               end
+
+              if log_format == "json"
+                original_stdout.puts JSON.dump(
+                  shard: shard.id,
+                  database_server: shard.database_server.id,
+                  type: "completed"
+                )
+              end
               nil
+            rescue => e
+              if log_format == "json"
+                original_stderr.puts JSON.dump(
+                  shard: shard.id,
+                  database_server: shard.database_server.id,
+                  type: "failed",
+                  message: e.full_message
+                )
+              end
+
+              raise
             end
           rescue => e
             if options[:parallel] != 0

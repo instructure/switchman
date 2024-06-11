@@ -103,8 +103,18 @@ module Switchman
         ::Rake::Task.define_task("dummy:touch_mirror_users") do
           MirrorUser.update_all(updated_at: Time.now.utc)
         end
+
+        ::Rake::Task.define_task("log:test_output") do
+          puts "test output for #{Shard.current.id}"
+        end
+
+        ::Rake::Task.define_task("log:test_failed") do
+          puts "test output for #{Shard.current.id}"
+          raise "failure message for #{Shard.current.id}"
+        end
+
         # drop output
-        allow(Rake).to receive(:puts)
+        allow($stdout).to receive(:puts)
       end
 
       after do
@@ -145,6 +155,91 @@ module Switchman
         @shard2.activate(MirrorUniverse) do
           expect(mu.reload.updated_at).to be > 1.day.ago
         end
+      end
+
+      it "outputs appropriate messages for the default LOG_FORMAT" do
+        Rake.shardify_task("log:test_output")
+        Shard.with_each_shard do
+          expect($stdout).to receive(:puts).with("#{Shard.current.id}: #{Shard.current.description}")
+          expect($stdout).to receive(:puts).with("test output for #{Shard.current.id}")
+        end
+
+        ::Rake::Task["log:test_output"].execute
+      end
+
+      it "outputs appropriate messages for LOG_FORMAT json" do
+        ENV["LOG_FORMAT"] = "json"
+        Rake.shardify_task("log:test_output")
+        Shard.with_each_shard do
+          expect($stdout).to receive(:puts).with(JSON.dump(
+                                                   shard: Shard.current.id,
+                                                   database_server: Shard.current.database_server.id,
+                                                   type: "started"
+                                                 ))
+          expect($stdout).to receive(:puts).with(JSON.dump(
+                                                   shard: Shard.current.id,
+                                                   database_server: Shard.current.database_server.id,
+                                                   type: "log",
+                                                   message: "test output for #{Shard.current.id}"
+                                                 ))
+          expect($stdout).to receive(:puts).with(JSON.dump(
+                                                   shard: Shard.current.id,
+                                                   database_server: Shard.current.database_server.id,
+                                                   type: "completed"
+                                                 ))
+        end
+
+        ::Rake::Task["log:test_output"].execute
+      ensure
+        ENV.delete("LOG_FORMAT")
+      end
+
+      it "outputs appropriate messages for LOG_FORMAT json when a task fails and fail fast is default" do
+        ENV["LOG_FORMAT"] = "json"
+        Rake.shardify_task("log:test_failed")
+        Shard.with_each_shard([Shard.first]) do
+          expect($stdout).to receive(:puts).with(JSON.dump(
+                                                   shard: Shard.current.id,
+                                                   database_server: Shard.current.database_server.id,
+                                                   type: "started"
+                                                 ))
+          expect($stdout).to receive(:puts).with(JSON.dump(
+                                                   shard: Shard.current.id,
+                                                   database_server: Shard.current.database_server.id,
+                                                   type: "log",
+                                                   message: "test output for #{Shard.current.id}"
+                                                 ))
+          expect($stderr).to receive(:puts).with(/failure message for #{Shard.current.id}/)
+        end
+
+        expect { ::Rake::Task["log:test_failed"].execute }.to raise_error(RuntimeError)
+      ensure
+        ENV.delete("LOG_FORMAT")
+      end
+
+      it "outputs appropriate messages for LOG_FORMAT json when a task fails and fail fast is off" do
+        ENV["FAIL_FAST"] = "0"
+        ENV["LOG_FORMAT"] = "json"
+        Rake.shardify_task("log:test_failed")
+        Shard.with_each_shard do
+          expect($stdout).to receive(:puts).with(JSON.dump(
+                                                   shard: Shard.current.id,
+                                                   database_server: Shard.current.database_server.id,
+                                                   type: "started"
+                                                 ))
+          expect($stdout).to receive(:puts).with(JSON.dump(
+                                                   shard: Shard.current.id,
+                                                   database_server: Shard.current.database_server.id,
+                                                   type: "log",
+                                                   message: "test output for #{Shard.current.id}"
+                                                 ))
+          expect($stderr).to receive(:puts).with(/failure message for #{Shard.current.id}/)
+        end
+
+        expect { ::Rake::Task["log:test_failed"].execute }.to raise_error(RuntimeError)
+      ensure
+        ENV.delete("FAIL_FAST")
+        ENV.delete("LOG_FORMAT")
       end
     end
   end

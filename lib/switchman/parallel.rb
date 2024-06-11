@@ -50,16 +50,16 @@ module Switchman
       end
     end
 
-    class PrefixingIO
+    class TransformingIO
       delegate_missing_to :@original_io
 
-      def initialize(prefix, original_io)
-        @prefix = prefix
+      def initialize(transformer, original_io)
+        @transformer = transformer
         @original_io = original_io
       end
 
       def puts(*args)
-        args.flatten.each { |arg| @original_io.puts "#{@prefix}: #{arg}" }
+        args.flatten.each { |arg| @original_io.puts @transformer.call(arg) }
       end
     end
   end

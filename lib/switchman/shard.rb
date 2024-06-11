@@ -259,8 +259,9 @@ module Switchman
 
           shard.activate(*classes) do
             if output == :decorated
-              $stdout = Parallel::PrefixingIO.new(shard.description, $stdout)
-              $stderr = Parallel::PrefixingIO.new(shard.description, $stderr)
+              log_transformer = ->(arg) { "#{shard.description}: #{arg}" }
+              $stdout = Parallel::TransformingIO.new(log_transformer, $stdout)
+              $stderr = Parallel::TransformingIO.new(log_transformer, $stderr)
             end
 
             result.concat Array.wrap(yield)

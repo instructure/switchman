@@ -401,6 +401,28 @@ module Switchman
         u.update!(name: "name2")
         expect(User.where("id=?", u.global_id).first.name).to eq "name2"
       end
+
+      describe ".insert_all" do
+        it "inserts into the relation's shard" do
+          id = User.shard(@shard1).insert_all([{ name: "foo" }], returning: [:id]).first["id"]
+          expect(id).to be > Shard::IDS_PER_SHARD
+          expect(Shard.local_id_for(id).last).to eq @shard1
+          expect(User.find(id).name).to eq "foo"
+        end
+
+        it "transposes IDs" do
+          arm = @shard1.activate do
+            Arm.create!
+          end
+
+          id = @shard2.activate do
+            Digit.shard(@shard1).insert_all([{ appendage_id: arm.id }], returning: [:id]).first["id"]
+          end
+          expect(id).to be > Shard::IDS_PER_SHARD
+          expect(Shard.local_id_for(id).last).to eq @shard1
+          expect(Digit.find(id)["appendage_id"]).to eq arm.local_id
+        end
+      end
     end
   end
 end

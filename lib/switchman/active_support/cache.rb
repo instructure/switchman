@@ -22,12 +22,14 @@ module Switchman
 
         def lookup_store(*store_options)
           store = super
-          # can't use defined?, because it's a _ruby_ autoloaded constant,
-          # so just checking that will cause it to get required
-          if store.instance_of?(ActiveSupport::Cache::RedisCacheStore) &&
-             !::ActiveSupport::Cache::RedisCacheStore <= RedisCacheStore
+          # must use the string name, otherwise it will try to auto-load the constant
+          # and we don't want to require redis in this file (since it's not a hard dependency)
+          # rubocop:disable Style/ClassEqualityComparison
+          if store.class.name == "ActiveSupport::Cache::RedisCacheStore" &&
+             !(::ActiveSupport::Cache::RedisCacheStore <= RedisCacheStore)
             ::ActiveSupport::Cache::RedisCacheStore.prepend(RedisCacheStore)
           end
+          # rubocop:enable Style/ClassEqualityComparison
           store.options[:namespace] ||= -> { Shard.current.default? ? nil : "shard_#{Shard.current.id}" }
           store
         end
@@ -36,7 +38,7 @@ module Switchman
       module RedisCacheStore
         def clear(namespace: nil, **)
           # RedisCacheStore tries to be smart and only clear the cache under your namespace, if you have one set
-          # unfortunately, it uses the keys command, which is extraordinarily inefficient in a large redis instance
+          # unfortunately, it doesn't work using redis clustering because of the way redis keys are distributed
           # fortunately, we can assume we control the entire instance, because we set up the namespacing, so just
           # always unset it temporarily for clear calls
           namespace = nil # rubocop:disable Lint/ShadowedArgument

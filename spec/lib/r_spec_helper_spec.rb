@@ -38,12 +38,14 @@ module Switchman
 
       after(:all) do
         expect(Shard.default).to be_a(DefaultShard)
+        expect(Shard.default.database_server.primary_shard).to be Shard.default
       end
 
       include RSpecHelper
 
       it "makes the default shard a real shard" do
         expect(Shard.default).to be_a(Shard)
+        Shard.default.database_server.primary_shard
       end
     end
   end

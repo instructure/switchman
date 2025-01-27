@@ -126,6 +126,7 @@ module Switchman
             ds.shards.delete_all unless use_transactional_tests
             ds.destroy
           end
+          ds.remove_instance_variable(:@primary_shard_id) if ds.instance_variable_defined?(:@primary_shard_id)
         end
       end
 

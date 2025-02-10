@@ -191,7 +191,7 @@ module Switchman
         end
 
         it "doesn't even query a shard if no primary keys are useful" do
-          method = (::Rails.version < "7.0") ? :find_by_sql : :_query_by_sql
+          method = :_query_by_sql
 
           # Sanity Check
           relation = User.where(id: [@user1, @user2]).shard([Shard.default, @shard1])

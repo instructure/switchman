@@ -148,19 +148,10 @@ module Switchman
       private
 
       def type_cast_calculated_value_switchman(value, column_name, operation)
-        if ::Rails.version < "7.0"
-          type_cast_calculated_value(value, operation) do |val|
-            column = aggregate_column(column_name)
-            type ||= column.try(:type_caster) ||
-                     lookup_cast_type_from_join_dependencies(column_name.to_s) || ::ActiveRecord::Type.default_value
-            type.deserialize(val)
-          end
-        else
-          column = aggregate_column(column_name)
-          type ||= column.try(:type_caster) ||
-                   lookup_cast_type_from_join_dependencies(column_name.to_s) || ::ActiveRecord::Type.default_value
-          type_cast_calculated_value(value, operation, type)
-        end
+        column = aggregate_column(column_name)
+        type ||= column.try(:type_caster) ||
+                 lookup_cast_type_from_join_dependencies(column_name.to_s) || ::ActiveRecord::Type.default_value
+        type_cast_calculated_value(value, operation, type)
       end
 
       def column_name_for(field)

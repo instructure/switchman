@@ -1,16 +1,5 @@
 # frozen_string_literal: true
 
-# In rails 7.0+ if you have only 1 db in the env it doesn't try to do explicit activation
-# (and for rails purposes we only have one db per env because each database server is a separate env)
-if Rails.version < "7.0"
-  task_prefix = Rake::Task.task_defined?("app:db:migrate") ? "app:db" : "db"
-  Rake::Task["#{task_prefix}:migrate"].clear_actions.enhance do
-    ActiveRecord::Tasks::DatabaseTasks.migrate
-    # Ensure this doesn't blow up when running inside the dummy app
-    Rake::Task["#{task_prefix}:_dump"].invoke
-  end
-end
-
 module Switchman
   module Rake
     def self.filter_database_servers
@@ -265,28 +254,9 @@ module Switchman
 
   module ActiveRecord
     module PostgreSQLDatabaseTasks
-      if ::Rails.version < "7.0"
-        def structure_dump(filename, extra_flags = nil)
-          set_psql_env
-          args = ["--schema-only", "--no-privileges", "--no-owner", "--file", filename]
-          args.concat(Array(extra_flags)) if extra_flags
-          shard = Shard.current.name
-          serialized_search_path = shard
-          args << "--schema=#{Shellwords.escape(shard)}"
-
-          ignore_tables = ::ActiveRecord::SchemaDumper.ignore_tables
-          args += ignore_tables.flat_map { |table| ["-T", table] } if ignore_tables.any?
-
-          args << db_config.database
-          run_cmd("pg_dump", args, "dumping")
-          remove_sql_header_comments(filename)
-          File.open(filename, "a") { |f| f << "SET search_path TO #{serialized_search_path};\n\n" }
-        end
-      else
-        def structure_dump(...)
-          ::ActiveRecord.dump_schemas = Switchman::Shard.current.name
-          super
-        end
+      def structure_dump(...)
+        ::ActiveRecord.dump_schemas = Switchman::Shard.current.name
+        super
       end
     end
   end

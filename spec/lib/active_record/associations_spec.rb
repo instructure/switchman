@@ -247,7 +247,7 @@ module Switchman
           mirror_user = MirrorUser.create!
           relation = mirror_user.association(:user).scope
           expect(relation.shard_value).to eq Shard.default
-          klass = (::Rails.version < "7.0") ? ::Arel::Nodes::BindParam : ::ActiveModel::Attribute
+          klass = ::ActiveModel::Attribute
           expect(predicates(relation).first.right).to be_a(klass)
           expect(bind_values(relation)).to eq [mirror_user.global_id]
         end
@@ -473,11 +473,7 @@ module Switchman
 
             ::ActiveSupport::Notifications.subscribed(increment_query_count, "sql.active_record") do
               expect do
-                if ::Rails.version < "7.0"
-                  ::ActiveRecord::Associations::Preloader.new.preload(appendages, :user)
-                else
-                  ::ActiveRecord::Associations::Preloader.new(records: appendages, associations: :user).call
-                end
+                ::ActiveRecord::Associations::Preloader.new(records: appendages, associations: :user).call
 
                 # pull the users off the appendages in this subscribed block to
                 # show not only that they are correct, but that they are

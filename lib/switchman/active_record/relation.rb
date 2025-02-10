@@ -55,7 +55,7 @@ module Switchman
       end
 
       def load(&block)
-        if !loaded? || (::Rails.version >= "7.0" && scheduled?)
+        if !loaded? || scheduled?
           @records = activate { |relation| relation.send(:exec_queries, &block) }
           @loaded = true
         end

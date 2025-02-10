@@ -136,11 +136,7 @@ module Switchman
         end
 
         def connected_to_stack
-          has_own_stack = if ::Rails.version < "7.0"
-                            Thread.current.thread_variable?(:ar_connected_to_stack)
-                          else
-                            ::ActiveSupport::IsolatedExecutionState.key?(:active_record_connected_to_stack)
-                          end
+          has_own_stack = ::ActiveSupport::IsolatedExecutionState.key?(:active_record_connected_to_stack)
 
           ret = super
           return ret if has_own_stack
@@ -188,12 +184,6 @@ module Switchman
           end
 
           Shard.default
-        end
-
-        if ::Rails.version < "7.0"
-          def connection_class_for_self
-            connection_classes
-          end
         end
       end
 

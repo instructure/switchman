@@ -10,20 +10,9 @@ module Switchman
 
     ::GuardRail.singleton_class.prepend(GuardRail::ClassMethods)
 
-    # after :initialize_dependency_mechanism to ensure autoloading is
-    # configured for any downstream initializers that care. In rails 7.0 we
-    # should be able to just use an explicit after on configuring the once
-    # autoloaders and not need to go monkey around with initializer order
-    if ::Rails.version < "7.0"
-      initialize_dependency_mechanism = ::Rails::Application::Bootstrap.initializers.find do |i|
-        i.name == :initialize_dependency_mechanism
-      end
-      initialize_dependency_mechanism.instance_variable_get(:@options)[:after] = :set_autoload_paths
-    end
-
     initializer "switchman.active_record_patch",
                 before: "active_record.initialize_database",
-                after: ((::Rails.version < "7.0") ? :initialize_dependency_mechanism : :setup_once_autoloader) do
+                after: :setup_once_autoloader do
       ::ActiveSupport.on_load(:active_record) do
         # Switchman requires postgres, so just always load the pg adapter
         require "active_record/connection_adapters/postgresql_adapter"
@@ -54,11 +43,9 @@ module Switchman
         ::ActiveRecord::Associations::CollectionProxy.include(ActiveRecord::Associations::CollectionProxy)
 
         ::ActiveRecord::Associations::Preloader::Association.prepend(ActiveRecord::Associations::Preloader::Association)
-        unless ::Rails.version < "7.0"
-          ::ActiveRecord::Associations::Preloader::Association::LoaderRecords.prepend(
-            ActiveRecord::Associations::Preloader::Association::LoaderRecords
-          )
-        end
+        ::ActiveRecord::Associations::Preloader::Association::LoaderRecords.prepend(
+          ActiveRecord::Associations::Preloader::Association::LoaderRecords
+        )
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::AbstractAdapter)
         unless ::Rails.version < "7.1"
           ::ActiveRecord::ConnectionAdapters::ConnectionHandler.prepend(ActiveRecord::ConnectionHandler)

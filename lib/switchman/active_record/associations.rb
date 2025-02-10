@@ -203,41 +203,7 @@ module Switchman
             # #compare_by_identity makes such owners different hash keys
             @records_by_owner = {}.compare_by_identity
 
-            if ::Rails.version >= "7.0"
-              raw_records ||= loader_query.records_for([self])
-            elsif owner_keys.empty?
-              raw_records ||= []
-            else
-              # determine the shard to search for each owner
-              if reflection.macro == :belongs_to
-                # for belongs_to, it's the shard of the foreign_key
-                partition_proc = lambda do |owner|
-                  if owner.class.sharded_column?(owner_key_name)
-                    Shard.shard_for(owner[owner_key_name], owner.shard)
-                  else
-                    Shard.current
-                  end
-                end
-              elsif !reflection.options[:multishard]
-                # for non-multishard associations, it's *just* the owner's shard
-                partition_proc = ->(owner) { owner.shard }
-              end
-
-              raw_records ||= Shard.partition_by_shard(owners, partition_proc) do |partitioned_owners|
-                relative_owner_keys = partitioned_owners.map do |owner|
-                  key = owner[owner_key_name]
-                  if key && owner.class.sharded_column?(owner_key_name)
-                    key = Shard.relative_id_for(key,
-                                                owner.shard,
-                                                Shard.current(klass.connection_class_for_self))
-                  end
-                  convert_key(key)
-                end
-                relative_owner_keys.compact!
-                relative_owner_keys.uniq!
-                records_for(relative_owner_keys)
-              end
-            end
+            raw_records ||= loader_query.records_for([self])
 
             @preloaded_records = raw_records.select do |record|
               assignments = false

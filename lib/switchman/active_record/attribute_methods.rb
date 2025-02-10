@@ -55,12 +55,7 @@ module Switchman
         end
 
         def define_cached_method(owner, name, namespace:, as:, &block)
-          if ::Rails.version < "7.0"
-            yield owner
-            owner.rename_method(as, name)
-          else
-            owner.define_cached_method(name, namespace: namespace, as: as, &block)
-          end
+          owner.define_cached_method(name, namespace: namespace, as: as, &block)
         end
 
         def define_method_global_attribute(attr_name, owner:)

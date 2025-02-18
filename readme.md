@@ -1,8 +1,4 @@
-Switchman
-==========
-
-[![Build
-Status](https://travis-ci.org/instructure/switchman.svg?branch=main)](https://travis-ci.org/instructure/switchman)
+# Switchman
 
 ## About
 
@@ -24,8 +20,8 @@ include:
 
 ## Requirements
 
-* Ruby 2.4+
-* Rails 5.1+
+* Ruby 3.0+
+* Rails 7.0+
 
 ## Installation
 

@@ -34,56 +34,6 @@ module Switchman
           end
         end
 
-        # NOTE: `returning` values are _not_ transposed back to the current shard
-        %w[insert_all upsert_all].each do |method|
-          class_eval <<-RUBY, __FILE__, __LINE__ + 1
-            def #{method}(attributes, returning: nil, **)
-              scope = self != ::ActiveRecord::Base && current_scope
-              if (target_shard = scope&.primary_shard) == (current_shard = Shard.current(connection_class_for_self))
-                scope = nil
-              end
-              if scope
-                dupped = false
-                attributes.each_with_index do |hash, i|
-                  if dupped || hash.any? { |k, v| sharded_column?(k) }
-                    unless dupped
-                      attributes = attributes.dup
-                      dupped = true
-                    end
-                    attributes[i] = hash.to_h do |k, v|
-                      if sharded_column?(k)
-                        [k, Shard.relative_id_for(v, current_shard, target_shard)]
-                      else
-                        [k, v]
-                      end
-                    end
-                  end
-                end
-              end
-
-              if scope
-                scope.activate do
-                  db = Shard.current(connection_class_for_self).database_server
-                  result = db.unguard { super }
-                  if result&.columns&.any? { |c| sharded_column?(c) }
-                    transposed_rows = result.rows.map do |row|
-                      row.map.with_index do |value, i|
-                        sharded_column?(result.columns[i]) ? Shard.relative_id_for(value, target_shard, current_shard) : value
-                      end
-                    end
-                    result = ::ActiveRecord::Result.new(result.columns, transposed_rows, result.column_types)
-                  end
-
-                  result
-                end
-              else
-                db = Shard.current(connection_class_for_self).database_server
-                db.unguard { super }
-              end
-            end
-          RUBY
-        end
-
         def reset_column_information
           @sharded_column_values = {}
           super
@@ -109,7 +59,11 @@ module Switchman
                     ::ActiveRecord::Base.connection_handler.connection_pool_list(:all)
                   end
           pools.each do |pool|
-            pool.connection(switch_shard: false).clear_query_cache if pool.active_connection?
+            if ::Rails.version < "7.2"
+              pool.connection(switch_shard: false).clear_query_cache if pool.active_connection?
+            elsif pool.active_connection?
+              pool.lease_connection(switch_shard: false).clear_query_cache
+            end
           end
         end
 
@@ -189,6 +143,7 @@ module Switchman
 
       def self.prepended(klass)
         klass.singleton_class.prepend(ClassMethods)
+        klass.singleton_class.prepend(Switchman::ActiveRecord::Relation::InsertUpsertAll) if ::Rails.version < "7.2"
         klass.scope :non_shadow, lambda { |key = primary_key|
                                    where(key => (QueryMethods::NonTransposingValue.new(0)..
                                                  QueryMethods::NonTransposingValue.new(Shard::IDS_PER_SHARD)))
@@ -241,7 +196,7 @@ module Switchman
                                end
         end
         target_shard.activate do
-          self.class.upsert(shadow_attrs, unique_by: self.class.primary_key)
+          self.class.upsert_all([shadow_attrs], unique_by: self.class.primary_key)
         end
       end
 

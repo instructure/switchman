@@ -229,6 +229,13 @@ module Switchman
     end
 
     describe ".with_each_shard", if: !defined?(::DEBUGGER__::Session) do
+      after do
+        # The parallel option of with_each_shard explicitly calls clear_all_connections! and
+        # this can break future tests if they are run without a transaction.
+        # bundle exec rspec './spec/models/shard_spec.rb[1:11:5:1,1:11:9]' --format documentation --seed 12345
+        ::ActiveRecord::Base.connection unless ::ActiveRecord::Base.connected?
+      end
+
       describe ":exception" do
         it "defaults to :raise" do
           expect { Shard.with_each_shard { raise "error" } }.to raise_error("error")
@@ -276,6 +283,12 @@ module Switchman
 
       context "without transaction" do
         self.use_transactional_tests = false
+
+        after do
+          # If not in a transaction, it's not enough to simply call ActiveRecord::Base.connection to
+          # restore the connection, instead we have to make an actual query.
+          User.count
+        end
 
         it "does not disconnect" do
           User.connection
@@ -556,7 +569,7 @@ module Switchman
           lock: Mutex.new
         )
         expect(connection).to receive(:current_schemas).once.and_return(%w[canvas public])
-        expect(connection).to receive(:shard=).with(shard)
+        allow(connection).to receive(:shard=).with(shard)
         allow(connection).to receive(:lock_thread=)
         allow_any_instance_of(::ActiveRecord::ConnectionAdapters::ConnectionPool)
           .to receive(:checkout).and_return(connection)

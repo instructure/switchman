@@ -23,9 +23,10 @@ module Switchman
       end
 
       def default_schema
-        connection unless @schemas
+        connection_method = (::Rails.version < "7.2") ? :connection : :lease_connection
+        send(connection_method) unless @schemas
         # default shard will not switch databases immediately, so it won't be set yet
-        @schemas ||= connection.current_schemas
+        @schemas ||= send(connection_method).current_schemas
         @schemas.first
       end
 
@@ -41,6 +42,34 @@ module Switchman
 
         switch_database(conn) if conn.shard != current_shard && switch_shard
         conn
+      end
+
+      unless ::Rails.version < "7.2"
+        def active_connection(switch_shard: true)
+          conn = super()
+          return nil if conn.nil?
+          raise Errors::NonExistentShardError if current_shard.new_record?
+
+          switch_database(conn) if conn.shard != current_shard && switch_shard
+          conn
+        end
+
+        def lease_connection(switch_shard: true)
+          conn = super()
+          raise Errors::NonExistentShardError if current_shard.new_record?
+
+          switch_database(conn) if conn.shard != current_shard && switch_shard
+          conn
+        end
+
+        def with_connection(switch_shard: true, **kwargs)
+          super(**kwargs) do |conn|
+            raise Errors::NonExistentShardError if current_shard.new_record?
+
+            switch_database(conn) if conn.shard != current_shard && switch_shard
+            yield conn
+          end
+        end
       end
 
       def release_connection(with_id = Thread.current)

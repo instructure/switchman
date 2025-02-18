@@ -47,20 +47,28 @@ module Switchman
       Shard.default.database_server.unguard!
     end
 
-    it "does not get confused about a single guarded server" do
-      Shard.default.database_server.guard!
-      ds = DatabaseServer.create(
-        Shard.default.database_server.config.merge(
-          database: "notguarded",
-          secondary: [{ database: "guarded" }, nil]
+    context "without transaction" do
+      self.use_transactional_tests = false
+
+      it "does not get confused about a single guarded server" do
+        ::ActiveRecord::Base.connection.execute("CREATE DATABASE notguarded")
+        ::ActiveRecord::Base.connection.execute("CREATE DATABASE guarded")
+        Shard.default.database_server.guard!
+        ds = DatabaseServer.create(
+          Shard.default.database_server.config.merge(
+            database: "notguarded",
+            secondary: [{ database: "guarded" }, nil]
+          )
         )
-      )
-      s = ds.shards.create!
-      s.activate do
-        expect(User.connection_pool.db_config.configuration_hash[:database]).to eq "notguarded"
+        s = ds.shards.create!
+        s.activate do
+          expect(User.connection_pool.db_config.configuration_hash[:database]).to eq "notguarded"
+        end
+      ensure
+        ::ActiveRecord::Base.connection.execute("DROP DATABASE IF EXISTS notguarded")
+        ::ActiveRecord::Base.connection.execute("DROP DATABASE IF EXISTS guarded")
+        Shard.default.database_server.unguard!
       end
-    ensure
-      Shard.default.database_server.unguard!
     end
 
     it "unguards update_record queries when a different shard is active" do
@@ -109,7 +117,7 @@ module Switchman
       expect(DatabaseServer.all_roles).to include(*%i[primary secondary custom])
     end
 
-    context "without transaction" do
+    context "without transaction if DDL transactions not supported" do
       self.use_transactional_tests = ::ActiveRecord::Base.connection.supports_ddl_transactions?
 
       it "really disconnect all envs" do
@@ -161,7 +169,11 @@ module Switchman
       end
 
       def actual_connection_count
-        ::ActiveRecord::Base.connection_pool.instance_variable_get(:@thread_cached_conns).size
+        if ::Rails.version < "7.2"
+          ::ActiveRecord::Base.connection_pool.instance_variable_get(:@thread_cached_conns).size
+        else
+          ::ActiveRecord::Base.connection_pool.send(:connection_lease).connection ? 1 : 0
+        end
       end
 
       it "reallies return active connections to the pool in all envs" do

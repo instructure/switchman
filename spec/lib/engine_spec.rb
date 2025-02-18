@@ -18,7 +18,7 @@ module Switchman
       indexes.push(order.index(:initialize_cache))
       indexes.push(order.index(:setup_once_autoloader))
       indexes.push(order.index(:bootstrap_hook))
-      indexes.push(order.index(:set_secrets_root))
+      indexes.push(order.index((::Rails.version < "7.2") ? :set_secrets_root : "active_support.deprecator"))
 
       indexes_max = indexes.max
 

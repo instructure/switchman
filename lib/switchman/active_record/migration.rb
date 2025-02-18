@@ -31,8 +31,10 @@ module Switchman
         # Store in internalmetadata to allow other tools to be able to lock out migrations
         if ::Rails.version < "7.1"
           ::ActiveRecord::InternalMetadata[:migrator_advisory_lock_id] = shard_name_hash
-        else
+        elsif ::Rails.version < "7.2"
           ::ActiveRecord::InternalMetadata.new(connection)[:migrator_advisory_lock_id] = shard_name_hash
+        else
+          ::ActiveRecord::InternalMetadata.new(connection.pool)[:migrator_advisory_lock_id] = shard_name_hash
         end
         shard_name_hash
       end
@@ -75,7 +77,11 @@ module Switchman
         begin
           super
         ensure
-          schema_cache_holder.set_schema_cache(previous_schema_cache)
+          if ::Rails.version < "7.2"
+            schema_cache_holder.set_schema_cache(previous_schema_cache)
+          else
+            schema_cache_holder.instance_variable_set(:@cache, previous_schema_cache)
+          end
           reset_column_information
         end
       end

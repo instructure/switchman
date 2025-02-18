@@ -22,6 +22,7 @@ services:
     logging: *LOG
     volumes:
       - data:/var/lib/postgresql/data
+    command: ["postgres", "-c", "log_statement=all"]
 
   pgweb:
     image: sosedoff/pgweb

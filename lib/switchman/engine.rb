@@ -53,6 +53,14 @@ module Switchman
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.prepend(ActiveRecord::ConnectionPool)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::QueryCache)
         ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(ActiveRecord::PostgreSQLAdapter)
+        # https://github.com/rails/rails/commit/0016280f4fde55d96738887093dc333aae0d107b
+        if ::Rails.version < "7.2"
+          ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(ActiveRecord::PostgreSQLAdapter::ClassMethods)
+        else
+          ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.singleton_class.prepend(
+            ActiveRecord::PostgreSQLAdapter::ClassMethods
+          )
+        end
 
         ::ActiveRecord::DatabaseConfigurations.prepend(ActiveRecord::DatabaseConfigurations)
         ::ActiveRecord::DatabaseConfigurations::DatabaseConfig.prepend(
@@ -79,6 +87,7 @@ module Switchman
         ::ActiveRecord::Relation.include(ActiveRecord::QueryMethods)
         ::ActiveRecord::Relation.prepend(GuardRail::Relation)
         ::ActiveRecord::Relation.prepend(ActiveRecord::Relation)
+        ::ActiveRecord::Relation.prepend(ActiveRecord::Relation::InsertUpsertAll) if ::Rails.version >= "7.2"
         ::ActiveRecord::Relation.include(ActiveRecord::SpawnMethods)
         ::ActiveRecord::Relation.include(CallSuper)
 

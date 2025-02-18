@@ -40,12 +40,20 @@ module Switchman
           hit = false
 
           @lock.synchronize do
-            if (result = @query_cache.delete(key))
-              hit = true
-              @query_cache[key] = result
+            if ::Rails.version < "7.2"
+              if (result = @query_cache.delete(key))
+                hit = true
+                @query_cache[key] = result
+              else
+                result = @query_cache[key] = yield
+                @query_cache.shift if @query_cache_max_size && @query_cache.size > @query_cache_max_size
+              end
             else
-              result = @query_cache[key] = yield
-              @query_cache.shift if @query_cache_max_size && @query_cache.size > @query_cache_max_size
+              hit = true
+              result = @query_cache.compute_if_absent(key) do
+                hit = false
+                yield
+              end
             end
           end
 

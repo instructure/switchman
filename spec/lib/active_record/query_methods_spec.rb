@@ -18,9 +18,17 @@ module Switchman
 
       describe "#shard" do
         it "asplodes appropriately if the relation is already loaded" do
+          expected_error = if ::Rails.version < "7.2"
+                             ::ActiveRecord::ImmutableRelation
+                           else
+                             ::ActiveRecord::UnmodifiableRelation
+                           end
+
           scope = User.where(id: @user1)
           scope.to_a
-          expect { scope.shard_value = @shard1 }.to raise_error(::ActiveRecord::ImmutableRelation)
+          expect do
+            scope.shard_value = @shard1
+          end.to raise_error(expected_error)
         end
       end
 

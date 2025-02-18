@@ -14,11 +14,16 @@ module Switchman
                                          ::ActiveRecord::SchemaMigration)
           end
         else
+          connection = if ::Rails.version < "7.2"
+                         ::ActiveRecord::Base.connection
+                       else
+                         ::ActiveRecord::Base.connection.pool
+                       end
           let(:migrator) do
             ::ActiveRecord::Migrator.new(:up,
                                          [],
-                                         ::ActiveRecord::SchemaMigration.new(::ActiveRecord::Base.connection),
-                                         ::ActiveRecord::InternalMetadata.new(::ActiveRecord::Base.connection))
+                                         ::ActiveRecord::SchemaMigration.new(connection),
+                                         ::ActiveRecord::InternalMetadata.new(connection))
           end
         end
 
@@ -33,7 +38,7 @@ module Switchman
         it "strips out prefer_secondary from db config" do
           config = ::ActiveRecord::Base.connection_db_config.configuration_hash.dup
           config[:prefer_secondary] = true
-          expect(::ActiveRecord::Base.connection_db_config).to receive(:configuration_hash).and_return(config)
+          allow(::ActiveRecord::Base.connection_db_config).to receive(:configuration_hash).and_return(config)
 
           migrator.with_advisory_lock_connection do |conn|
             expect(conn.pool.db_config.configuration_hash[:prefer_secondary]).to be_nil

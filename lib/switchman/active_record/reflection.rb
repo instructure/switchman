@@ -32,7 +32,14 @@ module Switchman
           key = self
           key = [key, owner._read_attribute(@foreign_type)] if polymorphic?
           key = [key, shard(owner).id].flatten
-          klass.cached_find_by_statement(key, &)
+
+          if ::Rails.version < "7.2"
+            klass.cached_find_by_statement(key, &)
+          else
+            klass.with_connection do |connection|
+              klass.cached_find_by_statement(connection, key, &)
+            end
+          end
         end
       end
 

@@ -34,13 +34,29 @@ module Switchman
       end
 
       def shard_value=(value)
-        raise ::ActiveRecord::ImmutableRelation if @loaded
+        if @loaded
+          error_class = if ::Rails.version < "7.2"
+                          ::ActiveRecord::ImmutableRelation
+                        else
+                          ::ActiveRecord::UnmodifiableRelation
+                        end
+
+          raise error_class
+        end
 
         @values[:shard] = value
       end
 
       def shard_source_value=(value)
-        raise ::ActiveRecord::ImmutableRelation if @loaded
+        if @loaded
+          error_class = if ::Rails.version < "7.2"
+                          ::ActiveRecord::ImmutableRelation
+                        else
+                          ::ActiveRecord::UnmodifiableRelation
+                        end
+
+          raise error_class
+        end
 
         @values[:shard_source] = value
       end
@@ -106,6 +122,10 @@ module Switchman
       end
 
       protected
+
+      def arel_columns(columns)
+        connection.with_local_table_name { super }
+      end
 
       def remove_nonlocal_primary_keys!
         each_transposable_predicate_value do |value, predicate, _relation, _column, type|
@@ -243,16 +263,34 @@ module Switchman
         end
       end
 
-      def arel_columns(columns)
-        connection.with_local_table_name { super }
-      end
-
       def arel_column(columns)
         connection.with_local_table_name { super }
       end
 
       def table_name_matches?(from)
-        connection.with_global_table_name { super }
+        if ::Rails.version < "7.2"
+          connection.with_global_table_name { super }
+        else
+          connection.with_global_table_name do
+            table_name = Regexp.escape(table.name)
+            # INST: adapter_class -> connection
+            quoted_table_name = Regexp.escape(connection.quote_table_name(table.name))
+            /(?:\A|(?<!FROM)\s)(?:\b#{table_name}\b|#{quoted_table_name})(?!\.)/i.match?(from.to_s)
+          end
+        end
+      end
+
+      unless ::Rails.version < "7.2"
+        def order_column(field)
+          arel_column(field) do |attr_name|
+            if attr_name == "count" && !group_values.empty?
+              table[attr_name]
+            else
+              # INST: adapter_class -> connection
+              ::Arel.sql(connection.quote_table_name(attr_name), retryable: true)
+            end
+          end
+        end
       end
 
       def each_predicate(predicates = nil, &)
@@ -289,7 +327,10 @@ module Switchman
 
             next predicate if new_left == old_left && new_right == old_right
 
-            next predicate.class.new predicate.expr.class.new(new_left, new_right)
+            next predicate.class.new predicate.expr.class.new(new_left, new_right) if ::Rails.version < "7.2"
+
+            next predicate.class.new predicate.expr.class.new([new_left, new_right])
+
           when ::Arel::Nodes::SelectStatement
             new_cores = predicate.cores.map do |core|
               next core unless core.is_a?(::Arel::Nodes::SelectCore) # just in case something weird is going on

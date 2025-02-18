@@ -73,19 +73,33 @@ module Switchman
         end
       end
 
+      module ClassMethods
+        def quote_local_table_name(name)
+          # postgres quotes tables and columns the same; just pass through
+          # (differs from quote_table_name_with_shard below by no logic to
+          # explicitly qualify the table)
+          quote_column_name(name)
+        end
+
+        def quote_table_name(name, shard: nil)
+          # This looks kind of weird at first glance, but older Rails versions do not actually import
+          # these methods as class methods.
+          shard = self.shard if shard.nil? && ::Rails.version < "7.2" && !@use_local_table_name
+
+          return quote_local_table_name(name) unless shard
+
+          name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)
+          name.instance_variable_set(:@schema, shard.name) unless name.schema
+          name.quoted
+        end
+      end
+
       def quote_local_table_name(name)
-        # postgres quotes tables and columns the same; just pass through
-        # (differs from quote_table_name_with_shard below by no logic to
-        # explicitly qualify the table)
-        quote_column_name(name)
+        self.class.quote_local_table_name(name)
       end
 
       def quote_table_name(name)
-        return quote_local_table_name(name) if @use_local_table_name
-
-        name = ::ActiveRecord::ConnectionAdapters::PostgreSQL::Utils.extract_schema_qualified_name(name.to_s)
-        name.instance_variable_set(:@schema, shard.name) unless name.schema
-        name.quoted
+        self.class.quote_table_name(name, shard: @use_local_table_name ? nil : shard)
       end
 
       def with_global_table_name(&)
@@ -129,7 +143,7 @@ module Switchman
       end
 
       def columns(*)
-        with_local_table_name(false) { super }
+        with_global_table_name { super }
       end
     end
   end

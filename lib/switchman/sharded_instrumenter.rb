@@ -19,7 +19,7 @@ module Switchman
           env: @shard_host.pool.connection_class&.current_role
         }
       end
-      super(name, payload)
+      super
     end
   end
 end

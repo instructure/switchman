@@ -62,16 +62,12 @@ module Switchman
         if primary_shard != final_primary_shard && rhs.primary_shard != final_primary_shard
           shard!(final_primary_shard)
           rhs = rhs.shard(final_primary_shard)
-          super(rhs)
         elsif primary_shard != final_primary_shard
           shard!(final_primary_shard)
-          super(rhs)
         elsif rhs.primary_shard != final_primary_shard
           rhs = rhs.shard(final_primary_shard)
-          super(rhs)
-        else
-          super
         end
+        super
 
         self.shard_value = final_shard_value
         self.shard_source_value = final_shard_source_value

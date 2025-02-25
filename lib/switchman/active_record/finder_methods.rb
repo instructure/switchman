@@ -4,7 +4,7 @@ module Switchman
   module ActiveRecord
     module FinderMethods
       def find_one(id)
-        return super(id) unless klass.integral_id?
+        return super unless klass.integral_id?
 
         if shard_source_value != :implicit
           current_shard = Shard.current(klass.connection_class_for_self)
@@ -28,14 +28,14 @@ module Switchman
         if shard
           shard.activate { super(local_id) }
         else
-          super(id)
+          super
         end
       end
 
       def find_some_ordered(ids)
         current_shard = Shard.current(klass.connection_class_for_self)
         ids = ids.map { |id| Shard.relative_id_for(id, current_shard, current_shard) }
-        super(ids)
+        super
       end
 
       def find_or_instantiator_by_attributes(match, attributes, *args)

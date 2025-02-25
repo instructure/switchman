@@ -5,8 +5,10 @@ module Switchman
     # ten trillion possible ids per shard. yup.
     IDS_PER_SHARD = 10_000_000_000_000
 
+    # rubocop:disable Style/SymbolProc -- transforming to a lambda produces "no receiver given"
     # only allow one default
     validates_uniqueness_of :default, if: ->(s) { s.default? }
+    # rubocop:enable Style/SymbolProc
 
     after_save :clear_cache
     after_destroy :clear_cache

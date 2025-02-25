@@ -465,7 +465,7 @@ module Switchman
       it "works" do
         ids = [2, 48, (Shard::IDS_PER_SHARD * @shard1.id) + 6, (Shard::IDS_PER_SHARD * @shard1.id) + 8, 10, 12]
         results = Shard.partition_by_shard(ids) do |partitioned_ids|
-          expect(partitioned_ids.length == 4 || partitioned_ids.length == 2).to be true
+          expect([4, 2].include?(partitioned_ids.length)).to be true
           partitioned_ids.map { |id| id + 1 }
         end
 

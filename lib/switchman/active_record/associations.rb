@@ -174,7 +174,7 @@ module Switchman
           end
 
           # Disabling to keep closer to rails original
-          # rubocop:disable Naming/AccessorMethodName, Style/GuardClause
+          # rubocop:disable Naming/AccessorMethodName
           # significant changes:
           #  * globalize the key to lookup
           def set_inverse(record)
@@ -191,7 +191,7 @@ module Switchman
               association.set_inverse_instance(record)
             end
           end
-          # rubocop:enable Naming/AccessorMethodName, Style/GuardClause
+          # rubocop:enable Naming/AccessorMethodName
 
           # significant changes:
           #  * partition_by_shard the records_for call

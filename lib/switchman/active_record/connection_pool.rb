@@ -11,7 +11,7 @@ module Switchman
           self.schema_cache
         end
 
-        # rubocop:disable Naming/AccessorMethodName override method
+        # rubocop:disable Naming/AccessorMethodName -- override method
         def set_schema_cache(cache)
           schema_cache = get_schema_cache(cache.connection)
 
@@ -19,7 +19,7 @@ module Switchman
             schema_cache.instance_variable_set(x, cache.instance_variable_get(x))
           end
         end
-        # rubocop:enable Naming/AccessorMethodName override method
+        # rubocop:enable Naming/AccessorMethodName -- override method
       end
 
       def default_schema
@@ -44,7 +44,7 @@ module Switchman
       end
 
       def release_connection(with_id = Thread.current)
-        super(with_id)
+        super
 
         flush
       end

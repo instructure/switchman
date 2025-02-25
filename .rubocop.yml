@@ -1,5 +1,8 @@
-require:
+plugins:
   - rubocop-rake
+
+require:
+  - rubocop-rspec_rails
 
 inherit_gem:
   rubocop-inst:

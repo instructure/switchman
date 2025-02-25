@@ -73,7 +73,7 @@ module Switchman
         end
 
         begin
-          super(...)
+          super
         ensure
           schema_cache_holder.set_schema_cache(previous_schema_cache)
           reset_column_information

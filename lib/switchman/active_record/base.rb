@@ -132,7 +132,7 @@ module Switchman
                               :"#{current_shard}/#{current_role}"
                             end
 
-          super(config_or_env)
+          super
         end
 
         def connected_to_stack

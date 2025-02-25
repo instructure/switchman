@@ -94,7 +94,7 @@ module Switchman
                      else
                        nil
                      end
-            Shard.with_each_shard(scope, classes, output: output, **options) do
+            Shard.with_each_shard(scope, classes, output:, **options) do
               shard = Shard.current
 
               if log_format == "json"

@@ -311,7 +311,7 @@ module Switchman
           output = ->(msg) { "#{Shard.current.description} transformed log #{msg}" }
           expect { puts "hello" }.to output("hello\n").to_stdout
           expect do
-            Shard.with_each_shard([Shard.default, @shard2], output: output) do
+            Shard.with_each_shard([Shard.default, @shard2], output:) do
               puts "OUTPUT"
             end
           end.to output(/public.+transformed log OUTPUT.+switchman_test_shard.+transformed log OUTPUT/m).to_stdout
@@ -336,13 +336,13 @@ module Switchman
           output = ->(msg) { "#{Shard.current.description} transformed log #{msg}" }
           expect { puts "hello" }.to output("hello\n").to_stdout
           expect do
-            Shard.with_each_shard([Shard.default, @shard2], parallel: true, output: output) do
+            Shard.with_each_shard([Shard.default, @shard2], parallel: true, output:) do
               puts "OUTPUT"
             end
           end.to output(/public.+transformed log OUTPUT/m).to_stdout_from_any_process
 
           expect do
-            Shard.with_each_shard([Shard.default, @shard2], parallel: true, output: output) do
+            Shard.with_each_shard([Shard.default, @shard2], parallel: true, output:) do
               puts "OUTPUT"
             end
           end.to output(/switchman_test_shard.+transformed log OUTPUT/m).to_stdout_from_any_process

@@ -2,7 +2,7 @@
 
 source "http://rubygems.org"
 
-plugin "bundler-multilock", "1.3.0"
+plugin "bundler-multilock", "1.3.4"
 return unless Plugin.installed?("bundler-multilock")
 
 Plugin.send(:load_plugin, "bundler-multilock")

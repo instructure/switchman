@@ -51,7 +51,7 @@ module Switchman
       return [default] unless default.is_a?(Switchman::Shard)
       return all if !Switchman.region || DatabaseServer.none?(&:region)
 
-      in_region(Switchman.region, include_regionless: include_regionless)
+      in_region(Switchman.region, include_regionless:)
     end)
 
     class << self
@@ -141,7 +141,7 @@ module Switchman
 
         unless cached_shards.key?(id)
           cached_shards[id] = Shard.default.activate do
-            find_cached(["shard", id]) { find_by(id: id) }
+            find_cached(["shard", id]) { find_by(id:) }
           end
         end
         cached_shards[id]
@@ -233,7 +233,7 @@ module Switchman
               Switchman.config[:on_fork_proc]&.call
               with_each_shard(subscope,
                               classes,
-                              exception: exception,
+                              exception:,
                               output: output || :decorated) do
                 last_description = Shard.current.description
                 Parallel::ResultWrapper.new(yield)
@@ -459,7 +459,7 @@ module Switchman
             connects_to_hash.each do |(db_name, role_hash)|
               role_hash.each_key do |role|
                 role_hash.delete(role) if klass.connection_handler.retrieve_connection_pool(
-                  klass.connection_specification_name, role: role, shard: db_name
+                  klass.connection_specification_name, role:, shard: db_name
                 )
               end
             end
@@ -590,9 +590,9 @@ module Switchman
       id
     end
 
-    def activate(*classes, &block)
+    def activate(*classes, &)
       shards = hashify_classes(classes)
-      Shard.activate(shards, &block)
+      Shard.activate(shards, &)
     end
 
     # for use from console ONLY

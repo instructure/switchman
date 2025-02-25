@@ -4,7 +4,7 @@ module Switchman
   module ActiveRecord
     module TableDefinition
       def column(name, type, limit: nil, **)
-        Switchman.foreign_key_check(name, type, limit: limit)
+        Switchman.foreign_key_check(name, type, limit:)
         super
       end
     end

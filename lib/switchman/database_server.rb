@@ -121,7 +121,7 @@ module Switchman
       Shard.sharded_models.each do |klass|
         self.class.all_roles.each do |role|
           klass.connection_handler.remove_connection_pool(klass.connection_specification_name,
-                                                          role: role,
+                                                          role:,
                                                           shard: id.to_sym)
         end
       end
@@ -218,7 +218,7 @@ module Switchman
       if config_create_statement
         create_commands = Array(config_create_statement).dup
         create_statement = lambda {
-          create_commands.map { |statement| format(statement, name: name, password: password) }
+          create_commands.map { |statement| format(statement, name:, password:) }
         }
       end
 
@@ -236,8 +236,8 @@ module Switchman
         self.class.creating_new_shard = true
         DatabaseServer.send(:reference_role, :deploy)
         ::ActiveRecord::Base.connected_to(shard: self.id.to_sym, role: :deploy) do
-          shard = Shard.create!(id: id,
-                                name: name,
+          shard = Shard.create!(id:,
+                                name:,
                                 database_server_id: self.id)
           if create_statement
             if ::ActiveRecord::Base.connection.select_value(

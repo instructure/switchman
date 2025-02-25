@@ -28,11 +28,11 @@ module Switchman
         # this technically belongs on AssociationReflection, but we put it on
         # ThroughReflection as well, instead of delegating to its internal
         # HasManyAssociation, losing its proper `klass`
-        def association_scope_cache(klass, owner, &block)
+        def association_scope_cache(klass, owner, &)
           key = self
           key = [key, owner._read_attribute(@foreign_type)] if polymorphic?
           key = [key, shard(owner).id].flatten
-          klass.cached_find_by_statement(key, &block)
+          klass.cached_find_by_statement(key, &)
         end
       end
 

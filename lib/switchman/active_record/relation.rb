@@ -28,15 +28,15 @@ module Switchman
         relation
       end
 
-      def new(*, &block)
+      def new(*, &)
         primary_shard.activate(klass.connection_class_for_self) { super }
       end
 
-      def create(*, &block)
+      def create(*, &)
         primary_shard.activate(klass.connection_class_for_self) { super }
       end
 
-      def create!(*, &block)
+      def create!(*, &)
         primary_shard.activate(klass.connection_class_for_self) { super }
       end
 

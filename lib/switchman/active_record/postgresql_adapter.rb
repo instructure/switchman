@@ -88,8 +88,8 @@ module Switchman
         name.quoted
       end
 
-      def with_global_table_name(&block)
-        with_local_table_name(false, &block)
+      def with_global_table_name(&)
+        with_local_table_name(false, &)
       end
 
       def with_local_table_name(enable = true) # rubocop:disable Style/OptionalBooleanParameter

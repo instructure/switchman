@@ -159,7 +159,7 @@ module Switchman
       end
 
       def grouped_calculation_options(operation, column_name, distinct)
-        opts = { operation: operation, column_name: column_name, distinct: distinct }
+        opts = { operation:, column_name:, distinct: }
 
         # Rails 7.0.5
         if defined?(::ActiveRecord::Calculations::ColumnAliasTracker)
@@ -188,11 +188,11 @@ module Switchman
         group_columns = group_aliases.zip(group_fields).map do |aliaz, field|
           [aliaz, type_for(field), column_name_for(field)]
         end
-        opts.merge!(association: association,
-                    associated: associated,
-                    group_aliases: group_aliases,
-                    group_columns: group_columns,
-                    group_fields: group_fields)
+        opts.merge!(association:,
+                    associated:,
+                    group_aliases:,
+                    group_columns:,
+                    group_fields:)
 
         opts
       end

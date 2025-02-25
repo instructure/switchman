@@ -18,7 +18,7 @@ module Switchman
 
       it "correctly associates unsharded objects with unsharded objects" do
         root = Root.create!(user: @user1)
-        app = Application.create!(root: root)
+        app = Application.create!(root:)
         all_apps = Application.all.includes(:root).to_a
         expect(all_apps.length).to eq 1
         expect(all_apps[0].id).to eq(app.id)
@@ -153,7 +153,7 @@ module Switchman
 
       it "works with belongs_to associations on shadow objects" do
         appendage = @user1.appendages.create!
-        real_digit = @shard2.activate { Digit.create!(appendage: appendage) }
+        real_digit = @shard2.activate { Digit.create!(appendage:) }
         real_digit.save_shadow_record(target_shard: @shard1)
 
         @shard1.activate do
@@ -182,7 +182,7 @@ module Switchman
 
       it "works with has_many through associations with shadow objects" do
         appendage = @user1.appendages.create!
-        real_digit = @shard2.activate { Digit.create!(appendage: appendage) }
+        real_digit = @shard2.activate { Digit.create!(appendage:) }
         real_digit.save_shadow_record(target_shard: @shard1)
 
         shadow_digit = @shard1.activate { Digit.find_by("id = ?", real_digit.global_id) }

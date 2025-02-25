@@ -255,19 +255,19 @@ module Switchman
         connection.with_global_table_name { super }
       end
 
-      def each_predicate(predicates = nil, &block)
-        return predicates.map(&block) if predicates
+      def each_predicate(predicates = nil, &)
+        return predicates.map(&) if predicates
 
-        each_predicate_cb(:having_clause, :having_clause=, &block)
-        each_predicate_cb(:where_clause, :where_clause=, &block)
+        each_predicate_cb(:having_clause, :having_clause=, &)
+        each_predicate_cb(:where_clause, :where_clause=, &)
       end
 
-      def each_predicate_cb(clause_getter, clause_setter, &block)
+      def each_predicate_cb(clause_getter, clause_setter, &)
         old_clause = send(clause_getter)
         old_predicates = old_clause.send(:predicates)
         return if old_predicates.empty?
 
-        new_predicates = old_predicates.map(&block)
+        new_predicates = old_predicates.map(&)
         return if new_predicates == old_predicates
 
         new_clause = old_clause.dup
@@ -344,33 +344,33 @@ module Switchman
         end
       end
 
-      def each_transposable_predicate_value_cb(node, original_block, &block)
+      def each_transposable_predicate_value_cb(node, original_block, &)
         case node
         when Array
-          node.filter_map { |val| each_transposable_predicate_value_cb(val, original_block, &block).presence }
+          node.filter_map { |val| each_transposable_predicate_value_cb(val, original_block, &).presence }
         when ::ActiveModel::Attribute
           old_value = node.value_before_type_cast
-          new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
+          new_value = each_transposable_predicate_value_cb(old_value, original_block, &)
 
           (old_value == new_value) ? node : node.class.new(node.name, new_value, node.type)
         when ::Arel::Nodes::And
           old_value = node.children
-          new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
+          new_value = each_transposable_predicate_value_cb(old_value, original_block, &)
 
           (old_value == new_value) ? node : node.class.new(new_value)
         when ::Arel::Nodes::BindParam
           old_value = node.value
-          new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
+          new_value = each_transposable_predicate_value_cb(old_value, original_block, &)
 
           (old_value == new_value) ? node : node.class.new(new_value)
         when ::Arel::Nodes::Casted
           old_value = node.value
-          new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
+          new_value = each_transposable_predicate_value_cb(old_value, original_block, &)
 
           (old_value == new_value) ? node : node.class.new(new_value, node.attribute)
         when ::Arel::Nodes::HomogeneousIn
           old_value = node.values
-          new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
+          new_value = each_transposable_predicate_value_cb(old_value, original_block, &)
 
           # switch to a regular In, so that Relation::WhereClause#contradiction? knows about it
           if new_value.empty?
@@ -381,7 +381,7 @@ module Switchman
           end
         when ::Arel::Nodes::Binary
           old_value = node.right
-          new_value = each_transposable_predicate_value_cb(old_value, original_block, &block)
+          new_value = each_transposable_predicate_value_cb(old_value, original_block, &)
 
           (old_value == new_value) ? node : node.class.new(node.left, new_value)
         when ::Arel::Nodes::SelectStatement

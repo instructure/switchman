@@ -23,7 +23,7 @@ module Switchman
 
             if spec_name && !FORBIDDEN_DB_ENVS.include?(shard)
               begin
-                connection = ::ActiveRecord::Base.connection_handler.retrieve_connection(spec_name, shard: shard)
+                connection = ::ActiveRecord::Base.connection_handler.retrieve_connection(spec_name, shard:)
                 connection.connect! if ::Rails.version >= "7.1" # eagerly validate the connection
               rescue ::ActiveRecord::ConnectionNotEstablished, ::ActiveRecord::NoDatabaseError
                 connection = nil

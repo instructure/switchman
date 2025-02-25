@@ -20,7 +20,7 @@ include:
 
 ## Requirements
 
-* Ruby 3.0+
+* Ruby 3.1+
 * Rails 7.0+
 
 ## Installation

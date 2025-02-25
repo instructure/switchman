@@ -13,9 +13,9 @@ module Switchman
             result =
               if query_cache[sql].key?(binds)
                 args = {
-                  sql: sql,
-                  binds: binds,
-                  name: name,
+                  sql:,
+                  binds:,
+                  name:,
                   connection_id: object_id,
                   cached: true,
                   type_casted_binds: -> { type_casted_binds(binds) }

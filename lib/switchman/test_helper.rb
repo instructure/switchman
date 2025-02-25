@@ -63,7 +63,7 @@ module Switchman
 
       def find_existing_test_shard(server, name)
         if server == Shard.default.database_server
-          server.shards.where(name: name).first
+          server.shards.where(name:).first
         else
           shard = Shard.where("database_server_id IS NOT NULL AND name=?", name).first
           # if somehow databases got created in a different order, change the shard to match

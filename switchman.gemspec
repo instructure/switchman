@@ -21,7 +21,7 @@ Gem::Specification.new do |s|
 
   s.files = Dir["{app,db,lib}/**/*", "Rakefile"]
 
-  s.required_ruby_version = ">= 3.0"
+  s.required_ruby_version = ">= 3.1"
 
   s.add_dependency "activerecord", ">= 7.0", "< 7.2"
   s.add_dependency "guardrail", "~> 3.0.1"

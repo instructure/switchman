@@ -6,9 +6,9 @@ module Switchman
       module ClassMethods
         delegate :shard, to: :all
 
-        def find_ids_in_ranges(opts = {}, &block)
+        def find_ids_in_ranges(opts = {}, &)
           opts.reverse_merge!(loose: true)
-          all.find_ids_in_ranges(opts, &block)
+          all.find_ids_in_ranges(opts, &)
         end
 
         def sharded_model

@@ -24,7 +24,7 @@ module Switchman
         super
       end
 
-      def create_or_update(**, &block)
+      def create_or_update(**, &)
         writable_shadow_record_warning
         super
       end

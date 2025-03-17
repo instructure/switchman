@@ -447,6 +447,32 @@ module Switchman
               expect(copy.user).to eq @user1
             end
           end
+
+          it "honors global ids in belongs_to associations for the local shard" do
+            @shard1.activate do
+              @appendage = Appendage.create!
+              Appendage.update_all("user_id=#{@user1.global_id}")
+              @appendage.reload
+              expect(@appendage.user).to eq @user1
+            end
+          end
+
+          it "returns local ids when given a global id in belongs_to associations for the local shard" do
+            @shard1.activate do
+              @appendage = Appendage.create!
+              Appendage.update_all("user_id=#{@user1.global_id}")
+              @appendage.reload
+              expect(@appendage.user_id).to eq @user1.id
+            end
+          end
+
+          it "writes a local id in a belongs_to associations when give a global id for the local shard" do
+            @shard1.activate do
+              @appendage = Appendage.create!(user_id: @user1.global_id)
+              @appendage.reload
+              expect(@appendage.user_id).to eq @user1.id
+            end
+          end
         end
 
         describe "preloading" do

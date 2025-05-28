@@ -30,11 +30,9 @@ module Switchman
         shard_name_hash = ::ActiveRecord::Migrator::MIGRATOR_SALT * db_name_hash
         # Store in internalmetadata to allow other tools to be able to lock out migrations
         if ::Rails.version < "7.1"
-          ::ActiveRecord::InternalMetadata[:migrator_advisory_lock_id] = shard_name_hash
-        elsif ::Rails.version < "7.2"
-          ::ActiveRecord::InternalMetadata.new(connection)[:migrator_advisory_lock_id] = shard_name_hash
+          ::ActiveRecord::InternalMetadata[:migrator_advisory_lock_id] = shard_name_hash.to_s
         else
-          ::ActiveRecord::InternalMetadata.new(connection.pool)[:migrator_advisory_lock_id] = shard_name_hash
+          @internal_metadata[:migrator_advisory_lock_id] = shard_name_hash.to_s
         end
         shard_name_hash
       end

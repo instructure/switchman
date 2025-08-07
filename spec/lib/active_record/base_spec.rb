@@ -348,6 +348,24 @@ module Switchman
           expect(User.shadow.to_a).to eq [user2]
           expect(User.non_shadow.to_a).to eq [user1]
         end
+
+        it "uses correct id bounds" do
+          user1 = User.create!(id: Shard::IDS_PER_SHARD)
+          user2 = User.create!(id: Shard::IDS_PER_SHARD - 1)
+
+          expect(User.shadow.to_a).to eq [user1]
+          expect(User.non_shadow.to_a).to eq [user2]
+        end
+
+        it "works on other columns" do
+          parent1 = User.create!
+          parent2 = User.create!(shard: @shard2)
+          child1 = User.create!(parent: parent1)
+          child2 = User.create!(parent: parent2)
+
+          expect(User.non_shadow(:parent_id).to_a).to eq [child1]
+          expect(User.shadow(:parent_id).to_a).to eq [child2]
+        end
       end
 
       describe ".unscoped" do

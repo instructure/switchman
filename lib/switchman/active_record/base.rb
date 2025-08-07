@@ -145,7 +145,7 @@ module Switchman
         klass.singleton_class.prepend(ClassMethods)
         klass.singleton_class.prepend(Switchman::ActiveRecord::Relation::InsertUpsertAll) if ::Rails.version < "7.2"
         klass.scope :non_shadow, lambda { |key = primary_key|
-                                   where(key => (QueryMethods::NonTransposingValue.new(0)..
+                                   where(key => (QueryMethods::NonTransposingValue.new(0)...
                                                  QueryMethods::NonTransposingValue.new(Shard::IDS_PER_SHARD)))
                                  }
         klass.scope :shadow, lambda { |key = primary_key|

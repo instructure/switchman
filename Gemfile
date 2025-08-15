@@ -10,7 +10,7 @@ Plugin.send(:load_plugin, "bundler-multilock")
 gemspec
 
 lockfile "activerecord-7.0" do
-  gem "activerecord", "~> 7.0.0"
+  gem "activerecord", "~> 7.2.2", ">= 7.2.2.2"
   gem "railties", "~> 7.0.0"
   if RUBY_VERSION >= "3.4.0"
     gem "base64", "~> 0.2.0"
@@ -22,11 +22,11 @@ lockfile "activerecord-7.0" do
 end
 
 lockfile "activerecord-7.1" do
-  gem "activerecord", "~> 7.1.0"
+  gem "activerecord", "~> 7.2.2", ">= 7.2.2.2"
   gem "railties", "~> 7.1.0"
 end
 
 lockfile do
-  gem "activerecord", "~> 7.2.0"
+  gem "activerecord", "~> 7.2.2", ">= 7.2.2.2"
   gem "railties", "~> 7.2.0"
 end

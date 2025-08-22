@@ -89,7 +89,11 @@ module Switchman
       private
 
       def current_shard
-        connection_class.current_switchman_shard
+        if ::Rails.version < "8.0"
+          connection_class.current_switchman_shard
+        else
+          connection_descriptor.name.constantize.current_switchman_shard
+        end
       end
 
       def tls_key

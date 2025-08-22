@@ -23,10 +23,10 @@ Gem::Specification.new do |s|
 
   s.required_ruby_version = ">= 3.2"
 
-  s.add_dependency "activerecord", ">= 7.1", "< 7.3"
-  s.add_dependency "guardrail", "~> 3.0.1"
+  s.add_dependency "activerecord", ">= 7.1", "< 8.1"
+  s.add_dependency "guardrail", "~> 3.1.0"
   s.add_dependency "parallel", "~> 1.22"
-  s.add_dependency "railties", ">= 7.1", "< 7.3"
+  s.add_dependency "railties", ">= 7.1", "< 8.1"
 
   s.add_development_dependency "debug", "~> 1.8"
   s.add_development_dependency "pg", "~> 1.2"

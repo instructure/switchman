@@ -95,7 +95,7 @@ module Switchman
             opts[:group_columns].each do |aliaz, _type, group_column_name|
               if opts[:associated] && (aliaz == opts[:group_aliases].first)
                 row[aliaz] = key_records[Shard.relative_id_for(row[aliaz], shard, target_shard)]
-              elsif group_column_name && @klass.sharded_column?(group_column_name)
+              elsif group_column_name && klass.sharded_column?(group_column_name)
                 row[aliaz] = Shard.relative_id_for(row[aliaz], shard, target_shard)
               end
             end

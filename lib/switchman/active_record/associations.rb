@@ -23,7 +23,7 @@ module Switchman
       end
 
       module CollectionAssociation
-        def find_target
+        def find_target(async: false)
           shards = if reflection.options[:multishard] && owner.respond_to?(:associated_shards)
                      owner.associated_shards
                    else
@@ -38,6 +38,8 @@ module Switchman
               # otherwise, the super call will set the shard_value to the object, causing it to iterate too many times
               # over the associated shards
               scope.shard(Shard.current(scope.klass.connection_class_for_self), :association).to_a
+            elsif ::Rails.version < "8.0"
+              super()
             else
               super
             end

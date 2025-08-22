@@ -21,7 +21,7 @@ pipeline {
           }
           axis {
             name 'LOCKFILE'
-            values 'activerecord-7.1', 'Gemfile.lock'
+            values 'activerecord-7.1', 'activerecord-7.2', 'Gemfile.lock'
           }
         }
         stages {

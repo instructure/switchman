@@ -161,10 +161,7 @@ module Switchman
       def grouped_calculation_options(operation, column_name, distinct)
         opts = { operation:, column_name:, distinct: }
 
-        # Rails 7.0.5
-        if defined?(::ActiveRecord::Calculations::ColumnAliasTracker)
-          column_alias_tracker = ::ActiveRecord::Calculations::ColumnAliasTracker.new(connection)
-        end
+        column_alias_tracker = ::ActiveRecord::Calculations::ColumnAliasTracker.new(connection)
 
         opts[:aggregate_alias] = aggregate_alias_for(operation, column_name, column_alias_tracker)
         group_attrs = group_values
@@ -179,11 +176,7 @@ module Switchman
 
         group_aliases = group_fields.map do |field|
           field = connection.visitor.compile(field) if ::Arel.arel_node?(field)
-          if column_alias_tracker
-            column_alias_tracker.alias_for(field.to_s.downcase)
-          else
-            column_alias_for(field.to_s.downcase)
-          end
+          column_alias_tracker.alias_for(field.to_s.downcase)
         end
         group_columns = group_aliases.zip(group_fields).map do |aliaz, field|
           [aliaz, type_for(field), column_name_for(field)]
@@ -202,10 +195,8 @@ module Switchman
           "count_all"
         elsif operation == "average"
           "average"
-        elsif column_alias_tracker
-          column_alias_tracker.alias_for("#{operation} #{column_name}")
         else
-          column_alias_for("#{operation} #{column_name}")
+          column_alias_tracker.alias_for("#{operation} #{column_name}")
         end
       end
 

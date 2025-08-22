@@ -55,13 +55,13 @@ module Switchman
           raise if connection.open_transactions.positive?
         end
 
-        def define_cached_method(owner, name, namespace:, as:, &block)
+        def define_cached_method(owner, name, namespace:, as:, &)
           if ::Rails.version < "7.1.4"
             # https://github.com/rails/rails/commit/a2a12fc2e3f4e6d06f81d4c74c88f8e6b3369ee6#diff-5b59ece6d9396b596f06271cec0ea726e3360911383511c49b1a66f454bfc2b6L30
             # These arguments were effectively swapped in Rails 7.1.4, so previous versions need them reversed
-            owner.define_cached_method(as, namespace:, as: name, &block)
+            owner.define_cached_method(as, namespace:, as: name, &)
           else
-            owner.define_cached_method(name, namespace:, as:, &block)
+            owner.define_cached_method(name, namespace:, as:, &)
           end
         end
 

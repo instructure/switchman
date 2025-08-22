@@ -2,10 +2,10 @@ PATH
   remote: .
   specs:
     switchman (4.1.1)
-      activerecord (>= 7.0, < 7.3)
+      activerecord (>= 7.1, < 7.3)
       guardrail (~> 3.0.1)
       parallel (~> 1.22)
-      railties (>= 7.0, < 7.3)
+      railties (>= 7.1, < 7.3)
 
 GEM
   remote: http://rubygems.org/

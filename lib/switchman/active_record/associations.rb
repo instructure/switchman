@@ -251,8 +251,8 @@ module Switchman
           self.shard_source_value = :association
         end
 
-        def shard(*args)
-          scope.shard(*args)
+        def shard(*)
+          scope.shard(*)
         end
       end
 

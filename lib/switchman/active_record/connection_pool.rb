@@ -3,25 +3,6 @@
 module Switchman
   module ActiveRecord
     module ConnectionPool
-      if ::Rails.version < "7.1"
-        def get_schema_cache(connection)
-          self.schema_cache ||= SharedSchemaCache.get_schema_cache(connection)
-          self.schema_cache.connection = connection
-
-          self.schema_cache
-        end
-
-        # rubocop:disable Naming/AccessorMethodName -- override method
-        def set_schema_cache(cache)
-          schema_cache = get_schema_cache(cache.connection)
-
-          cache.instance_variables.each do |x|
-            schema_cache.instance_variable_set(x, cache.instance_variable_get(x))
-          end
-        end
-        # rubocop:enable Naming/AccessorMethodName -- override method
-      end
-
       def default_schema
         connection_method = (::Rails.version < "7.2") ? :connection : :lease_connection
         send(connection_method) unless @schemas

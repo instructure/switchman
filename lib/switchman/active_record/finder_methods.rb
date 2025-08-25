@@ -42,56 +42,32 @@ module Switchman
         primary_shard.activate { super }
       end
 
-      if ::Rails.version < "7.1"
-        def exists?(conditions = :none)
-          conditions = conditions.id if ::ActiveRecord::Base === conditions
-          return false unless conditions
+      def exists?(conditions = :none)
+        return false if @none
 
+        if Base === conditions
+          raise ArgumentError, <<-TEXT.squish
+            You are passing an instance of ActiveRecord::Base to `exists?`.
+            Please pass the id of the object by calling `.id`.
+          TEXT
+        end
+
+        return false if !conditions || limit_value == 0 # rubocop:disable Style/NumericPredicate
+
+        if eager_loading?
           relation = apply_join_dependency(eager_loading: false)
-          return false if ::ActiveRecord::NullRelation === relation
-
-          relation = relation.except(:select, :order).select("1 AS one").limit(1)
-
-          case conditions
-          when Array, Hash
-            relation = relation.where(conditions)
-          else
-            relation = relation.where(table[primary_key].eq(conditions)) if conditions != :none
-          end
-
-          relation.activate do |shard_rel|
-            return true if connection.select_value(shard_rel.arel, "#{name} Exists")
-          end
-          false
+          return relation.exists?(conditions)
         end
-      else
-        def exists?(conditions = :none)
-          return false if @none
 
-          if Base === conditions
-            raise ArgumentError, <<-TEXT.squish
-              You are passing an instance of ActiveRecord::Base to `exists?`.
-              Please pass the id of the object by calling `.id`.
-            TEXT
+        relation = construct_relation_for_exists(conditions)
+        return false if relation.where_clause.contradiction?
+
+        relation.activate do |shard_rel|
+          return true if skip_query_cache_if_necessary do
+            connection.select_rows(shard_rel.arel, "#{name} Exists?").size == 1
           end
-
-          return false if !conditions || limit_value == 0 # rubocop:disable Style/NumericPredicate
-
-          if eager_loading?
-            relation = apply_join_dependency(eager_loading: false)
-            return relation.exists?(conditions)
-          end
-
-          relation = construct_relation_for_exists(conditions)
-          return false if relation.where_clause.contradiction?
-
-          relation.activate do |shard_rel|
-            return true if skip_query_cache_if_necessary do
-                             connection.select_rows(shard_rel.arel, "#{name} Exists?").size == 1
-                           end
-          end
-          false
         end
+        false
       end
     end
   end

@@ -29,11 +29,7 @@ module Switchman
         db_name_hash = Zlib.crc32(Shard.current.name)
         shard_name_hash = ::ActiveRecord::Migrator::MIGRATOR_SALT * db_name_hash
         # Store in internalmetadata to allow other tools to be able to lock out migrations
-        if ::Rails.version < "7.1"
-          ::ActiveRecord::InternalMetadata[:migrator_advisory_lock_id] = shard_name_hash.to_s
-        else
-          @internal_metadata[:migrator_advisory_lock_id] = shard_name_hash.to_s
-        end
+        @internal_metadata[:migrator_advisory_lock_id] = shard_name_hash.to_s
         shard_name_hash
       end
 
@@ -51,26 +47,14 @@ module Switchman
 
     module MigrationContext
       def migrate(...)
-        connection = ::ActiveRecord::Base.connection
         schema_cache_holder = ::ActiveRecord::Base.connection_pool
-        schema_cache_holder = schema_cache_holder.schema_reflection if ::Rails.version >= "7.1"
-        previous_schema_cache = if ::Rails.version < "7.1"
-                                  schema_cache_holder.get_schema_cache(connection)
-                                else
-                                  schema_cache_holder.instance_variable_get(:@cache)
-                                end
+        schema_cache_holder = schema_cache_holder.schema_reflection
+        previous_schema_cache = schema_cache_holder.instance_variable_get(:@cache)
 
-        if ::Rails.version < "7.1"
-          temporary_schema_cache = ::ActiveRecord::ConnectionAdapters::SchemaCache.new(connection)
+        schema_cache_holder.instance_variable_get(:@cache)
 
-          reset_column_information
-          schema_cache_holder.set_schema_cache(temporary_schema_cache)
-        else
-          schema_cache_holder.instance_variable_get(:@cache)
-
-          reset_column_information
-          schema_cache_holder.clear!
-        end
+        reset_column_information
+        schema_cache_holder.clear!
 
         begin
           super

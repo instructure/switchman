@@ -127,7 +127,7 @@ module Switchman
           expect(relation.shard([Shard.default, @shard1]).to_a).to eq []
         end
 
-        it "doesn't munge a CTE expression's table name", if: ::Rails.version >= "7.1" do
+        it "doesn't munge a CTE expression's table name" do
           relation = User.with(cte_table: User.where(id: @user1)).from("cte_table").select("cte_table.*")
           expect(relation.to_a).to eq [@user1]
         end
@@ -185,9 +185,8 @@ module Switchman
 
         it "removes the non-pertinent primary keys when transposing for to_a" do
           relation = User.where(id: [@user1, @user2])
-          method_name = (::Rails.version < "7.1") ? :exec_query : :internal_exec_query
-          original_method = User.connection.method(method_name)
-          expect(User.connection).to receive(method_name).twice do |sql, type, binds|
+          original_method = User.connection.method(:internal_exec_query)
+          expect(User.connection).to receive(:internal_exec_query).twice do |sql, type, binds|
             if Shard.current.default?
               expect(binds.map(&:value_before_type_cast)).to eq [@user1.id]
             else

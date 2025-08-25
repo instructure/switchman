@@ -145,11 +145,7 @@ module Switchman
           end
         end
 
-        if ::Rails.version < "7.1"
-          ::ActiveRecord::Base.clear_all_connections!(nil)
-        else
-          ::ActiveRecord::Base.connection_handler.clear_all_connections!(:all)
-        end
+        ::ActiveRecord::Base.connection_handler.clear_all_connections!(:all)
         expect(::ActiveRecord::Base.connection_pool).not_to be_connected
         @shard1.activate do
           expect(::ActiveRecord::Base.connection_pool).not_to be_connected
@@ -201,11 +197,7 @@ module Switchman
           end
         end
 
-        if ::Rails.version < "7.1"
-          ::ActiveRecord::Base.clear_active_connections!
-        else
-          ::ActiveRecord::Base.connection_handler.clear_active_connections!(:all)
-        end
+        ::ActiveRecord::Base.connection_handler.clear_active_connections!(:all)
         expect(actual_connection_count).to eq 0
         @shard1.activate do
           expect(actual_connection_count).to eq 0
@@ -225,11 +217,7 @@ module Switchman
       end
 
       it "does not establish connections when switching environments" do
-        if ::Rails.version < "7.1"
-          ::ActiveRecord::Base.clear_all_connections!(nil)
-        else
-          ::ActiveRecord::Base.connection_handler.clear_all_connections!(:all)
-        end
+        ::ActiveRecord::Base.connection_handler.clear_all_connections!(:all)
         expect(::ActiveRecord::Base.connection_pool).not_to be_connected
         ::GuardRail.activate(:secondary) {}
         expect(::ActiveRecord::Base.connection_pool).not_to be_connected

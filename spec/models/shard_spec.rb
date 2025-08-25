@@ -578,11 +578,7 @@ module Switchman
         ensure
           allow_any_instance_of(::ActiveRecord::ConnectionAdapters::ConnectionPool)
             .to receive(:checkout).and_call_original
-          if ::Rails.version < "7.1"
-            shard.activate { ::ActiveRecord::Base.clear_active_connections! }
-          else
-            shard.activate { ::ActiveRecord::Base.connection_handler.clear_active_connections!(:all) }
-          end
+          shard.activate { ::ActiveRecord::Base.connection_handler.clear_active_connections!(:all) }
         end
       end
     end

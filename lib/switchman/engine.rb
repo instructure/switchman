@@ -4,8 +4,6 @@ module Switchman
   class Engine < ::Rails::Engine
     isolate_namespace Switchman
 
-    # enable Rails 6.1 style connection handling
-    config.active_record.legacy_connection_handling = false if ::Rails.version < "7.1"
     config.active_record.writing_role = :primary
 
     ::GuardRail.singleton_class.prepend(GuardRail::ClassMethods)
@@ -47,9 +45,7 @@ module Switchman
           ActiveRecord::Associations::Preloader::Association::LoaderRecords
         )
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::AbstractAdapter)
-        unless ::Rails.version < "7.1"
-          ::ActiveRecord::ConnectionAdapters::ConnectionHandler.prepend(ActiveRecord::ConnectionHandler)
-        end
+        ::ActiveRecord::ConnectionAdapters::ConnectionHandler.prepend(ActiveRecord::ConnectionHandler)
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.prepend(ActiveRecord::ConnectionPool)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::QueryCache)
         ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(ActiveRecord::PostgreSQLAdapter)

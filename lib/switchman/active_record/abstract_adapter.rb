@@ -27,12 +27,6 @@ module Switchman
         quote_table_name(name)
       end
 
-      if ::Rails.version < "7.1"
-        def schema_migration
-          ::ActiveRecord::SchemaMigration
-        end
-      end
-
       protected
 
       def log(...)

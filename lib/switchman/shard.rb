@@ -216,11 +216,7 @@ module Switchman
           # clear connections prior to forking (no more queries will be executed in the parent,
           # and we want them gone so that we don't accidentally use them post-fork doing something
           # silly like dealloc'ing prepared statements)
-          if ::Rails.version < "7.1"
-            ::ActiveRecord::Base.clear_all_connections!(nil)
-          else
-            ::ActiveRecord::Base.connection_handler.clear_all_connections!(:all)
-          end
+          ::ActiveRecord::Base.connection_handler.clear_all_connections!(:all)
 
           parent_process_name = sanitized_process_title
           ret = ::Parallel.map(scopes, in_processes: (scopes.length > 1) ? parallel : 0) do |server, subscope|

@@ -53,11 +53,7 @@ module Switchman
         end
 
         def clear_query_caches_for_current_thread
-          pools = if ::Rails.version < "7.1"
-                    ::ActiveRecord::Base.connection_handler.connection_pool_list
-                  else
-                    ::ActiveRecord::Base.connection_handler.connection_pool_list(:all)
-                  end
+          pools = ::ActiveRecord::Base.connection_handler.connection_pool_list(:all)
           pools.each do |pool|
             if ::Rails.version < "7.2"
               pool.connection(switch_shard: false).clear_query_cache if pool.active_connection?

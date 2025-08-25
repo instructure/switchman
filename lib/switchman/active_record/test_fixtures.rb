@@ -15,17 +15,13 @@ module Switchman
           # Code adapted from the code in rails proper
           @connection_subscriber =
             ::ActiveSupport::Notifications.subscribe("!connection.active_record") do |_, _, _, _, payload|
-              spec_name = if ::Rails.version < "7.1"
-                            payload[:spec_name] if payload.key?(:spec_name)
-                          elsif payload.key?(:connection_name)
-                            payload[:connection_name]
-                          end
+              spec_name = (payload[:connection_name] if payload.key?(:connection_name))
               shard = payload[:shard] if payload.key?(:shard)
 
               if spec_name && !FORBIDDEN_DB_ENVS.include?(shard)
                 begin
                   connection = ::ActiveRecord::Base.connection_handler.retrieve_connection(spec_name, shard: shard)
-                  connection.connect! if ::Rails.version >= "7.1" # eagerly validate the connection
+                  connection.connect! # eagerly validate the connection
                 rescue ::ActiveRecord::ConnectionNotEstablished
                   connection = nil
                 end

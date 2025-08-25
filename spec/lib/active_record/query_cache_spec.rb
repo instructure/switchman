@@ -60,8 +60,7 @@ module Switchman
           User.first
 
           count = 0
-          query_method = (::Rails.version < "7.1") ? :exec_query : :internal_exec_query
-          allow(User.connection).to receive(query_method).and_wrap_original do |original, *args, **kwargs|
+          allow(User.connection).to receive(:internal_exec_query).and_wrap_original do |original, *args, **kwargs|
             count += 1
             original.call(*args, **kwargs)
           end

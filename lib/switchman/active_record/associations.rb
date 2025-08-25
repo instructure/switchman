@@ -259,72 +259,54 @@ module Switchman
       end
 
       module AutosaveAssociation
-        if ::Rails.version < "7.1"
-          def association_foreign_key_changed?(reflection, record, key)
-            return false if reflection.through_reflection?
+        def association_foreign_key_changed?(reflection, record, key)
+          return false if reflection.through_reflection?
 
-            # have to use send instead of _read_attribute because sharding
-            record.has_attribute?(reflection.foreign_key) && record.send(reflection.foreign_key) != key
-          end
+          foreign_key = Array(reflection.foreign_key)
+          return false unless foreign_key.all? { |k| record._has_attribute?(k) }
 
-          def save_belongs_to_association(reflection)
-            # this seems counter-intuitive, but the autosave code will assign to attribute bypassing switchman,
-            # after reading the id attribute _without_ bypassing switchman. So we need Shard.current for the
-            # category of the associated record to match Shard.current for the category of self
-            shard.activate(connection_class_for_self_for_reflection(reflection)) { super }
-          end
-        else
-          def association_foreign_key_changed?(reflection, record, key)
-            return false if reflection.through_reflection?
+          # have to use send instead of _read_attribute because sharding
+          foreign_key.map { |k| record.send(k) } != Array(key)
+        end
 
+        def save_belongs_to_association(reflection)
+          association = association_instance_get(reflection.name)
+          return unless association&.loaded? && !association.stale_target?
+
+          record = association.load_target
+          return unless record && !record.destroyed?
+
+          autosave = reflection.options[:autosave]
+
+          if autosave && record.marked_for_destruction?
             foreign_key = Array(reflection.foreign_key)
-            return false unless foreign_key.all? { |k| record._has_attribute?(k) }
+            foreign_key.each { |key| self[key] = nil }
+            record.destroy
+          elsif autosave != false
+            saved = record.save(validate: !autosave) if record.new_record? || (autosave && record.changed_for_autosave?)
 
-            # have to use send instead of _read_attribute because sharding
-            foreign_key.map { |k| record.send(k) } != Array(key)
-          end
-
-          def save_belongs_to_association(reflection)
-            association = association_instance_get(reflection.name)
-            return unless association&.loaded? && !association.stale_target?
-
-            record = association.load_target
-            return unless record && !record.destroyed?
-
-            autosave = reflection.options[:autosave]
-
-            if autosave && record.marked_for_destruction?
+            if association.updated?
+              primary_key = Array(compute_primary_key(reflection, record)).map(&:to_s)
               foreign_key = Array(reflection.foreign_key)
-              foreign_key.each { |key| self[key] = nil }
-              record.destroy
-            elsif autosave != false
-              if record.new_record? || (autosave && record.changed_for_autosave?)
-                saved = record.save(validate: !autosave)
+
+              primary_key_foreign_key_pairs = primary_key.zip(foreign_key)
+              primary_key_foreign_key_pairs.each do |pk, fk|
+                # Notable change: add relative_id_for here
+                association_id = if record.class.sharded_column?(pk)
+                                   Shard.relative_id_for(
+                                     record._read_attribute(pk),
+                                     record.shard,
+                                     shard
+                                   )
+                                 else
+                                   record._read_attribute(pk)
+                                 end
+                self[fk] = association_id unless self[fk] == association_id
               end
-
-              if association.updated?
-                primary_key = Array(compute_primary_key(reflection, record)).map(&:to_s)
-                foreign_key = Array(reflection.foreign_key)
-
-                primary_key_foreign_key_pairs = primary_key.zip(foreign_key)
-                primary_key_foreign_key_pairs.each do |pk, fk|
-                  # Notable change: add relative_id_for here
-                  association_id = if record.class.sharded_column?(pk)
-                                     Shard.relative_id_for(
-                                       record._read_attribute(pk),
-                                       record.shard,
-                                       shard
-                                     )
-                                   else
-                                     record._read_attribute(pk)
-                                   end
-                  self[fk] = association_id unless self[fk] == association_id
-                end
-                association.loaded!
-              end
-
-              saved if autosave
+              association.loaded!
             end
+
+            saved if autosave
           end
         end
       end

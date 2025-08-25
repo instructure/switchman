@@ -7,24 +7,16 @@ module Switchman
     describe Migrator do
       describe "#with_advisory_lock_connection" do
         include RSpecHelper
-        if ::Rails.version < "7.1"
-          let(:migrator) do
-            ::ActiveRecord::Migrator.new(:up,
-                                         [],
-                                         ::ActiveRecord::SchemaMigration)
-          end
-        else
-          connection = if ::Rails.version < "7.2"
-                         ::ActiveRecord::Base.connection
-                       else
-                         ::ActiveRecord::Base.connection.pool
-                       end
-          let(:migrator) do
-            ::ActiveRecord::Migrator.new(:up,
-                                         [],
-                                         ::ActiveRecord::SchemaMigration.new(connection),
-                                         ::ActiveRecord::InternalMetadata.new(connection))
-          end
+        connection = if ::Rails.version < "7.2"
+                       ::ActiveRecord::Base.connection
+                     else
+                       ::ActiveRecord::Base.connection.pool
+                     end
+        let(:migrator) do
+          ::ActiveRecord::Migrator.new(:up,
+                                       [],
+                                       ::ActiveRecord::SchemaMigration.new(connection),
+                                       ::ActiveRecord::InternalMetadata.new(connection))
         end
 
         it "hits the same db as the shard we're using" do

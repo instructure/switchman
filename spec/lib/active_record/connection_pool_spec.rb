@@ -31,59 +31,6 @@ module Switchman
         end
       end
 
-      describe "*_schema_cache", if: ::Rails.version < "7.1" do
-        before do
-          @server = DatabaseServer.create(Shard.default.database_server.config)
-          @shard = @server.shards.create!
-          @p1 = @shard.activate do
-            User.connection_pool.get_schema_cache(User.connection)
-            User.connection_pool
-          end
-
-          User.connection_pool.get_schema_cache(User.connection)
-          @p2 = User.connection_pool
-        end
-
-        it "shares the same schema cache across all connection pools" do
-          expect(@p1).not_to be(@p2)
-          expect(@p1.schema_cache).to be(@p2.schema_cache)
-        end
-
-        it "replaces the shared schema cache with the new version" do
-          connection = ::ActiveRecord::Base.connection
-          new_schema_cache = ::ActiveRecord::ConnectionAdapters::SchemaCache.new(connection)
-          new_schema_cache.connection = connection
-
-          expect(new_schema_cache.size).not_to eq(@p1.schema_cache.size) # sanity check
-
-          @p1.set_schema_cache(new_schema_cache)
-
-          expect(@p1.schema_cache).to be(@p2.schema_cache)
-          expect(@p1.schema_cache.size).to eq(@p2.schema_cache.size)
-        end
-
-        it "uses the shared schema cache if not already set" do
-          p3 = DatabaseServer.create(Shard.default.database_server.config).shards.create!.activate do
-            User.connection_pool
-          end
-
-          connection = ::ActiveRecord::Base.connection
-          new_schema_cache = ::ActiveRecord::ConnectionAdapters::SchemaCache.new(connection)
-          new_schema_cache.connection = connection
-          new_schema_cache.columns("users")
-
-          # sanity check
-          expect(p3.schema_cache).to be_nil
-          expect(new_schema_cache.size).not_to eq(@p2.schema_cache)
-
-          @p1.set_schema_cache(new_schema_cache)
-
-          expect(@p1.schema_cache).to be(@p2.schema_cache)
-          expect(@p1.schema_cache.size).to eq(new_schema_cache.size)
-          expect(@p2.schema_cache.size).to eq(new_schema_cache.size)
-        end
-      end
-
       describe "release_connection" do
         before do
           @server = DatabaseServer.create(Shard.default.database_server.config)

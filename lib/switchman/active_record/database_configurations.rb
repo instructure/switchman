@@ -7,26 +7,14 @@ module Switchman
       # since all should point to the same data, even if multiple are writable
       # (Picks 'primary' since it is guaranteed to exist and switchman handles activating
       # deploy through other means)
-      if ::Rails.version < "7.1"
-        def configs_for(include_replicas: false, name: nil, **)
-          res = super
-          if name && !include_replicas
-            return nil unless name.end_with?("primary")
-          elsif !include_replicas
-            return res.select { |config| config.name.end_with?("primary") }
-          end
-          res
+      def configs_for(include_hidden: false, name: nil, **)
+        res = super
+        if name && !include_hidden
+          return nil unless name.end_with?("primary")
+        elsif !include_hidden
+          return res.select { |config| config.name.end_with?("primary") }
         end
-      else
-        def configs_for(include_hidden: false, name: nil, **)
-          res = super
-          if name && !include_hidden
-            return nil unless name.end_with?("primary")
-          elsif !include_hidden
-            return res.select { |config| config.name.end_with?("primary") }
-          end
-          res
-        end
+        res
       end
 
       private

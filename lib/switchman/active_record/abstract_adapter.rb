@@ -19,8 +19,16 @@ module Switchman
 
       def initialize(*args)
         super
-        @instrumenter = Switchman::ShardedInstrumenter.new(@instrumenter, self)
+
+        @instrumenter = Switchman::ShardedInstrumenter.new(@instrumenter, self) if ::Rails.version < "8.0"
+
         @last_query_at = Time.now
+      end
+
+      if ::Rails.version >= "8.0"
+        def instrumenter # :nodoc:
+          @instrumenter ||= Switchman::ShardedInstrumenter.new(::ActiveSupport::Notifications.instrumenter, self)
+        end
       end
 
       def quote_local_table_name(name)

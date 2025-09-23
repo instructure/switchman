@@ -11,15 +11,15 @@ gemspec
 
 lockfile "activerecord-7.1" do
   gem "activerecord", "~> 7.1.0"
-  gem "railties", "~> 7.1.0"
+  gem "railties", "~> 8.0.3"
 end
 
 lockfile "activerecord-7.2" do
   gem "activerecord", "~> 7.2.0"
-  gem "railties", "~> 7.2.0"
+  gem "railties", "~> 8.0.3"
 end
 
 lockfile do
   gem "activerecord", "~> 8.0.0"
-  gem "railties", "~> 8.0.0"
+  gem "railties", "~> 8.0.3"
 end

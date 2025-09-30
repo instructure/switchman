@@ -7,6 +7,7 @@ module Switchman
     describe Migrator do
       describe "#with_advisory_lock_connection" do
         include RSpecHelper
+
         connection = if ::Rails.version < "7.2"
                        ::ActiveRecord::Base.connection
                      else

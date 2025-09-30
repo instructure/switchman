@@ -22,7 +22,7 @@ module Switchman
         payload[:shard] = {
           database_server_id: shard.database_server.id,
           id: shard.id,
-          env: env
+          env:
         }
       end
       super

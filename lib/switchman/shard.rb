@@ -204,7 +204,7 @@ module Switchman
             database_servers = scope.reorder("database_server_id").select(:database_server_id).distinct
                                     .filter_map(&:database_server).uniq
             # nothing to do
-            return if database_servers.count.zero?
+            return if database_servers.none?
 
             scopes = database_servers.to_h do |server|
               [server, scope.merge(server.shards)]

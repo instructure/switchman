@@ -27,16 +27,4 @@ Gem::Specification.new do |s|
   s.add_dependency "guardrail", "~> 3.1.0"
   s.add_dependency "parallel", "~> 1.22"
   s.add_dependency "railties", ">= 7.1", "< 8.1"
-
-  s.add_development_dependency "debug", "~> 1.8"
-  s.add_development_dependency "pg", "~> 1.2"
-  s.add_development_dependency "rake", "~> 13.0"
-  s.add_development_dependency "rspec-mocks", "~> 3.5"
-  s.add_development_dependency "rspec-rails", "~> 6.0"
-  s.add_development_dependency "rubocop", "~> 1.10"
-  s.add_development_dependency "rubocop-inst",  "~> 1"
-  s.add_development_dependency "rubocop-rake",  "~> 0.5"
-  s.add_development_dependency "rubocop-rspec", "~> 3.0"
-  s.add_development_dependency "rubocop-rspec_rails", "~> 2.29"
-  s.add_development_dependency "simplecov", "~> 0.15"
 end

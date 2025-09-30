@@ -20,7 +20,7 @@ module Switchman
 
               if spec_name && !FORBIDDEN_DB_ENVS.include?(shard)
                 begin
-                  connection = ::ActiveRecord::Base.connection_handler.retrieve_connection(spec_name, shard: shard)
+                  connection = ::ActiveRecord::Base.connection_handler.retrieve_connection(spec_name, shard:)
                   connection.connect! # eagerly validate the connection
                 rescue ::ActiveRecord::ConnectionNotEstablished
                   connection = nil
@@ -70,7 +70,7 @@ module Switchman
 
             # INST: filter by FORBIDDEN_DB_ENVS
             if connection_name && !FORBIDDEN_DB_ENVS.include?(shard)
-              pool = ::ActiveRecord::Base.connection_handler.retrieve_connection_pool(connection_name, shard: shard)
+              pool = ::ActiveRecord::Base.connection_handler.retrieve_connection_pool(connection_name, shard:)
               if pool
                 setup_shared_connection_pool
 

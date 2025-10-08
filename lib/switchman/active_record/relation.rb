@@ -163,7 +163,7 @@ module Switchman
         end
       end
 
-      def activate(unordered: false, &block)
+      def activate(count: false, unordered: false, &block)
         shards = all_shards
         if Array === shards && shards.length == 1
           if !loaded? && shard_value != shards.first
@@ -189,7 +189,13 @@ module Switchman
 
             shard_results = relation.activate(&block)
 
-            if shard_results.present? && !unordered
+            if shard_results.present? && count
+              unless shard_results.is_a?(Integer)
+                raise "expected integer result for count, got #{shard_results.class.name}"
+              end
+
+              result_count += shard_results
+            elsif shard_results.present? && !unordered
               can_order ||= can_order_cross_shard_results? unless order_values.empty?
               raise OrderOnMultiShardQuery if !can_order && !order_values.empty? && result_count.positive?
 

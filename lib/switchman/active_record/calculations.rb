@@ -31,7 +31,7 @@ module Switchman
         if operation == "average"
           result = calculate_simple_average(column_name, distinct)
         else
-          result = activate do |relation|
+          result = activate(count: operation == "count") do |relation|
             relation.call_super(:execute_simple_calculation, Calculations, operation, column_name, distinct)
           end
           if result.is_a?(Array)

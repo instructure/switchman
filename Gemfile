@@ -31,7 +31,7 @@ group :development, :test do
   gem "pg", "~> 1.2"
   gem "rake", "~> 13.0"
   gem "rspec-mocks", "~> 3.5"
-  gem "rspec-rails", "~> 7.0"
+  gem "rspec-rails", "~> 8.0", ">= 8.0.0"
   gem "rubocop", "~> 1.10"
   gem "rubocop-inst",  "~> 1"
   gem "rubocop-rake",  "~> 0.5"

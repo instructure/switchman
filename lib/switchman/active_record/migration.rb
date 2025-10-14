@@ -33,15 +33,8 @@ module Switchman
         shard_name_hash
       end
 
-      # significant change: strip out prefer_secondary from config
-      def with_advisory_lock_connection
-        pool = ::ActiveRecord::ConnectionAdapters::ConnectionHandler.new.establish_connection(
-          ::ActiveRecord::Base.connection_db_config.configuration_hash.except(:prefer_secondary)
-        )
-
-        pool.with_connection { |connection| yield(connection) } # rubocop:disable Style/ExplicitBlockArgument
-      ensure
-        pool&.disconnect!
+      def use_advisory_lock?
+        super && pending_migrations.any?
       end
     end
 

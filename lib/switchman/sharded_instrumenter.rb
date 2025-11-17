@@ -16,7 +16,7 @@ module Switchman
         env = if ::Rails.version < "8.0"
                 @shard_host.pool.connection_class&.current_role
               else
-                @shard_host.pool.connection_descriptor.name.constantize&.current_role
+                @shard_host.pool.connection_descriptor&.name&.constantize&.current_role
               end
 
         payload[:shard] = {

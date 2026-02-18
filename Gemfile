@@ -11,19 +11,19 @@ gemspec
 
 lockfile "activerecord-7.1" do
   gem "activerecord", "~> 7.1.0"
-  gem "railties", "~> 7.1.0"
+  gem "railties", "~> 8.0.4"
 end
 
 lockfile "activerecord-7.2" do
   gem "activerecord", "~> 7.2.0"
-  gem "rack", "~> 3.1.0"
-  gem "railties", "~> 7.2.0"
+  gem "rack", "~> 3.2.5"
+  gem "railties", "~> 8.0.4"
 end
 
 lockfile do
   gem "activerecord", "~> 8.0.0"
-  gem "rack", "~> 3.2"
-  gem "railties", "~> 8.0.0"
+  gem "rack", "~> 3.2", ">= 3.2.5"
+  gem "railties", "~> 8.0.4"
 end
 
 group :development, :test do
@@ -31,7 +31,7 @@ group :development, :test do
   gem "pg", "~> 1.2"
   gem "rake", "~> 13.0"
   gem "rspec-mocks", "~> 3.5"
-  gem "rspec-rails", "~> 7.0"
+  gem "rspec-rails", "~> 8.0", ">= 8.0.0"
   gem "rubocop", "~> 1.10"
   gem "rubocop-inst",  "~> 1"
   gem "rubocop-rake",  "~> 0.5"

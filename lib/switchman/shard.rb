@@ -242,7 +242,7 @@ module Switchman
             end
           end.flatten
 
-          errors = ret.select { |val| val.is_a?(Parallel::QuietExceptionWrapper) }
+          errors = ret.grep(Parallel::QuietExceptionWrapper)
           unless errors.empty?
             raise errors.first.exception if errors.length == 1
 
@@ -684,8 +684,8 @@ module Switchman
       if classes.empty?
         { ::ActiveRecord::Base => self }
       else
-        classes.each_with_object({}) do |klass, h|
-          h[klass] = self
+        classes.to_h do |klass|
+          [klass, self]
         end
       end
     end

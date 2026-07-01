@@ -311,6 +311,7 @@ module Switchman
           expect(User.connected?).to be true
         end
 
+        # rubocop:disable RSpec/Output -- https://github.com/rubocop/rubocop-rspec/issues/2199
         it "prefix output with the appropriate shard" do
           expect { puts "hello" }.to output("hello\n").to_stdout
           expect do
@@ -360,6 +361,7 @@ module Switchman
             end
           end.to output(/switchman_test_shard.+transformed log OUTPUT/m).to_stdout_from_any_process
         end
+        # rubocop:enable RSpec/Output
 
         it "handles undumpable results" do
           res = Shard.with_each_shard([Shard.default, @shard2], parallel: true) do
@@ -393,7 +395,7 @@ module Switchman
               User.connection.execute("die")
             end
           rescue => e
-            expect(e.message).to match(/die/)
+            expect(e.message).to include("die")
             expect(e.current_shard).to eq @shard2
             raised = true
           end

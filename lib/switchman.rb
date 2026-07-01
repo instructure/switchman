@@ -3,21 +3,21 @@
 require "guard_rail"
 require "zeitwerk"
 
-class SwitchmanInflector < Zeitwerk::GemInflector
-  def camelize(basename, abspath)
-    if basename =~ /\Apostgresql_(.*)/
-      "PostgreSQL" + super($1, abspath)
-    else
-      super
+module Switchman
+  class Inflector < Zeitwerk::GemInflector
+    def camelize(basename, abspath)
+      if basename =~ /\Apostgresql_(.*)/
+        "PostgreSQL" + super($1, abspath)
+      else
+        super
+      end
     end
   end
-end
 
-loader = Zeitwerk::Loader.for_gem
-loader.inflector = SwitchmanInflector.new(__FILE__)
-loader.setup
+  loader = Zeitwerk::Loader.for_gem
+  loader.inflector = Inflector.new(__FILE__)
+  loader.setup
 
-module Switchman
   Deprecation = ::ActiveSupport::Deprecation.new("4.0", "Switchman")
 
   class << self

@@ -15,7 +15,7 @@ lockfile "activerecord-7.1" do
 end
 
 lockfile "activerecord-7.2" do
-  gem "activerecord", "~> 7.2.0"
+  gem "activerecord", "7.2.3" # 7.2.3.1 won't allow minitest 6.0
   gem "rack", "~> 3.1.0"
   gem "railties", "~> 7.2.0"
 end

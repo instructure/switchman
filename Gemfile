@@ -20,10 +20,16 @@ lockfile "activerecord-7.2" do
   gem "railties", "~> 7.2.0"
 end
 
-lockfile do
+lockfile "activerecord-8.0" do
   gem "activerecord", "~> 8.0.0"
   gem "rack", "~> 3.2"
   gem "railties", "~> 8.0.0"
+end
+
+lockfile do
+  gem "activerecord", "~> 8.1.0"
+  gem "rack", "~> 3.2"
+  gem "railties", "~> 8.1.0"
 end
 
 group :development, :test do

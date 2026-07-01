@@ -139,6 +139,32 @@ module Switchman
         self
       end
 
+      def build_where_clause(opts, rest = [])
+        opts = sanitize_forbidden_attributes(opts)
+
+        case opts
+        when String, Array
+          values = (Hash === rest.first) ? rest.first.values : rest
+
+          if shard_source_value != :explicit && values.grep(ActiveRecord::Relation).first
+            raise "Sub-queries are not allowed as simple substitutions; " \
+                  "please build your relation with more structured methods so that Switchman is able to introspect it."
+          end
+
+          super
+        when Hash, ::Arel::Nodes::Node
+          where_clause = super
+
+          predicates = where_clause.send(:predicates)
+          infer_shards_from_primary_key(predicates) if shard_source_value == :implicit && shard_value.is_a?(Shard)
+          predicates = transpose_predicates(predicates, nil, primary_shard)
+          where_clause.instance_variable_set(:@predicates, predicates)
+          where_clause
+        else
+          super
+        end
+      end
+
       private
 
       def infer_shards_from_primary_key(predicates)
@@ -235,32 +261,6 @@ module Switchman
         column = attribute.name
         attribute = attribute.relation if attribute.relation.is_a?(::Arel::Nodes::TableAlias)
         [attribute.relation, column]
-      end
-
-      def build_where_clause(opts, rest = [])
-        opts = sanitize_forbidden_attributes(opts)
-
-        case opts
-        when String, Array
-          values = (Hash === rest.first) ? rest.first.values : rest
-
-          if shard_source_value != :explicit && values.grep(ActiveRecord::Relation).first
-            raise "Sub-queries are not allowed as simple substitutions; " \
-                  "please build your relation with more structured methods so that Switchman is able to introspect it."
-          end
-
-          super
-        when Hash, ::Arel::Nodes::Node
-          where_clause = super
-
-          predicates = where_clause.send(:predicates)
-          infer_shards_from_primary_key(predicates) if shard_source_value == :implicit && shard_value.is_a?(Shard)
-          predicates = transpose_predicates(predicates, nil, primary_shard)
-          where_clause.instance_variable_set(:@predicates, predicates)
-          where_clause
-        else
-          super
-        end
       end
 
       def arel_column(columns)

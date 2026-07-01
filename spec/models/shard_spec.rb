@@ -568,7 +568,8 @@ module Switchman
           run_callbacks: nil,
           _run_checkin_callbacks: nil,
           owner: Thread.current,
-          lock: Mutex.new
+          lock: Mutex.new,
+          expire: nil
         )
         expect(connection).to receive(:current_schemas).once.and_return(%w[canvas public])
         allow(connection).to receive(:shard=).with(shard)

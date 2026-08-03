@@ -137,6 +137,27 @@ module Switchman
         end
       end
 
+      describe "shard" do
+        it "stays put for a class that declares its own :initialize callback" do
+          klass = Class.new(User) do
+            def self.name = "UserWithInitializeCallback"
+            after_initialize { nil }
+          end
+          user = @shard1.activate { klass.create! }
+          expect(@shard2.activate { user.shard }).to eq @shard1
+        end
+
+        it "assigns the shard before any :initialize callback runs, however registered" do
+          observed = :never_ran
+          klass = Class.new(User) do
+            def self.name = "UserObservingShardInCallback"
+          end
+          klass.set_callback(:initialize, :after) { observed = shard }
+          @shard1.activate { klass.new(id: @shard2.global_id_for(1)) }
+          expect(observed).to eq @shard2
+        end
+      end
+
       describe "shard=" do
         it "adjusts foreign ids when shard is changed" do
           user = User.create!

@@ -1,7 +1,7 @@
 PATH
-  remote: ..
+  remote: .
   specs:
-    switchman (4.3.0)
+    switchman (4.3.1)
       activerecord (>= 7.1, < 8.2)
       guardrail (~> 3.1.0)
       parallel (>= 1.22, < 3.0)
@@ -200,10 +200,6 @@ GEM
       lint_roller (~> 1.1)
       rubocop (~> 1.72, >= 1.72.1)
       rubocop-rspec (~> 3.5)
-    ruby-lsp (0.26.9)
-      language_server-protocol (~> 3.17.0)
-      prism (>= 1.2, < 2.0)
-      rbs (>= 3, < 5)
     ruby-progressbar (1.13.0)
     securerandom (0.4.1)
     simplecov (0.22.0)
@@ -242,7 +238,6 @@ DEPENDENCIES
   rubocop-rake (~> 0.5)
   rubocop-rspec (~> 3.0)
   rubocop-rspec_rails (~> 2.29)
-  ruby-lsp (>= 0.18.0)
   simplecov (~> 0.15)
   switchman!
 

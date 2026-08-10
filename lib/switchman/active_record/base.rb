@@ -135,6 +135,18 @@ module Switchman
 
           Shard.default
         end
+
+        def inherited(subclass)
+          super
+          subclass.prepend(InitializeShard)
+        end
+      end
+
+      module InitializeShard
+        def _run_initialize_callbacks(&)
+          switchman_assign_shard
+          super
+        end
       end
 
       def self.prepended(klass)
@@ -147,7 +159,7 @@ module Switchman
         klass.scope :shadow, lambda { |key = primary_key|
                                where(key => QueryMethods::NonTransposingValue.new(Shard::IDS_PER_SHARD)..)
                              }
-        klass.set_callback(:initialize, :before, :switchman_assign_shard)
+        klass.descendants.each { |d| d.prepend(InitializeShard) }
       end
 
       def readonly!
@@ -319,15 +331,15 @@ module Switchman
       private
 
       def switchman_assign_shard
-        unless @shard && @loaded_from_shard
-          active_shard = Shard.current(self.class.connection_class_for_self)
-          @shard ||= if self.class.sharded_primary_key?
-                       Shard.shard_for(self[self.class.primary_key], active_shard)
-                     else
-                       active_shard
-                     end
-          @loaded_from_shard ||= active_shard
-        end
+        return if @shard && @loaded_from_shard
+
+        active_shard = Shard.current(self.class.connection_class_for_self)
+        @shard ||= if self.class.sharded_primary_key?
+                     Shard.shard_for(self[self.class.primary_key], active_shard)
+                   else
+                     active_shard
+                   end
+        @loaded_from_shard ||= active_shard
 
         return unless shadow_record? && !Switchman.config[:writable_shadow_records]
 

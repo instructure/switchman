@@ -156,6 +156,17 @@ module Switchman
           @shard1.activate { klass.new(id: @shard2.global_id_for(1)) }
           expect(observed).to eq @shard2
         end
+
+        it "assigns the shard even if a model resets its :initialize callbacks" do
+          klass = Class.new(User) do
+            def self.name = "UserWithoutInitializeCallbacks"
+          end
+          klass.reset_callbacks(:initialize)
+          # The global id matters: with a local id, #shard falls back to Shard.current and
+          # reports the right answer even when the assignment never happened.
+          record = @shard1.activate { klass.new(id: @shard2.global_id_for(1)) }
+          expect(record.shard).to eq @shard2
+        end
       end
 
       describe "shard=" do

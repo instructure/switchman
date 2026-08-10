@@ -135,6 +135,26 @@ module Switchman
 
           Shard.default
         end
+
+        def inherited(subclass)
+          super
+          # Unconditionally, not "unless it's already an ancestor": a subclass can shadow
+          # a copy it inherited, so every class needs its own.
+          subclass.prepend(InitializeShard)
+        end
+      end
+
+      # Assigning the shard has to happen outside the callback system. It's infrastructure,
+      # not a side effect an application can reasonably opt out of, and a callback here is
+      # suspendable, skippable and resettable. Overriding _run_initialize_callbacks on
+      # ActiveRecord::Base alone isn't enough either: since Rails 8.1 ActiveSupport aliases
+      # that method onto a class as it gains its first :initialize callback, and a method on
+      # the class beats anything we prepend onto its superclass. So prepend to each model.
+      module InitializeShard
+        def _run_initialize_callbacks(&)
+          switchman_assign_shard
+          super
+        end
       end
 
       def self.prepended(klass)
@@ -147,7 +167,10 @@ module Switchman
         klass.scope :shadow, lambda { |key = primary_key|
                                where(key => QueryMethods::NonTransposingValue.new(Shard::IDS_PER_SHARD)..)
                              }
-        klass.set_callback(:initialize, :before, :switchman_assign_shard)
+        # ActiveRecord::Base itself is never instantiated, so it doesn't need the module --
+        # only its subclasses, via #inherited above and this walk in case anything somehow
+        # loaded first.
+        klass.descendants.each { |d| d.prepend(InitializeShard) }
       end
 
       def readonly!
@@ -319,15 +342,19 @@ module Switchman
       private
 
       def switchman_assign_shard
-        unless @shard && @loaded_from_shard
-          active_shard = Shard.current(self.class.connection_class_for_self)
-          @shard ||= if self.class.sharded_primary_key?
-                       Shard.shard_for(self[self.class.primary_key], active_shard)
-                     else
-                       active_shard
-                     end
-          @loaded_from_shard ||= active_shard
-        end
+        # InitializeShard is prepended per class, so this runs once per level of the
+        # inheritance chain; later passes would recompute the same answer. It also fires
+        # on dup, where both ivars are copied from the original -- safe because
+        # initialize_dup resets the primary key first, so shadow_record? is false anyway.
+        return if @shard && @loaded_from_shard
+
+        active_shard = Shard.current(self.class.connection_class_for_self)
+        @shard ||= if self.class.sharded_primary_key?
+                     Shard.shard_for(self[self.class.primary_key], active_shard)
+                   else
+                     active_shard
+                   end
+        @loaded_from_shard ||= active_shard
 
         return unless shadow_record? && !Switchman.config[:writable_shadow_records]
 

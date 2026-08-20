@@ -213,6 +213,55 @@ module Switchman
         # exact same object, since it was already in the cache
         expect(new_shard2).to equal old_shard2
       end
+
+      context "with shard_ids" do
+        it "only caches the requested shards" do
+          Shard.clear_cache
+          Shard.preload_cache(shard_ids: [@shard1.id])
+          expect(Shard.send(:cached_shards).keys).to eq [@shard1.id]
+
+          expect(Shard).not_to receive(:find_by)
+          expect(Shard.lookup(@shard1.id)).to eq @shard1
+        end
+
+        it "treats an empty array as a no-op" do
+          Shard.clear_cache
+          expect(Shard).not_to receive(:where)
+          Shard.preload_cache(shard_ids: [])
+          expect(Shard.send(:cached_shards)).to be_empty
+        end
+
+        it "does not re-query shards that are already cached" do
+          Shard.clear_cache
+          old_shard1 = Shard.lookup(@shard1.id)
+
+          expect(Shard).not_to receive(:where)
+          Shard.preload_cache(shard_ids: [@shard1.id])
+          # exact same object, since it was already in the cache
+          expect(Shard.lookup(@shard1.id)).to equal old_shard1
+        end
+
+        it "only queries for the shards that are missing from the cache" do
+          Shard.clear_cache
+          Shard.preload_cache(shard_ids: [@shard1.id])
+
+          expect(Shard).to receive(:where).with(id: [@shard2.id]).and_call_original
+          Shard.preload_cache(shard_ids: [@shard1.id, @shard2.id])
+          expect(Shard.send(:cached_shards).keys).to match_array [@shard1.id, @shard2.id]
+        end
+
+        it "caches the non-existence of unknown shards" do
+          bogus_id = (Shard.maximum(:id) || 0) + 1_000
+          Shard.clear_cache
+          Shard.preload_cache(shard_ids: [bogus_id])
+          expect(Shard.send(:cached_shards)).to eq({ bogus_id => nil })
+
+          expect(Shard).not_to receive(:find_by)
+          expect(Shard).not_to receive(:where)
+          expect(Shard.lookup(bogus_id)).to be_nil
+          Shard.preload_cache(shard_ids: [bogus_id])
+        end
+      end
     end
 
     describe ".find_cached" do

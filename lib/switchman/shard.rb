@@ -149,9 +149,18 @@ module Switchman
         cached_shards[id]
       end
 
-      def preload_cache
-        cached_shards.reverse_merge!(active_shards.values.index_by(&:id))
-        cached_shards.reverse_merge!(all.index_by(&:id))
+      def preload_cache(shard_ids: nil)
+        if shard_ids
+          missing = shard_ids - cached_shards.keys
+          return if missing.empty?
+
+          found = where(id: missing).index_by(&:id)
+          missing.each { |id| found[id] = nil unless found.key?(id) } # cache nonexistence of shards
+          cached_shards.reverse_merge!(found)
+        else
+          cached_shards.reverse_merge!(active_shards.values.index_by(&:id))
+          cached_shards.reverse_merge!(all.index_by(&:id))
+        end
       end
 
       def clear_cache

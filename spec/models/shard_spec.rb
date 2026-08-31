@@ -214,6 +214,15 @@ module Switchman
         expect(new_shard2).to equal old_shard2
       end
 
+      it "excludes shards that reference non-existent database servers" do
+        broken_shard = Shard.create!(database_server_id: "nonexistent")
+        Shard.clear_cache
+
+        Shard.preload_cache
+        expect(Shard.send(:cached_shards).keys).to include @shard1.id
+        expect(Shard.send(:cached_shards).keys).not_to include broken_shard.id
+      end
+
       context "with shard_ids" do
         it "only caches the requested shards" do
           Shard.clear_cache
@@ -260,6 +269,17 @@ module Switchman
           expect(Shard).not_to receive(:where)
           expect(Shard.lookup(bogus_id)).to be_nil
           Shard.preload_cache(shard_ids: [bogus_id])
+        end
+
+        it "caches shards with no database_server as nonexistent" do
+          broken_shard = Shard.create!(database_server_id: "nonexistent")
+          Shard.clear_cache
+          Shard.preload_cache(shard_ids: [broken_shard.id])
+          expect(Shard.send(:cached_shards)).to eq({ broken_shard.id => nil })
+
+          expect(Shard).not_to receive(:find_by)
+          expect(Shard).not_to receive(:where)
+          expect(Shard.lookup(broken_shard.id)).to be_nil
         end
       end
     end

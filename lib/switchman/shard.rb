@@ -154,12 +154,12 @@ module Switchman
           missing = shard_ids - cached_shards.keys
           return if missing.empty?
 
-          found = where(id: missing).index_by(&:id)
+          found = where(id: missing).select(&:database_server).index_by(&:id) # exclude shards w/o database servers
           missing.each { |id| found[id] = nil unless found.key?(id) } # cache nonexistence of shards
           cached_shards.reverse_merge!(found)
         else
           cached_shards.reverse_merge!(active_shards.values.index_by(&:id))
-          cached_shards.reverse_merge!(all.index_by(&:id))
+          cached_shards.reverse_merge!(all.select(&:database_server).index_by(&:id))
         end
       end
 

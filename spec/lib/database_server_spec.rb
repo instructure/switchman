@@ -198,5 +198,63 @@ module Switchman
         expect(Shard.default.database_server.primary_shard).to eq Shard.default
       end
     end
+
+    describe "#primary_shard_id" do
+      include RSpecHelper
+
+      let(:cache) { ::ActiveSupport::Cache::MemoryStore.new }
+      let(:db) { DatabaseServer.create(Shard.default.database_server.config) }
+      let!(:primary) { db.shards.create! }
+
+      around do |example|
+        original_cache = Switchman.instance_variable_get(:@cache)
+        Switchman.cache = cache
+        example.run
+      ensure
+        Switchman.cache = original_cache
+      end
+
+      def cache_key(server)
+        ["db_server_primary_shard_id", server.id]
+      end
+
+      it "caches the primary shard id, so other objects don't have to query for it" do
+        expect(db.primary_shard_id).to be primary.id
+        expect(cache.read(cache_key(db))).to be primary.id
+
+        fresh = DatabaseServer.new(db.id, db.config)
+        expect(fresh).not_to receive(:shards)
+        expect(fresh.primary_shard_id).to be primary.id
+      end
+
+      it "caches the absence of a primary shard" do
+        primary.destroy
+        expect(DatabaseServer.new(db.id, db.config).primary_shard_id).to be_nil
+
+        fresh = DatabaseServer.new(db.id, db.config)
+        expect(fresh).not_to receive(:shards)
+        expect(fresh.primary_shard_id).to be_nil
+      end
+
+      it "uses the default shard's cache" do
+        other_cache = ::ActiveSupport::Cache::MemoryStore.new
+        Switchman.cache = -> { (Shard.current == Shard.default) ? cache : other_cache }
+
+        @shard2.activate do
+          expect(db.primary_shard_id).to be primary.id
+        end
+        expect(cache.read(cache_key(db))).to be primary.id
+        expect(other_cache.read(cache_key(db))).to be_nil
+      end
+
+      it "doesn't cache the default database server, since sharding may not be set up yet" do
+        server = Shard.default.database_server
+        server.remove_instance_variable(:@primary_shard_id) if server.instance_variable_defined?(:@primary_shard_id)
+
+        expect(server).not_to receive(:shards)
+        expect(server.primary_shard_id).to be Shard.default.id
+        expect(cache.exist?(cache_key(server))).to be false
+      end
+    end
   end
 end

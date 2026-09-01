@@ -277,6 +277,50 @@ module Switchman
       end
     end
 
+    describe "#clear_cache" do
+      let(:cache) { ::ActiveSupport::Cache::MemoryStore.new }
+      let(:db) { DatabaseServer.create(Shard.default.database_server.config) }
+      let(:key) { ["db_server_primary_shard_id", db.id] }
+
+      around do |example|
+        original_cache = Switchman.instance_variable_get(:@cache)
+        Switchman.cache = cache
+        example.run
+      ensure
+        Switchman.cache = original_cache
+      end
+
+      it "clears the cached primary shard id whenever a server's primary shard changes" do
+        expect(db.primary_shard_id).to be_nil
+        expect(cache.exist?(key)).to be true
+
+        shard = db.shards.create! # gaining a primary shard
+        expect(cache.exist?(key)).to be false
+
+        cache.write(key, shard.id)
+        shard.update!(name: "no_longer_the_primary") # losing it again
+        expect(cache.exist?(key)).to be false
+
+        cache.write(key, nil)
+        shard.update!(name: nil) # and getting it back
+        expect(cache.exist?(key)).to be false
+
+        cache.write(key, shard.id)
+        shard.destroy
+        expect(cache.exist?(key)).to be false
+      end
+
+      it "leaves the cached primary shard id alone for other shards" do
+        primary = db.shards.create!
+        other = db.shards.create!(name: "some_other_shard")
+        expect(db.primary_shard_id).to be primary.id
+
+        expect(other).not_to receive(:default_name)
+        other.update!(name: "renamed")
+        expect(cache.read(key)).to be primary.id
+      end
+    end
+
     describe ".with_each_shard", if: !defined?(::DEBUGGER__::Session) do
       after do
         # The parallel option of with_each_shard explicitly calls clear_all_connections! and

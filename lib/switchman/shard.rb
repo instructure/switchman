@@ -681,6 +681,9 @@ module Switchman
       Shard.default.activate do
         Switchman.cache.delete(["shard", id].join("/"))
         Switchman.cache.delete("default_shard") if default?
+        if database_server && (self[:name].nil? || name_before_last_save.nil?)
+          Switchman.cache.delete(["db_server_primary_shard_id", database_server.id])
+        end
       end
       self.class.clear_cache
     end

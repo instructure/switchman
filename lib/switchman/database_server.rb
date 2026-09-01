@@ -306,9 +306,14 @@ module Switchman
 
     def primary_shard_id
       unless instance_variable_defined?(:@primary_shard_id)
-        # if sharding isn't fully set up yet, we may not be able to query the shards table
-        @primary_shard_id = Shard.default.id if Shard.default.database_server == self
-        @primary_shard_id ||= shards.where(name: nil).first&.id
+        @primary_shard_id = Shard.default.activate do
+          Switchman.cache.fetch(["db_server_primary_shard_id", id]) do
+            # if sharding isn't fully set up yet, we may not be able to query the shards table
+            break Shard.default.id if Shard.default.database_server == self
+
+            shards.where(name: nil).first&.id
+          end
+        end
       end
       @primary_shard_id
     end

@@ -2,7 +2,7 @@
 
 namespace :coverage do
   desc "Aggregate coverage across ruby/rails versions"
-  task :report do
+  task :report do # rubocop:disable Rails/RakeEnvironment
     require "simplecov"
 
     SimpleCov.collate Dir["coverage/*/coverage/.resultset.json"] do

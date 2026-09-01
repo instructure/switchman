@@ -20,9 +20,7 @@ module Switchman
         @wrapper = wrapper
       end
 
-      def exception
-        @wrapper.exception
-      end
+      delegate :exception, to: :@wrapper
     end
 
     class UndumpableResult

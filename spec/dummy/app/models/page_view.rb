@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
-class PageView < ActiveRecord::Base
+class PageView < ApplicationRecord
   self.primary_key = "request_id"
 end

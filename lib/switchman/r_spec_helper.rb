@@ -17,6 +17,7 @@ module Switchman
       klass.parent_groups.any? { |group| group.included_modules.include?(self) }
     end
 
+    # rubocop:disable-next Rails/Output
     def self.included(klass)
       # our before handlers have already been configured from a parent group; don't add them again
       parent_group = klass.parent_groups[1]
@@ -85,7 +86,7 @@ module Switchman
             @@shard2.destroy
           end
           @@shard2.database_server.destroy
-          exit status if status
+          exit status if status # rubocop:disable Rails/Exit
         end
       end
 

@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
-class Face < ActiveRecord::Base
-  belongs_to :user, required: false
+class Face < ApplicationRecord
+  belongs_to :user, optional: true
 end

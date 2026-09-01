@@ -46,7 +46,7 @@ module Switchman
         return false if @none
 
         if Base === conditions
-          raise ArgumentError, <<-TEXT.squish
+          raise ArgumentError, <<~TEXT.squish
             You are passing an instance of ActiveRecord::Base to `exists?`.
             Please pass the id of the object by calling `.id`.
           TEXT

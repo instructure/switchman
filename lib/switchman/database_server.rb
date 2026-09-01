@@ -68,7 +68,7 @@ module Switchman
       end
 
       def database_servers
-        if !@database_servers || @database_servers.empty?
+        if @database_servers.blank?
           @database_servers = {}.with_indifferent_access
           roles = []
           ::ActiveRecord::Base.configurations.configurations.each do |config|

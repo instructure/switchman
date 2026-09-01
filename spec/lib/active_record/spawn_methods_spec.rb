@@ -15,9 +15,8 @@ module Switchman
         end
 
         it "merges shard_value relations for multiple explicits" do
-          result = User.shard(Shard.where("id IN (?)",
-                                          [@shard1,
-                                           @shard2])).merge(User.shard(Shard.where(id: [Shard.default, @shard1])))
+          result = User.shard(Shard.where("id IN (?)", [@shard1, @shard2])) # rubocop:disable Rails/WhereEquals
+                       .merge(User.shard(Shard.where(id: [Shard.default, @shard1])))
           expect(::ActiveRecord::Relation === result.shard_value).to be true
           expect(result.shard_value.to_a).to eq [@shard1]
           expect(result.shard_source_value).to eq :explicit

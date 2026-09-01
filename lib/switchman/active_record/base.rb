@@ -190,7 +190,7 @@ module Switchman
                                end
         end
         target_shard.activate do
-          self.class.upsert_all([shadow_attrs], unique_by: self.class.primary_key)
+          self.class.upsert_all([shadow_attrs], unique_by: self.class.primary_key) # rubocop:disable Rails/SkipsModelValidations
         end
       end
 
@@ -205,7 +205,7 @@ module Switchman
         Array(target_shards).each do |target_shard|
           next if target_shard == shard
 
-          target_shard.activate { self.class.where("id = ?", global_id).delete_all }
+          self.class.shard(target_shard).where(id: global_id).delete_all
         end
       end
 

@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
-class MirrorUniverse < ActiveRecord::Base
+class MirrorUniverse < ApplicationRecord
   sharded_model
 end

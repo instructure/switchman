@@ -360,7 +360,7 @@ module Switchman
       end
 
       it "allows serialized subqueries when you've explicitly set a shard" do
-        expect { User.shard(Shard.current).where("id IN (?)", User.all) }.not_to raise_error
+        expect { User.shard(Shard.current).where(id: User.all) }.not_to raise_error
       end
 
       it "transposes ids in sub-queries" do

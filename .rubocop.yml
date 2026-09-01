@@ -1,4 +1,5 @@
 plugins:
+  - rubocop-rails
   - rubocop-rake
   - rubocop-rspec_rails
 
@@ -17,6 +18,20 @@ Bundler/DuplicatedGem:
 
 Lint/EmptyBlock:
   Enabled: false
+
+Rails/DynamicFindBy:
+  Exclude:
+    - spec/**/*.rb
+Rails/FindBy:
+  Exclude:
+    - spec/**/*.rb
+Rails/HasManyOrHasOneDependent:
+  Enabled: false
+Rails/SkipsModelValidations:
+  Exclude:
+    - spec/**/*.rb
+Rails/WhereExists:
+  EnforcedStyle: where
 
 RSpec/AnyInstance:
   Enabled: false

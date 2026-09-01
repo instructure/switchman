@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
-class Feature < ActiveRecord::Base
-  belongs_to :owner, polymorphic: true, required: false
+class Feature < ApplicationRecord
+  belongs_to :owner, polymorphic: true, optional: true
 end

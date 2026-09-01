@@ -22,7 +22,7 @@ module Switchman
 
         @instrumenter = Switchman::ShardedInstrumenter.new(@instrumenter, self) if ::Rails.version < "8.0"
 
-        @last_query_at = Time.now
+        @last_query_at = Time.zone.now
       end
 
       if ::Rails.version >= "8.0"
@@ -40,7 +40,7 @@ module Switchman
       def log(...)
         super
       ensure
-        @last_query_at = Time.now
+        @last_query_at = Time.zone.now
       end
     end
   end

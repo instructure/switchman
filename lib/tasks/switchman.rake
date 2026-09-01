@@ -243,7 +243,7 @@ module Switchman
       scope = scope.where(positive_query, *conditions) unless positive_queries.empty?
 
       scope = scope.where("NOT (#{negative_ranges.join(" OR")})") unless negative_ranges.empty?
-      scope = scope.where("id NOT IN (?)", negative_shard_ids) unless negative_shard_ids.empty?
+      scope = scope.where.not(id: negative_shard_ids) unless negative_shard_ids.empty?
       scope
     end
 

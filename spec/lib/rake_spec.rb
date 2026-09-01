@@ -105,11 +105,11 @@ module Switchman
         end
 
         ::Rake::Task.define_task("log:test_output") do
-          puts "test output for #{Shard.current.id}" # rubocop:disable RSpec/Output
+          puts "test output for #{Shard.current.id}" # rubocop:disable Rails/Output, RSpec/Output
         end
 
         ::Rake::Task.define_task("log:test_failed") do
-          puts "test output for #{Shard.current.id}" # rubocop:disable RSpec/Output
+          puts "test output for #{Shard.current.id}" # rubocop:disable Rails/Output, RSpec/Output
           raise "failure message for #{Shard.current.id}"
         end
 

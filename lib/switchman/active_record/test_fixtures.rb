@@ -18,7 +18,7 @@ module Switchman
               spec_name = (payload[:connection_name] if payload.key?(:connection_name))
               shard = payload[:shard] if payload.key?(:shard)
 
-              if spec_name && !FORBIDDEN_DB_ENVS.include?(shard)
+              if spec_name && FORBIDDEN_DB_ENVS.exclude?(shard)
                 begin
                   connection = ::ActiveRecord::Base.connection_handler.retrieve_connection(spec_name, shard:)
                   connection.connect! # eagerly validate the connection
@@ -69,7 +69,7 @@ module Switchman
             shard = payload[:shard] if payload.key?(:shard)
 
             # INST: filter by FORBIDDEN_DB_ENVS
-            if connection_name && !FORBIDDEN_DB_ENVS.include?(shard)
+            if connection_name && FORBIDDEN_DB_ENVS.exclude?(shard)
               pool = ::ActiveRecord::Base.connection_handler.retrieve_connection_pool(connection_name, shard:)
               if pool
                 setup_shared_connection_pool

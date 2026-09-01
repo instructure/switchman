@@ -930,7 +930,7 @@ module Switchman
           expect(non_default).not_to be_nil
           expect(actual_default).not_to be_nil
           Shard.instance_variable_set(:@default, non_default)
-          allow(Shard).to receive(:where).with(default: true).and_return(double(take: actual_default))
+          allow(Shard).to receive(:find_by).with(default: true).and_return(actual_default)
           new_default = Shard.default(reload: true, with_fallback: true)
           expect(new_default).to eq(actual_default)
         end

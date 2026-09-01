@@ -5,10 +5,8 @@ module Switchman
     # ten trillion possible ids per shard. yup.
     IDS_PER_SHARD = 10_000_000_000_000
 
-    # rubocop:disable Style/SymbolProc -- transforming to a lambda produces "no receiver given"
     # only allow one default
     validates_uniqueness_of :default, if: ->(s) { s.default? }
-    # rubocop:enable Style/SymbolProc
 
     after_save :clear_cache
     after_destroy :clear_cache
@@ -79,7 +77,7 @@ module Switchman
 
           # Now find the actual record, if it exists
           @default = begin
-            find_cached("default_shard") { Shard.where(default: true).take } || default
+            find_cached("default_shard") { Shard.find_by(default: true) } || default
           rescue
             default
           end
@@ -215,8 +213,8 @@ module Switchman
             # nothing to do
             return if database_servers.none?
 
-            scopes = database_servers.to_h do |server|
-              [server, scope.merge(server.shards)]
+            scopes = database_servers.index_with do |server|
+              scope.merge(server.shards)
             end
           else
             scopes = scope.group_by(&:database_server)
@@ -665,9 +663,7 @@ module Switchman
     end
 
     # skip global_id.hash
-    def hash
-      id.hash
-    end
+    delegate :hash, to: :id
 
     def destroy
       raise("Cannot destroy the default shard") if default?
@@ -696,8 +692,8 @@ module Switchman
       if classes.empty?
         { ::ActiveRecord::Base => self }
       else
-        classes.to_h do |klass|
-          [klass, self]
+        classes.index_with do
+          self
         end
       end
     end

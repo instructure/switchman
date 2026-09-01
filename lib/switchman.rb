@@ -39,7 +39,7 @@ module Switchman
     def foreign_key_check(name, type, limit: nil)
       return unless name.to_s.end_with?("_id") && type.to_s == "integer" && limit.to_i < 8
 
-      puts <<~TEXT.squish
+      warn <<~TEXT.squish
         WARNING: All foreign keys need to be 8-byte integers.
         #{name} looks like a foreign key.
         If so, please add the option: `:limit => 8`

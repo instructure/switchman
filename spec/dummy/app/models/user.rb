@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class User < ActiveRecord::Base
+class User < ApplicationRecord
   scope :active, -> { all }
 
   has_many :appendages, multishard: true
@@ -10,17 +10,17 @@ class User < ActiveRecord::Base
 
   has_many :features, as: :owner, multishard: true
 
-  belongs_to :parent, class_name: "User", foreign_key: :parent_id, required: false
+  belongs_to :parent, class_name: "User", optional: true
   has_many :children, class_name: "User", inverse_of: :parent, foreign_key: :parent_id
   has_many :grandchildren, class_name: "User", through: :children, source: :children
 
   has_many :roots
 
-  belongs_to :mirror_user, required: false
+  belongs_to :mirror_user, optional: true
 
   has_one :face
 
-  has_many :arms, -> { where(type: "Arm") }, class_name: "Appendage"
+  has_many :arms, -> { where(type: "Arm") }, class_name: "Appendage", inverse_of: false
 
   after_save :ensure_shadow_record
 

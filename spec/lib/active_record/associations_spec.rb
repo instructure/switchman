@@ -19,7 +19,7 @@ module Switchman
       it "correctly associates unsharded objects with unsharded objects" do
         root = Root.create!(user: @user1)
         app = Application.create!(root:)
-        all_apps = Application.all.includes(:root).to_a
+        all_apps = Application.includes(:root).to_a
         expect(all_apps.length).to eq 1
         expect(all_apps[0].id).to eq(app.id)
         expect(all_apps[0].root.id).to eq(root.id)
@@ -28,7 +28,7 @@ module Switchman
       it "correctly associates unsharded objects with sharded objects" do
         root = Root.create!(user: @user1)
         users = @shard1.activate do
-          User.all.includes(:roots).to_a
+          User.includes(:roots).to_a
         end
         expect(users.length).to eq 1
         expect(users[0].id).to eq(@user1.id)

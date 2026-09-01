@@ -48,15 +48,6 @@ module Switchman
         ::ActiveRecord::ConnectionAdapters::ConnectionHandler.prepend(ActiveRecord::ConnectionHandler)
         ::ActiveRecord::ConnectionAdapters::ConnectionPool.prepend(ActiveRecord::ConnectionPool)
         ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(ActiveRecord::QueryCache)
-        ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(ActiveRecord::PostgreSQLAdapter)
-        # https://github.com/rails/rails/commit/0016280f4fde55d96738887093dc333aae0d107b
-        if ::Rails.version < "7.2"
-          ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(ActiveRecord::PostgreSQLAdapter::ClassMethods)
-        else
-          ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.singleton_class.prepend(
-            ActiveRecord::PostgreSQLAdapter::ClassMethods
-          )
-        end
 
         ::ActiveRecord::DatabaseConfigurations.prepend(ActiveRecord::DatabaseConfigurations)
         ::ActiveRecord::DatabaseConfigurations::DatabaseConfig.prepend(
@@ -93,8 +84,6 @@ module Switchman
 
         ::ActiveRecord::Tasks::DatabaseTasks.singleton_class.prepend(ActiveRecord::Tasks::DatabaseTasks)
 
-        ::ActiveRecord::TestFixtures.prepend(ActiveRecord::TestFixtures)
-
         ::ActiveRecord::TypeCaster::Map.include(ActiveRecord::TypeCaster::Map)
         ::ActiveRecord::TypeCaster::Connection.include(ActiveRecord::TypeCaster::Connection)
 
@@ -107,6 +96,19 @@ module Switchman
 
         ::ActiveRecord::ConnectionAdapters::TableDefinition.prepend(ActiveRecord::TableDefinition)
       end
+
+      ::ActiveSupport.on_load(:active_record_postgresqladapter) do
+        prepend ActiveRecord::PostgreSQLAdapter
+
+        # https://github.com/rails/rails/commit/0016280f4fde55d96738887093dc333aae0d107b
+        if ::Rails.version < "7.2"
+          prepend(ActiveRecord::PostgreSQLAdapter::ClassMethods)
+        else
+          singleton_class.prepend(ActiveRecord::PostgreSQLAdapter::ClassMethods)
+        end
+      end
+
+      ::ActiveSupport.on_load(:active_record_fixtures) { prepend ActiveRecord::TestFixtures }
       # Ensure that ActiveRecord::Base is always loaded before any app-level
       # initializers can go try to load Switchman::Shard or we get a loop
       ::ActiveRecord::Base
@@ -126,7 +128,7 @@ module Switchman
       # initialize_cache initializer, but for each value in the map, rather
       # than just Rails.cache. if config.cache_store is a flat value, uses it
       # to fill just the Rails.env entry in the cache map.
-      unless Switchman.config[:cache_map].present?
+      if Switchman.config[:cache_map].blank?
         cache_store_config = ::Rails.configuration.cache_store
         cache_store_config = { ::Rails.env => cache_store_config } unless cache_store_config.is_a?(Hash)
 
@@ -158,7 +160,7 @@ module Switchman
       ::Rails.singleton_class.prepend(Rails::ClassMethods)
 
       ::ActiveSupport.on_load(:action_controller) do
-        ::ActionController::Base.include(ActionController::Caching)
+        include ActionController::Caching
       end
     end
   end

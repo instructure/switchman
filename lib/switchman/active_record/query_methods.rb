@@ -5,9 +5,7 @@ module Switchman
     module QueryMethods
       # Use this class to prevent a value from getting transposed across shards
       class NonTransposingValue < SimpleDelegator
-        def class
-          __getobj__.class
-        end
+        delegate :class, to: :__getobj__
 
         def is_a?(other)
           return true if other == NonTransposingValue

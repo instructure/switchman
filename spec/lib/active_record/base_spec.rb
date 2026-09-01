@@ -343,14 +343,14 @@ module Switchman
 
         it "can be passed a single target shard" do
           expect { @user.destroy_shadow_records(target_shards: @shard1) }.to change {
-            @shard1.activate { User.where("id = ?", @user.global_id) }.count
+            User.shard(@shard1).where(id: @user).count
           }.from(1).to(0)
         end
 
         it "does not delete shadow records on shards not included" do
           @user.save_shadow_record(target_shard: @shard2)
           expect { @user.destroy_shadow_records(target_shards: @shard1) }.not_to change {
-            @shard2.activate { User.where("id = ?", @user.global_id) }.count
+            User.shard(@shard2).where(id: @user).count
           }.from(1)
         end
 
@@ -358,7 +358,7 @@ module Switchman
           @user.save_shadow_record(target_shard: @shard2)
           expect { @user.destroy_shadow_records(target_shards: [@shard1, @shard2]) }.to change {
             [@shard1, @shard2].reduce(0) do |count, shard|
-              count + shard.activate { User.where("id = ?", @user.global_id).count }
+              count + User.shard(shard).where(id: @user).count
             end
           }.from(2).to(0)
         end

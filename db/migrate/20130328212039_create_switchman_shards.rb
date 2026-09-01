@@ -2,7 +2,7 @@
 
 class CreateSwitchmanShards < ActiveRecord::Migration[4.2]
   def change
-    create_table :switchman_shards do |t|
+    create_table :switchman_shards do |t| # rubocop:disable Rails/CreateTableWithTimestamps -- added in a subsequent migration
       t.string :name
       t.string :database_server_id
       t.boolean :default, default: false, null: false

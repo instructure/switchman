@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-class Appendage < ActiveRecord::Base
-  belongs_to :user, required: false
+class Appendage < ApplicationRecord
+  belongs_to :user, optional: true
   has_many :digits
 
   has_many :features, as: :owner
 
   scope :has_no_value, -> { where(value: nil) }
-  scope :has_value, -> { where("appendages.value IS NOT NULL") }
+  scope :has_value, -> { where.not(appendages: { value: nil }) }
 
   attr_writer :should_test_scoping, :associated_shards
   attr_reader :all_appendages

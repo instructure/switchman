@@ -94,9 +94,7 @@ module Switchman
         end
       end
 
-      def quote_local_table_name(name)
-        self.class.quote_local_table_name(name)
-      end
+      delegate :quote_local_table_name, to: :class
 
       def quote_table_name(name)
         self.class.quote_table_name(name, shard: @use_local_table_name ? nil : shard)

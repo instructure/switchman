@@ -24,12 +24,11 @@ module Switchman
           store = super
           # must use the string name, otherwise it will try to auto-load the constant
           # and we don't want to require redis in this file (since it's not a hard dependency)
-          # rubocop:disable Style/ClassEqualityComparison
+          # rubocop:disable-next Style/ClassEqualityComparison
           if store.class.name == "ActiveSupport::Cache::RedisCacheStore" &&
              !(::ActiveSupport::Cache::RedisCacheStore <= RedisCacheStore)
             ::ActiveSupport::Cache::RedisCacheStore.prepend(RedisCacheStore)
           end
-          # rubocop:enable Style/ClassEqualityComparison
           store.options[:namespace] ||= -> { Shard.current.default? ? nil : "shard_#{Shard.current.id}" }
           store
         end

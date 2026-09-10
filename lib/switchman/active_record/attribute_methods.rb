@@ -27,6 +27,11 @@ module Switchman
 
         def define_attribute_methods
           result = super
+          # ActiveRecord::Core#init_internals calls this for every record it instantiates,
+          # and AR returns false once the methods have already been generated. Our class_evals
+          # below are just as redundant in that case, so don't pay for them per-record.
+          return result unless result
+
           # ensure that we're using the sharded attribute method
           # and not the silly one in AR::AttributeMethods::PrimaryKey
           return result unless sharded_column?(@primary_key)

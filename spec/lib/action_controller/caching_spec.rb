@@ -48,6 +48,12 @@ module Switchman
 
         it_behaves_like "sharded cache store"
       end
+
+      describe "ActionController::API" do
+        it "is not mixed in" do
+          expect(::ActionController::API.include?(Caching)).to be false
+        end
+      end
     end
   end
 end

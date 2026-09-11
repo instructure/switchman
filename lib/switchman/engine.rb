@@ -159,7 +159,9 @@ module Switchman
       ::Rails.cache = Switchman.config[:cache_map][::Rails.env]
       ::Rails.singleton_class.prepend(Rails::ClassMethods)
 
-      ::ActiveSupport.on_load(:action_controller) do
+      # :action_controller also fires for ActionController::API, which must not
+      # get our cache_store= override; Rails assigns to it during boot.
+      ::ActiveSupport.on_load(:action_controller_base) do
         include ActionController::Caching
       end
     end

@@ -95,6 +95,8 @@ module Switchman
         end
 
         ::ActiveRecord::ConnectionAdapters::TableDefinition.prepend(ActiveRecord::TableDefinition)
+
+        ::ActiveRecord::TestFixtures.prepend(ActiveRecord::TestFixtures) # rubocop:disable Rails/ActiveSupportOnLoad
       end
 
       ::ActiveSupport.on_load(:active_record_postgresqladapter) do
@@ -108,7 +110,6 @@ module Switchman
         end
       end
 
-      ::ActiveSupport.on_load(:active_record_fixtures) { prepend ActiveRecord::TestFixtures }
       # Ensure that ActiveRecord::Base is always loaded before any app-level
       # initializers can go try to load Switchman::Shard or we get a loop
       ::ActiveRecord::Base

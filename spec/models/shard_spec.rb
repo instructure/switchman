@@ -913,6 +913,87 @@ module Switchman
         expect(Shard.default(reload: true)).to be_a(Switchman::Shard)
       end
 
+      context "when the lookup fails" do
+        # ActiveRecord wraps driver errors, and the cause is the only thing that
+        # distinguishes an expected one from a bug
+        def statement_invalid(cause_class, message)
+          raise cause_class, message
+        rescue cause_class
+          raise ::ActiveRecord::StatementInvalid, "#{cause_class}: ERROR:  #{message}"
+        end
+
+        # runs before the enclosing after hook, which calls Shard.default again
+        after do
+          allow(Shard).to receive(:find_by).and_call_original
+          allow(Switchman).to receive(:cache).and_call_original
+        end
+
+        it "raises an unexpected error instead of silently disabling sharding" do
+          Switchman.cache.clear
+          allow(Shard).to receive(:find_by).with(default: true)
+                                           .and_raise(NoMethodError, "undefined method 'now' for nil")
+
+          expect { Shard.default(reload: true) }
+            .to raise_error(NoMethodError, /undefined method 'now' for nil/)
+        end
+
+        it "raises a query error that isn't part of setting up a database" do
+          Switchman.cache.clear
+          allow(Shard).to receive(:find_by).with(default: true) do
+            statement_invalid(::PG::InsufficientPrivilege, "permission denied for table switchman_shards")
+          end
+
+          expect { Shard.default(reload: true) }
+            .to raise_error(::ActiveRecord::StatementInvalid, /permission denied/)
+        end
+
+        it "falls back when the shards table doesn't exist yet" do
+          Switchman.cache.clear
+          allow(Shard).to receive(:find_by).with(default: true) do
+            statement_invalid(::PG::UndefinedTable, 'relation "switchman_shards" does not exist')
+          end
+
+          expect(Shard.default(reload: true)).to be(DefaultShard.instance)
+        end
+
+        it "falls back when the database doesn't exist yet" do
+          Switchman.cache.clear
+          allow(Shard).to receive(:find_by).with(default: true)
+                                           .and_raise(::ActiveRecord::NoDatabaseError,
+                                                      "Database not found: switchman_test")
+
+          expect(Shard.default(reload: true)).to be(DefaultShard.instance)
+        end
+
+        it "falls back when the database isn't reachable" do
+          Switchman.cache.clear
+          allow(Shard).to receive(:find_by).with(default: true)
+                                           .and_raise(::ActiveRecord::DatabaseConnectionError,
+                                                      "There is an issue connecting with your hostname")
+
+          expect(Shard.default(reload: true)).to be(DefaultShard.instance)
+        end
+
+        # ActiveRecord translates driver errors, except when its own retry logic
+        # trips over the closed connection while handling one
+        it "falls back on a bare PG error" do
+          Switchman.cache.clear
+          allow(Shard).to receive(:find_by).with(default: true)
+                                           .and_raise(PG::ConnectionBad, "connection is closed")
+
+          expect(Shard.default(reload: true)).to be(DefaultShard.instance)
+        end
+
+        # i.e. anything that asks for the default shard between
+        # active_record.initialize_database and switchman.initialize_cache
+        it "skips the lookup when there is no cache yet" do
+          allow(Switchman).to receive(:cache).and_return(nil)
+          allow(Shard).to receive(:find_by).with(default: true).and_raise("shouldn't have queried")
+
+          expect(Shard.default(reload: true)).to be(DefaultShard.instance)
+        end
+      end
+
       context "when using reload with_fallback" do
         after do
           # ensure we remove the cached default shard for other tests that run after this one
@@ -939,7 +1020,7 @@ module Switchman
           non_default = Shard.where(default: false).first
           Shard.instance_variable_set(:@default, non_default)
           Switchman.cache.clear
-          allow(Shard).to receive(:where).with(default: true).and_raise(PG::UnableToSend)
+          allow(Shard).to receive(:find_by).with(default: true).and_raise(PG::ConnectionBad, "connection is closed")
           new_default = Shard.default(reload: true, with_fallback: false)
           expect(new_default).to eq(DefaultShard.instance)
         end
@@ -948,7 +1029,7 @@ module Switchman
           non_default = Shard.where(default: false).first
           Shard.instance_variable_set(:@default, non_default)
           Switchman.cache.clear
-          allow(Shard).to receive(:where).with(default: true).and_raise(PG::UnableToSend)
+          allow(Shard).to receive(:find_by).with(default: true).and_raise(PG::ConnectionBad, "connection is closed")
           new_default = Shard.default(reload: true, with_fallback: true)
           expect(new_default).to eq(non_default)
         end

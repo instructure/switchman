@@ -76,11 +76,7 @@ module Switchman
           @default ||= default
 
           # Now find the actual record, if it exists
-          @default = begin
-            find_cached("default_shard") { Shard.find_by(default: true) } || default
-          rescue
-            default
-          end
+          @default = find_default_shard(default)
 
           # make sure this is not erroneously cached
           if @default.database_server.instance_variable_defined?(:@primary_shard)
@@ -444,6 +440,21 @@ module Switchman
       end
 
       private
+
+      def find_default_shard(fallback)
+        return fallback unless Switchman.cache
+
+        find_cached("default_shard") { Shard.find_by(default: true) } || fallback
+      rescue ::ActiveRecord::NoDatabaseError,
+             ::ActiveRecord::ConnectionNotEstablished,
+             ::ActiveRecord::ConnectionFailed,
+             ::PG::ConnectionBad
+        fallback
+      rescue ::ActiveRecord::StatementInvalid => e
+        raise unless e.cause.is_a?(::PG::UndefinedTable)
+
+        fallback
+      end
 
       def add_sharded_model(klass)
         @sharded_models = (sharded_models + [klass]).freeze

@@ -120,6 +120,12 @@ module Switchman
       end
     end
 
+    initializer "switchman.ensure_time_zone_loaded",
+                before: :initialize_cache,
+                after: "active_support.initialize_time_zone" do
+      # nothing; just ensures that Time.zone_default is set up before the following initializer
+    end
+
     initializer "switchman.initialize_cache", before: :initialize_cache, after: "active_record.initialize_database" do
       ::ActiveSupport::Cache.singleton_class.prepend(ActiveSupport::Cache::ClassMethods)
 

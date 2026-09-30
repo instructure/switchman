@@ -17,11 +17,11 @@ pipeline {
         axes {
           axis {
             name 'RUBY_VERSION'
-            values '3.2', '3.3', '3.4'
+            values '3.2', '3.3', '3.4', '4.0'
           }
           axis {
             name 'LOCKFILE'
-            values 'activerecord-7.1', 'activerecord-7.2', 'activerecord-8.0', 'Gemfile.lock'
+            values 'Gemfile.activerecord-7.1.lock', 'Gemfile.activerecord-7.2.lock', 'Gemfile.activerecord-8.0.lock', 'Gemfile.lock'
           }
         }
         stages {

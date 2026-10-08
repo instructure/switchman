@@ -2,25 +2,23 @@
 
 source "http://rubygems.org"
 
-plugin "bundler-multilock", "1.3.4"
-return unless Plugin.installed?("bundler-multilock")
-
-Plugin.send(:load_plugin, "bundler-multilock")
+plugin "bundler-multilock", "~> 2.0.0.beta7"
+return unless Plugin.loaded?("bundler-multilock")
 
 gemspec
 
-lockfile "activerecord-7.1" do
+lockfile "Gemfile.activerecord-7.1.lock" do
   gem "activerecord", "~> 7.1.0"
   gem "railties", "~> 7.1.0"
 end
 
-lockfile "activerecord-7.2" do
+lockfile "Gemfile.activerecord-7.2.lock" do
   gem "activerecord", "7.2.3" # 7.2.3.1 won't allow minitest 6.0
   gem "rack", "~> 3.1.0"
   gem "railties", "~> 7.2.0"
 end
 
-lockfile "activerecord-8.0" do
+lockfile "Gemfile.activerecord-8.0.lock" do
   gem "activerecord", "~> 8.0.0"
   gem "rack", "~> 3.2"
   gem "railties", "~> 8.0.0"

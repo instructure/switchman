@@ -409,6 +409,32 @@ module Switchman
         expect(User.from(User.quoted_table_name).select(:id).to_sql)
           .to eq %(SELECT "users"."id" FROM #{User.quoted_table_name})
       end
+
+      describe "plucking a table.column string from a joined table without a matching association name" do
+        around do |example|
+          connection = Appendage.connection
+          original_search_path = connection.schema_search_path
+          connection.schema_search_path = "''"
+          example.run
+        ensure
+          connection.schema_search_path = original_search_path
+        end
+
+        before do
+          Appendage.connection.schema_cache.clear!
+          stub_const("ColdFace", Class.new(ApplicationRecord) { self.table_name = "faces" })
+          stub_const("ColdAppendage", Class.new(ApplicationRecord) do
+            self.table_name = "appendages"
+            belongs_to :owner, class_name: "ColdFace", foreign_key: :user_id, optional: true
+          end)
+        end
+
+        it "loads the joined primary key with shard-qualified table names" do
+          @shard1.activate do
+            expect(ColdAppendage.joins(:owner).pluck("faces.id")).to eq []
+          end
+        end
+      end
     end
   end
 end

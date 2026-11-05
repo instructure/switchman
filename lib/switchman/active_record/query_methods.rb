@@ -265,6 +265,10 @@ module Switchman
         connection.with_local_table_name { super }
       end
 
+      def lookup_table_klass_from_join_dependencies(table_name)
+        connection.with_global_table_name { super }
+      end
+
       def table_name_matches?(from)
         if ::Rails.version < "7.2"
           connection.with_global_table_name { super }

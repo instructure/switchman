@@ -125,7 +125,7 @@ module Switchman
 
         columns = arel_columns([primary_key])
         base_shard = Shard.current(klass.connection_class_for_self)
-        activate do |r|
+        activate do |r, shard|
           relation = r.spawn
           relation.select_values = columns
 
@@ -138,7 +138,7 @@ module Switchman
                    end
 
           result.then do |res|
-            type_cast_pluck_values(res, columns).map { |id| Shard.relative_id_for(id, Shard.current, base_shard) }
+            type_cast_pluck_values(res, columns).map { |id| Shard.relative_id_for(id, shard, base_shard) }
           end
         end
       end

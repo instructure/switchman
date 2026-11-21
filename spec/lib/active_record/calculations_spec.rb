@@ -324,6 +324,18 @@ module Switchman
             expect(relation.ids).to match_array [@appendage1.id, @appendage2.id]
           end
         end
+
+        context "with a sharded model whose category is active on another shard" do
+          before do
+            @mirror_user = @shard1.activate(MirrorUniverse) { MirrorUser.create! }
+          end
+
+          it "returns ids relative to the model's current shard" do
+            @shard1.activate(MirrorUniverse) do
+              expect(MirrorUser.where(id: @mirror_user.id).ids).to eq [@mirror_user.id]
+            end
+          end
+        end
       end
     end
   end
